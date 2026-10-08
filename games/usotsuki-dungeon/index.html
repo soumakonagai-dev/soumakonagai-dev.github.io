@@ -1,0 +1,2586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>うそつきダンジョン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#b9b6a6; --bezel:#8e8b7c; --ink-page:#2b2a24; --hint:#4a483e;
+  --c0:#0f380f; --c1:#306230; --c2:#8bac0f; --c3:#9bbc0f;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --page:#1b1d18; --bezel:#2e3129; --ink-page:#cfd3c4; --hint:#9aa08c; }
+}
+:root[data-theme="dark"]{ --page:#1b1d18; --bezel:#2e3129; --ink-page:#cfd3c4; --hint:#9aa08c; }
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--page);color:var(--ink-page);
+  font-family:"DotGothic16","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  display:flex;flex-direction:column;align-items:center;overflow:hidden;
+}
+#stage{flex:1;width:100%;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px}
+#bezel{background:var(--bezel);padding:12px;border-radius:10px 10px 40px 10px}
+#frame{position:relative;width:480px;height:432px}
+#screen{position:absolute;top:0;left:0;width:480px;height:432px;transform-origin:0 0;background:var(--c3);color:var(--c0);overflow:hidden}
+.hint{font-size:13px;color:var(--hint);padding:0 12px 10px;text-align:center;line-height:1.6}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:3px dashed var(--c1);outline-offset:2px}
+.view{position:absolute;inset:0;display:flex;flex-direction:column}
+.view[hidden]{display:none}
+.topbar{height:26px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 10px;background:var(--c0);color:var(--c3);font-size:14px}
+.bottom{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:13px;background:var(--c0);color:var(--c3);margin-top:auto}
+.bbtn{background:var(--c3);color:var(--c0);border:0;padding:1px 10px;cursor:pointer;font-size:14px}
+.bbtn:disabled{opacity:.5;cursor:default}
+.bbtn.sel{outline:3px solid var(--c2)}
+
+/* title */
+#title{align-items:center;justify-content:center;text-align:center;gap:18px;cursor:pointer}
+.tt{font-size:56px;line-height:1.05;letter-spacing:2px}
+#ttLie{display:inline-block}
+.tagline{margin:0;font-size:16px;line-height:1.7}
+.press{margin:0;font-size:15px;animation:blink 1.2s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* battle */
+.enemyzone{height:168px;position:relative;border-bottom:3px solid var(--c0)}
+.ehead{height:26px;display:flex;align-items:center;gap:10px;padding:4px 12px 0;font-size:16px}
+.bar{display:inline-block;width:110px;height:10px;border:2px solid var(--c0);vertical-align:middle;margin-left:6px}
+#eHpBar{display:block;height:100%;background:var(--c1)}
+#eBlock{margin-left:auto}
+.spriteRow{position:relative;height:142px;display:flex;align-items:center;justify-content:center}
+#petBox{position:absolute;left:10px;top:8px;width:96px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;border:2px solid var(--c0);padding:3px;background:var(--c3)}
+#petBox[hidden]{display:none}
+#petBox canvas{width:48px;height:48px}
+#petBox .bar{width:80px;margin:0}
+#petBar{display:block;height:100%;background:var(--c1)}
+#petBox.down{opacity:.4}
+#petBox.guard{outline:3px solid var(--c1)}
+#petBox.bite{animation:bite .3s ease-out}
+@keyframes bite{0%{transform:none}40%{transform:translateX(30px) scale(1.1)}100%{transform:none}}
+#eStatus{font-size:12px;white-space:nowrap;color:#6a3fa0}
+#spriteWrap{width:96px;height:96px;transition:transform .2s}
+canvas.spr{image-rendering:pixelated;display:block}
+#sprite{width:96px;height:96px}
+#spriteWrap.pose-atk{transform:translateY(14px) scale(1.18)}
+#spriteWrap.pose-def{transform:translateY(14px) scaleY(.78) scaleX(1.06)}
+#spriteWrap.pose-buff{transform:translateY(-12px) scale(1.06)}
+#spriteWrap.pose-curse{animation:wob .5s steps(2) infinite}
+@keyframes wob{0%{transform:rotate(-7deg)}100%{transform:rotate(7deg)}}
+#sprite.hit{animation:hit .3s steps(2) 1}
+@keyframes hit{0%,100%{opacity:1}50%{opacity:0}}
+#intent{position:absolute;left:calc(50% + 70px);top:18px;border:3px solid var(--c0);background:var(--c3);padding:2px 8px;font-size:19px;min-width:72px;text-align:center}
+#log{height:36px;padding:2px 12px;font-size:12.5px;line-height:1.3;border-bottom:3px solid var(--c0);overflow:hidden}
+.pstat{height:30px;display:flex;align-items:center;gap:16px;padding:0 12px;font-size:16px}
+.pstat b{font-weight:normal;font-size:19px}
+.pips{display:inline-flex;gap:3px;margin-left:4px;vertical-align:middle}
+.pip{width:11px;height:11px;border:2px solid var(--c0)}
+.pip.on{background:var(--c0)}
+#energy{margin-left:auto}
+#hand{height:144px;display:flex;justify-content:center;align-items:flex-end;gap:6px;padding:0 8px 6px}
+
+/* cards */
+.card{
+  position:relative;width:86px;height:132px;flex:none;background:var(--c3);
+  border:3px solid var(--c0);border-radius:4px;padding:6px 4px 4px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;overflow:hidden;
+  transition:transform .12s;text-align:center
+}
+.card .cost{position:absolute;top:-3px;left:-3px;width:22px;height:22px;background:var(--c0);color:var(--c3);display:grid;place-items:center;font-size:15px;border-radius:3px 0 6px 0}
+.card .nm{font-size:16px;line-height:1.15;padding-left:14px;white-space:nowrap}
+.card .art{width:100%;max-width:54px;aspect-ratio:20/12;image-rendering:pixelated;display:block;flex:none;border:2px solid var(--c0)}
+.card .type{width:100%;font-size:11px;line-height:14px;flex:none}
+.card.atk .type{background:var(--c0);color:var(--c3)}
+.card.skl .type{background:var(--c2);color:var(--c0);outline:1px solid var(--c0)}
+.card.pow .type{background:var(--c1);color:var(--c3)}
+.card.pow{border-style:double;border-width:4px}
+.card .desc{font-size:12px;line-height:1.3}
+.card.sel{transform:translateY(-9px);box-shadow:0 5px 0 var(--c1)}
+.card.cant{opacity:.5}
+.glitch{transform:translateX(2px);text-shadow:-2px 0 var(--c1)}
+
+/* map */
+.mh{margin:12px 0 0;text-align:center;font-size:20px}
+#hist{display:flex;justify-content:center;gap:4px;margin:10px 0 0}
+.hn{width:26px;height:26px;border:2px solid var(--c0);display:grid;place-items:center;font-size:14px}
+.hn.liar{background:var(--c0);color:var(--c3)}
+.hn.now{border-style:dashed}
+.hn.future{border-color:var(--c1);opacity:.5}
+#mapChoices{flex:1;display:flex;justify-content:center;align-items:center;gap:14px;padding:0 12px}
+.node{width:132px;height:196px;background:var(--c3);border:3px solid var(--c0);border-radius:4px;cursor:pointer;padding:10px 8px;transition:transform .12s}
+.node.sel{transform:translateY(-8px);box-shadow:0 6px 0 var(--c1)}
+.ni{display:flex;flex-direction:column;align-items:center;gap:8px;height:100%}
+.ng{width:64px;height:64px;border:3px solid var(--c0);display:grid;place-items:center;font-size:38px}
+.nl{font-size:19px}
+.nd{font-size:13px;line-height:1.4}
+
+/* shop */
+.shopHead{height:96px;display:flex;align-items:center;gap:14px;padding:6px 16px;border-bottom:3px solid var(--c0)}
+#shopSprite{width:80px;height:80px;flex:none}
+#shopMsg{font-size:15px;line-height:1.5;border:3px solid var(--c0);padding:6px 10px;flex:1;min-height:58px;display:flex;align-items:center}
+#shopCards{display:flex;justify-content:center;gap:12px;padding:12px 0 0}
+.shopItem{background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.shopItem .card{width:104px;height:136px}
+.price{background:var(--c0);color:var(--c3);font-size:16px;padding:1px 10px;min-width:56px;text-align:center}
+.shopItem.sel .card{transform:translateY(-6px);box-shadow:0 5px 0 var(--c1)}
+.shopItem.sold{opacity:.45}
+#shopSvc{display:flex;justify-content:center;gap:6px;padding:10px 4px 0}
+.svc{width:110px;font-size:13px;flex-direction:column;align-items:stretch !important;gap:2px;padding:3px 6px !important;background:var(--c3);border:3px solid var(--c0);padding:4px 8px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:15px}
+.svc.sel{background:var(--c2)}
+.svc.sold{opacity:.45}
+.svc .price{font-size:15px;min-width:48px}
+
+.rrow{display:flex;gap:3px;align-items:center}
+.rl{width:20px;height:20px;padding:0;border:2px solid var(--c3);background:var(--c0);color:var(--c3);font-size:12px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.rrow.light{justify-content:center;margin:8px 0 0;min-height:22px}
+.rrow.light .rl{border-color:var(--c0);background:var(--c3);color:var(--c0)}
+#relicOpts{display:flex;gap:14px}
+#relicOpts .node{height:200px}
+.pstat{gap:12px}
+#pBuff{font-size:13px}
+#pPow{display:flex;gap:2px}
+#pPow .rl{border-color:var(--c0);background:var(--c1);color:var(--c3);width:18px;height:18px;font-size:11px}
+#charOpts{display:flex;gap:6px}
+.cnode{width:88px;height:232px;background:var(--c3);border:3px solid var(--c0);border-radius:4px;cursor:pointer;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;transition:transform .12s}
+.cnode.sel{transform:translateY(-8px);box-shadow:0 6px 0 var(--c1)}
+.cnode canvas{width:48px;height:48px}
+.cnode .nl{font-size:14px;white-space:nowrap}
+.cnode .ch{font-size:13px}
+.cnode .nd{font-size:11px;line-height:1.35;text-align:left}
+#charInfo{min-height:24px}
+#charSel{gap:10px}
+#charTuts{display:flex;gap:6px}
+#charTuts button{width:88px;font-size:11px !important;background:var(--c3);border:2px dashed var(--c0);padding:3px 4px;font-size:13px;cursor:pointer}
+#charTuts button.sel{background:var(--c0);color:var(--c3);border-style:solid}
+.card .cost.down{background:var(--c1);outline:2px solid var(--c0)}
+#titleBtns{display:flex;gap:12px}
+#titleBtns[hidden],#menu[hidden]{display:none}
+#menu{position:absolute;inset:0;background:rgba(15,56,15,.55);display:grid;place-items:center;z-index:5}
+.mbox{background:var(--c3);border:4px solid var(--c0);padding:16px 22px;display:flex;flex-direction:column;gap:10px;width:300px;text-align:center}
+.mbox .rs{min-height:44px;font-size:13px}
+.hbtn{background:none;border:2px solid var(--hint);color:var(--ink-page);padding:2px 12px;margin-bottom:6px;cursor:pointer;font-size:13px}
+.card.r-C{border-color:#9a9a9a}
+.card.r-U{border-color:#6fc8e2}
+.card.r-R{border-color:#f0c93a}
+.card{box-shadow:inset 0 0 0 1px var(--c0)}
+.card.sel{box-shadow:inset 0 0 0 1px var(--c0),0 5px 0 var(--c1)}
+.card .nm{width:100%;text-align:center}
+.card.r-C .nm{background:#9a9a9a}
+.card.r-U .nm{background:#6fc8e2}
+.card.r-R .nm{background:#f0c93a}
+.card .rar{display:none}
+#rewardCards .rar,.shopItem .rar{display:block;font-size:10px;line-height:1;margin-top:-2px}
+/* 文字を枠に収めるための制約（JSのfitAllが文字サイズを縮める） */
+.card .desc{flex:1 1 auto;min-height:0;overflow:hidden;width:100%}
+.card .nm{overflow:hidden;flex:none}
+#shopMsg{height:64px;min-height:0;overflow:hidden}
+.ni{min-height:0}
+.node .nd,.cnode .nd{flex:1 1 auto;min-height:0;overflow:hidden;width:100%}
+.node .nl{white-space:nowrap;overflow:hidden;max-width:100%}
+#evText{max-height:170px;overflow:hidden}
+#rewardGold{max-height:72px;overflow:hidden}
+#endSub{max-height:150px;overflow:hidden}
+#charInfo{max-height:40px;overflow:hidden;font-size:13px}
+#eName{min-width:0;flex:0 1 auto;white-space:nowrap;overflow:hidden}
+.ehead>span:nth-child(2){flex:none}
+#pBuff{min-width:0;flex:0 1 auto;white-space:nowrap;overflow:hidden}
+.pstat>span:first-child,#energy{flex:none}
+.svc span:first-child{min-width:0;white-space:nowrap;overflow:hidden;text-align:left}
+.svc .price{flex:none}
+#mapInfo{display:block;width:100%;min-width:0;white-space:nowrap;overflow:hidden}
+.rrow{min-width:0;overflow:hidden}
+.rrow.many .rl{width:15px;height:15px;font-size:9px;border-width:1px}
+.rl.r-U{box-shadow:inset 0 -3px 0 #6fc8e2}
+.rl.r-R{box-shadow:inset 0 -3px 0 #f0c93a}
+.node.r-C{border-color:#9a9a9a}.node.r-U{border-color:#6fc8e2}.node.r-R{border-color:#f0c93a}
+.node.r-C .nl{background:#9a9a9a}.node.r-U .nl{background:#6fc8e2}.node.r-R .nl{background:#f0c93a}
+.node .rar{font-size:11px}
+.svc.r-C{border-left:8px solid #9a9a9a}.svc.r-U{border-left:8px solid #6fc8e2}.svc.r-R{border-left:8px solid #f0c93a}
+/* 演出 */
+.pop{position:absolute;z-index:4;pointer-events:none;font-size:20px;line-height:1;white-space:nowrap;color:var(--c0);
+  transform:translate(-50%,-50%);text-shadow:2px 0 var(--c3),-2px 0 var(--c3),0 2px var(--c3),0 -2px var(--c3);animation:popUp .85s ease-out forwards}
+.pop.hurt{color:#e0342a}
+.pop.blk,.pop.guard{color:var(--c1);font-size:16px}
+.pop.lie{color:#e0342a;font-size:17px}
+.pop.info{font-size:14px}
+@keyframes popUp{0%{opacity:0;transform:translate(-50%,-40%) scale(.5)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}30%{transform:translate(-50%,-60%) scale(1)}100%{opacity:0;transform:translate(-50%,-160%)}}
+.ghost{position:absolute !important;z-index:4;pointer-events:none;margin:0;transition:transform .34s ease-in,opacity .34s ease-in}
+#sprite.lunge{animation:lunge .35s ease-out 1}
+@keyframes lunge{0%{transform:none}35%{transform:translateY(26px) scale(1.3)}100%{transform:none}}
+#sprite.dying{animation:die .7s steps(7) forwards}
+@keyframes die{0%{opacity:1}30%{opacity:.2}45%{opacity:1}100%{opacity:0;transform:translateY(16px) scaleY(.1)}}
+#banner{position:absolute;left:0;right:0;top:150px;z-index:4;text-align:center;font-size:24px;pointer-events:none;opacity:0;color:var(--c3);
+  background:linear-gradient(90deg,transparent,var(--c0) 20%,var(--c0) 80%,transparent);padding:6px 0}
+#banner.show{animation:banner 1s ease-out forwards}
+@keyframes banner{0%{opacity:0;transform:translateX(-40px)}20%{opacity:1;transform:none}75%{opacity:1;transform:none}100%{opacity:0;transform:translateX(40px)}}
+#flash{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0}
+#flash.hurt{background:#e0342a;animation:flash .3s ease-out}
+#flash.curse{background:#6a3fa0;animation:flash .5s ease-out}
+@keyframes flash{0%{opacity:.35}100%{opacity:0}}
+@keyframes fadeOnly{0%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){
+  .pop{animation:fadeOnly .9s forwards}
+  .ghost{transition:opacity .2s}
+  #sprite.lunge{animation:none}
+  #sprite.dying{animation:fadeOnly .6s forwards}
+  #banner.show{animation:fadeOnly 1s forwards}
+}
+#trans{position:absolute;inset:0;z-index:7;overflow:hidden;pointer-events:auto;background:var(--c3)}
+#trans[hidden]{display:none}
+#trans .bar{position:absolute;left:-6%;width:112%;height:13.5%;background:var(--c0);transform:translateX(-110%)}
+/* イベントの選択肢 */
+#evChoices{display:flex;flex-direction:column;gap:8px;width:360px}
+#evChoices[hidden]{display:none}
+.evc{background:var(--c3);border:3px solid var(--c0);padding:5px 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.evc.sel{background:var(--c2);box-shadow:0 4px 0 var(--c1)}
+.evc.off{opacity:.45;cursor:default}
+.evl{font-size:16px}
+.evs{font-size:12px}
+#evText{max-height:110px}
+/* デッキ選択 */
+#deckPick{position:absolute;inset:0;z-index:6;background:var(--c3);display:flex;flex-direction:column}
+#deckPick[hidden]{display:none}
+.dpHead{height:34px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:var(--c0);color:var(--c3);font-size:15px}
+#dpGrid{flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;gap:8px;padding:12px 10px;align-content:flex-start;justify-content:center}
+#dpGrid .card{width:84px;height:124px}
+/* カード集 */
+#charSel{position:relative}
+.dexBtn{position:absolute;top:8px;right:10px;background:var(--c0);color:var(--c3);border:0;padding:4px 10px;font-size:14px;cursor:pointer;box-shadow:0 3px 0 var(--c1)}
+#dexTabs{display:flex;gap:3px;padding:6px 6px 0;flex:none}
+#dexTabs button{flex:1;background:var(--c3);border:2px solid var(--c0);border-bottom:0;padding:3px 0;font-size:12px;cursor:pointer;white-space:nowrap}
+#dexTabs button.sel{background:var(--c0);color:var(--c3)}
+#dexGrid{flex:1;min-height:0;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px;align-content:flex-start;justify-content:center;border-top:2px solid var(--c0)}
+#dexGrid .card{width:84px;height:124px;cursor:default}
+.card.unknown{background:var(--c1);color:var(--c3);justify-content:center;font-size:18px}
+.card.unknown .q{font-size:22px}
+.card.unknown .ul{font-size:10px}
+/* 呪いカード */
+.card.r-X{border-color:#6a3fa0}
+.card.r-X .nm{background:#6a3fa0;color:#fff}
+.card.curse .type{background:#6a3fa0;color:#fff}
+.card.curse .cost{background:#6a3fa0}
+/* 条件付きカード */
+.card .need{width:100%;flex:none;font-size:10px;line-height:12px;border:1px dashed var(--c0);padding:0 1px;overflow:hidden}
+.card.met .need{background:var(--c0);color:var(--c3);border-style:solid}
+.card.met{box-shadow:inset 0 0 0 1px var(--c0),0 0 0 2px var(--c3),0 0 8px 2px #f0c93a}
+.card.met.sel{box-shadow:inset 0 0 0 1px var(--c0),0 0 8px 2px #f0c93a,0 5px 0 var(--c1)}
+/* 虫眼鏡 */
+#lens{position:absolute;z-index:5;width:22px;height:22px;margin:-11px 0 0 -11px;border:3px solid var(--c3);border-radius:50%;
+  background:rgba(155,188,15,.25);cursor:pointer;touch-action:none;transition:transform .12s}
+#lens::after{content:"";position:absolute;width:4px;height:10px;background:var(--c3);right:-4px;bottom:-8px;transform:rotate(-45deg)}
+#lens.on{transform:scale(1.4);box-shadow:0 0 0 3px var(--c3),0 0 10px 3px #f0c93a}
+#lens.held{width:76px;height:76px;margin:-38px 0 0 -38px;border:4px solid var(--c0);background:rgba(255,255,255,.14);cursor:grabbing;box-shadow:0 0 0 2px var(--c3),inset 0 0 0 2px var(--c3)}
+#lens.held::after{width:8px;height:26px;right:-9px;bottom:-21px;background:var(--c0)}
+#lens.empty{opacity:.4}
+#lens[hidden]{display:none}
+.lensDock{display:flex;align-items:center;margin-left:auto;margin-right:8px;padding-left:28px;flex:none}
+.lensGauge{display:block;font-size:13px;color:var(--c3);min-width:22px}
+.lensGauge i{display:block;height:100%;width:100%;background:var(--c3)}
+#intent.seen,#eHpTxt.seen,#pHp.seen,.card.seenc .desc,.price.seen,.node.seenc .ni{color:#e0342a !important}
+.price.seen{background:var(--c0)}
+.card.boosted .nm::after{content:"✦";color:#7a5cff}
+#lens.crystal{border-color:#bcd3ff;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.9) 0 10%,rgba(190,215,255,.45) 12% 60%,rgba(130,150,235,.45) 62%)}
+#lens.crystal::after{width:16px;height:5px;right:auto;left:50%;bottom:-7px;transform:translateX(-50%);background:var(--c1)}
+#lens.crystal.held{border-color:#8fa8ff;box-shadow:0 0 0 2px var(--c3),0 0 14px 2px rgba(160,190,255,.8)}
+#lens.crystal.held::after{width:34px;height:10px;bottom:-12px;right:auto;left:50%;transform:translateX(-50%);background:var(--c1)}
+.liered .price{background:var(--c0)}
+#screen.magging [data-insp]{outline:2px dashed var(--c1);outline-offset:1px;cursor:zoom-in}
+#screen.magging [data-insp]:hover{outline:3px solid var(--c0)}
+#screen.magging [data-insp].magsel{outline:3px solid var(--c0);outline-offset:2px}
+/* チュートリアル */
+#tutBar{position:absolute;top:0;left:0;right:0;height:26px;background:var(--c1);color:var(--c3);font-size:13px;display:flex;align-items:center;padding:0 10px;z-index:4;white-space:nowrap;overflow:hidden}
+#tutBar[hidden],#tutModal[hidden]{display:none}
+#tutModal{position:absolute;inset:0;background:rgba(15,56,15,.45);display:grid;place-items:center;z-index:6}
+#tutModal .mbox{width:340px}
+#tutText{margin:0;font-size:15px;line-height:1.6;text-align:left;max-height:190px;overflow:hidden}
+/* reward / end / event */
+.center{align-items:center;justify-content:center;gap:14px;text-align:center;padding:20px}
+.rh{font-size:22px;margin:0}
+.rs{font-size:15px;margin:0;line-height:1.6}
+#rewardCards{display:flex;gap:12px;align-items:flex-end;height:152px}
+#rewardCards .card{width:112px;height:142px}
+.wbtn{background:var(--c3);border:3px solid var(--c0);padding:3px 16px;cursor:pointer;font-size:16px}
+.wbtn.sel,.wbtn.primary{background:var(--c0);color:var(--c3)}
+#endTitle,#evTitle{font-size:32px;margin:0}
+#endSub,#evText{font-size:17px;line-height:1.7;margin:0}
+
+.shake{animation:shk .3s steps(3) 1}
+@keyframes shk{0%{transform:translate(4px,0)}33%{transform:translate(-4px,2px)}66%{transform:translate(2px,-2px)}100%{transform:none}}
+
+@media (prefers-reduced-motion: reduce){
+  #spriteWrap{transition:none}
+  #spriteWrap.pose-curse{animation:none;transform:rotate(-8deg) skewX(6deg)}
+  .shake,#sprite.hit{animation:none}
+  .glitch{transform:none}
+  .press{animation:none}
+  .card,.node{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bezel">
+    <div id="frame">
+      <div id="screen">
+
+        <div id="title" class="view">
+          <div class="tt"><span id="ttLie">うそつき</span><br>ダンジョン</div>
+          <p class="tagline">画面の数字は嘘をつく。道しるべも、店主も。<br>でも、敵の体は嘘をつかない。</p>
+          <p class="press" id="press">←→で選んでZ（タップ）</p>
+          <div id="titleBtns"><button class="wbtn" data-a="resume">続きから</button><button class="wbtn" data-a="new">はじめから</button><button class="wbtn" data-a="tut">チュートリアル</button></div>
+        </div>
+
+        <div id="charSel" class="view center" hidden>
+          <button id="dexBtn" class="dexBtn">カード集</button>
+          <p class="rh">誰で潜る？</p>
+          <div id="charOpts"></div>
+          <div id="charTuts"></div>
+          <p class="rs" id="charInfo"></p>
+        </div>
+
+        <div id="dex" class="view" hidden>
+          <div class="topbar"><span>カード集</span><span id="dexCount"></span><button id="dexBack" class="bbtn">もどる</button></div>
+          <div id="dexTabs"></div>
+          <div id="dexGrid"></div>
+          <div class="bottom"><span>使ったことのあるカードだけ載る　←→ タブ　↑↓ スクロール　X もどる</span></div>
+        </div>
+
+        <div id="battle" class="view" hidden>
+          <div class="topbar"><span id="floorLbl"></span><span id="illu"></span><span id="bRelics" class="rrow"></span></div>
+          <div class="enemyzone">
+            <div class="ehead">
+              <span id="eName"></span>
+              <span>HP <span id="eHpTxt"></span><span class="bar"><span id="eHpBar"></span></span></span>
+              <span id="eStatus"></span>
+              <span id="eBlock"></span>
+            </div>
+            <div class="spriteRow">
+              <div id="petBox" hidden><canvas id="petSprite" class="spr" width="16" height="16"></canvas><span id="petName">シロ</span><span class="bar"><span id="petBar"></span></span><span id="petInfo"></span></div>
+              <div id="spriteWrap"><canvas id="sprite" class="spr" width="16" height="16"></canvas></div>
+              <div id="intent"></div>
+            </div>
+          </div>
+          <div id="log" aria-live="polite"></div>
+          <div class="pstat">
+            <span>HP <b id="pHp"></b>/<span id="pMax"></span></span>
+            <span id="pBlock"></span><span id="pBuff"></span><span id="pPow"></span>
+            <span id="energy"></span>
+          </div>
+          <div id="hand"></div>
+          <div class="bottom"><span id="piles"></span><span class="lensDock"><span class="lensGauge"><i></i></span></span><button id="endBtn" class="bbtn">ターン終了</button></div>
+        </div>
+
+        <div id="map" class="view" hidden>
+          <div class="topbar" id="mapTop"></div>
+          <p class="mh">どの道へ進む？</p>
+          <div id="hist"></div>
+          <div id="mapRelics" class="rrow light"></div>
+          <div id="mapChoices"></div>
+          <div class="bottom"><span id="mapInfo"></span><span class="lensDock"><span class="lensGauge"><i></i></span></span></div>
+        </div>
+
+        <div id="shop" class="view" hidden>
+          <div class="topbar" id="shopTop"></div>
+          <div class="shopHead">
+            <canvas id="shopSprite" class="spr" width="16" height="16"></canvas>
+            <div id="shopMsg" aria-live="polite"></div>
+          </div>
+          <div id="shopCards"></div>
+          <div id="shopSvc"></div>
+          <div class="bottom"><span>←→ 選ぶ　Z 買う</span><span class="lensDock"><span class="lensGauge"><i></i></span></span><button id="leaveBtn" class="bbtn">立ち去る</button></div>
+        </div>
+
+        <div id="event" class="view center" hidden>
+          <p id="evTitle"></p>
+          <p id="evText"></p>
+          <div id="evChoices" hidden></div>
+          <button id="evBtn" class="wbtn primary">先へ進む</button>
+        </div>
+
+        <div id="relicPick" class="view center" hidden>
+          <p class="rh">王の遺品をひとつ持っていく</p>
+          <div id="relicOpts"></div>
+        </div>
+
+        <div id="reward" class="view center" hidden>
+          <p class="rs" id="rewardGold"></p>
+          <p class="rh">カードを1枚デッキに加える</p>
+          <div id="rewardCards"></div>
+          <button id="skipBtn" class="wbtn">加えない</button>
+        </div>
+
+        <div id="end" class="view center" hidden>
+          <p id="endTitle"></p>
+          <p id="endSub"></p>
+          <button id="againBtn" class="wbtn primary">タイトルへ</button>
+        </div>
+
+        <div id="deckPick" hidden>
+          <div class="dpHead"><span id="dpTitle"></span><button id="dpCancel" class="bbtn">やめる</button></div>
+          <div id="dpGrid"></div>
+          <div class="bottom"><span>←→↑↓ 選ぶ　Z 決定（タップ2回）　X やめる</span></div>
+        </div>
+        <div id="flash"></div>
+        <div id="trans" hidden></div>
+        <div id="banner"></div>
+        <div id="lens" hidden title="ドラッグして怪しいところにかざす"></div>
+        <div id="tutBar" hidden></div>
+        <div id="tutModal" hidden>
+          <div class="mbox"><p id="tutText"></p><button class="wbtn primary" id="tutNext">次へ（Z）</button></div>
+        </div>
+
+        <div id="menu" hidden>
+          <div class="mbox" role="dialog" aria-label="メニュー">
+            <p class="rh">メニュー</p>
+            <button class="wbtn" data-i="0">続ける</button>
+            <button class="wbtn" data-i="1">中断してタイトルへ</button>
+            <button class="wbtn" data-i="2" id="giveupBtn">あきらめる</button>
+            <p class="rs" id="menuNote"></p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<p class="hint"><button id="menuOpen" class="hbtn">メニュー（Esc）</button> <button id="soundBtn" class="hbtn">♪ 音：すべて（M）</button><br>←→ 選ぶ　Z 決定　X ターン終了／立ち去る<br>虫眼鏡は右下をタップしてから、怪しいところをタップ（1ターン1回）。キーボードはCで構え、矢印で選んでZ<br>スマホは1回タップで選択、もう1回で決定。レリックはタップで説明</p>
+
+<script>
+const $=id=>document.getElementById(id);
+const rand=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const sign=()=>Math.random()<.5?-1:1;
+const FLOORS=10;
+
+/* ---------- sprites (16x16) ---------- */
+const PAL={'#':'#0f380f','+':'#306230','-':'#8bac0f','o':'#9bbc0f'};
+const SPR={
+slime:["","","","","......####......","....##++++##....","...#+-++++++#...","..#+--+++++++#..","..#+-+#++#+++#..","..#+++#++#+++#..",".#++++++++++++#.",".#+++++##+++++#.",".#++++++++++++#.","..#++++++++++#..","...##########..."],
+bat:["","","","#..............#","##....#..#....##","###...####...###","####.#+##+#.####","#++++#-##-#++++#","#+++++####+++++#",".#+++++##+++++#.","..#+++#..#+++#..","...##......##..."],
+mirror:["....########....","...#--------#...","..#-o------o-#..","..#--#----#--#..","..#-###--###-#..","..#----------#..","..#----##----#..","..#---#--#---#..","..#----##----#..","...#--------#...","....########....","......#++#......","......#++#......",".....#++++#.....","....########...."],
+skel:[".....######.....","....#------#....","....#-#--#-#....","....#------#....",".....#-##-#.....","......####......","...##########...","..#-#-#--#-#-#..","..#-##----##-#..","..#-#-#--#-#-#..","...##########...",".....#-##-#.....","....#-#..#-#....","....#-#..#-#....","...##.#..#.##..."],
+doll:["......####......",".....#----#.....","....#-#--#-#....","....#------#....","....#--##--#....",".....#----#.....","......#++#......","....#++++++#....","...#+#++++#+#...","...#+#++++#+#...","....#++++++#....","....#+####+#....",".....#....#.....",".....#....#.....","....##....##...."],
+knight:["....########....","...#++++++++#...","...#+######+#...","...#+#o##o#+#...","...#+######+#...","....#++++++#....","..############..",".#+#--------#+#.",".#+#-######-#+#.",".#+#--------#+#.",".#+#-######-#+#.","..##--------##..","....#--##--#....","....#--#.#--#...","...###...###...."],
+mimic:["","..############..",".#++++++++++++#.",".#+#--o--o--#+#.",".#++++++++++++#.",".##############.",".#o#o#o#o#o#o##.",".##############.",".#o#o#o#o#o#o##.",".##############.",".#++++++####++#.",".#++++++#--#++#.",".#++++++####++#.",".#++++++++++++#.",".##############."],
+merchant:["......####......","....##++++##....","...#++++++++#...","..#++######++#..","..#+#------#+#..","..#+#-#--#-#+#..","..#+#------#+#..","..#+#--##--#+#..","..#++######++#..",".#++++++++++++#.","#++-++++++++-++#","#++-++++++++-++#","#++++++++++++++#","#++++++++++++++#","################"],
+king:[".#..#..#..#..#..",".##.##.##.##.##.",".##############.",".#+o+o+o+o+o+o#.","..############..","..#----------#..","..#-##----##-#..","..#----------#..","..#---####---#..",".##----------##.","#++##########++#","#++++++#+#+++++#","#+++++++#++++++#","#++++++#+#+++++#","#++++++++++++++#","################"],
+ghost:["",".....######.....","....#------#....","...#--------#...","...#-##--##-#...","...#-##--##-#...","...#--------#...","...#---##---#...","...#--#--#--#...","...#---##---#...","...#--------#...","...#--------#...","...#-#-##-#-#...","...##.#..#.##..."],
+snake:["","......####......",".....#++++#.....","....#+o++o+#....","....#++++++#....",".....#++++#.....","......#--#......","......#++#......",".....#++#.......","....#++#........","....#++#........",".....#++####....","......#++++++#..","..######++++#...",".#++++++++++#...","..##########...."],
+eye:["",".....######.....","...##------##...","..#----------#..",".#----####----#.",".#---######---#.","#---###oo###---#","#---###oo###---#",".#---######---#.",".#----####----#.","..#----------#..","...##------##...",".....######.....","......#..#......",".....#....#....."],
+garg:["#..............#","##....####....##","#+#..#++++#..#+#","#++#.#o++o#.#++#","#+++##++++##+++#","#+++#+#--#+#+++#",".#++#++++++#++#.","..#+#++++++#+#..","...##++++++##...","....#++##++#....","....#+#..#+#....","...##+#..#+##...","..###......###.."],
+doppel:["","......####......",".....######.....",".....#o##o#.....",".....######.....","......####......","....########....","...##########...","..###.####.###..","..##..####..##..","......####......","......####......",".....##..##.....",".....##..##.....","....###..###...."],
+faces:["","..####....####..",".#----#..#----#.",".#-#-#-##-#-#-#.",".#----#..#----#.",".#-##-#..#-##-#.","..####.##.####..","......#--#......",".....#----#.....","....#-#--#-#....","....#------#....","....#-####-#....",".....#----#.....","......####......"],
+ren:["..............#.","......####...#..",".....#----#.#...","....########....","....#-#--#-#....","....#------#....",".....#-##-#.....","...##########...","..#+#++++++#+#..","..#+#++++++#+#..","..#-#++##++#-#..","....#++##++#....","....#++..++#....","....#+#..#+#....","...##.#..#.##..."],
+mira:["......####......",".....#++++#.....","....#++++++#....","...#++####++#...","...#+#o--o#+#...","...#+#----#+#...","...#++#--#++#...","..#++++##++++#..","..#++++++++++#..",".#++++####++++#.",".#+++#-oo-#+++#.",".#+++#-oo-#+++#.",".#++++####++++#.","#++++++++++++++#","################"],
+kuro:[".....######.....",".....######.....",".....######.....","...##########...","....#------#....","....#-##-o-#....","....#------#....","....#-####-#....",".....#----#.....","...##########...","..#+#+o##o+#+#..","..#+#++##++#+#..","....#++##++#....","....#+#..#+#....","...##.#..#.##..."],
+blade:[".............##.","............#-#.","...........#-#..","..........#-#...",".........#-#....","........#-#.....",".......#-#......","......#-#.......","..#..#-#........","..####..........","...##...........","..#+##..........",".#+#.##.........","#+#...#.........","##.............."],
+dog:["","","...........##...","..........#oo#..","..........#o#o#.",".#.......#oooo##","#o#......#ooo#..",".#o#######ooo#..","..#ooooooooo#...","..#ooooooooo#...","..#o##ooo##o#...","..#o#.#o#.#o#...","..##..##..##...."],
+haru:[".....######.....","....#++++++#....","...#++####++#...","...#+#o--o#+#...","...#+#----#+#...","....#+#--#+#....","...##########...","..#+#++++++#+#..","..#+#++##++#+#.#","..#-#++##++#-##.","....#++++++#.#..","....#++..++#....","....#+#..#+#....","...##.#..#.##..."],
+luna:[".......##.......","......#++#......",".....#++++#.....","....#++++++#....","..############..","....#------#....","....#-o--o-#....","....#------#....",".....#-##-#.....","...##########...","..#+#++++++#+#..",".#o#++++++++#...","..#.#++++++#....","....#++++++#....","...##########..."],
+heart:["","..####....####..",".#++++#..#++++#.","#++-+++##+++++#.","#+--++++++++++#.","#+-+++++++++++#.","#++++#o++o#+++#.",".#+++++++++++#..","..#++#####++#...","...#++++++++#...","....#++++++#....",".....#++++#.....","......#++#......",".......##......."]
+};
+function drawSprite(c,rows){
+  const x=c.getContext('2d');x.clearRect(0,0,16,16);
+  for(let y=0;y<16;y++){const r=(rows[y]||'').padEnd(16,'.');for(let i=0;i<16;i++){const ch=r[i];if(PAL[ch]){x.fillStyle=PAL[ch];x.fillRect(i,y,1,1);}}}
+}
+
+/* ---------- cards ----------
+   dmg: indices that get +筋力, blk: indices that get +敏捷, lm: indices boosted by 道化の仮面 */
+const CARDS={
+  slash:{name:'斬撃',cost:1,kind:'atk',n:[6],dmg:[0],text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  guard:{name:'防御',cost:1,kind:'skl',n:[5],blk:[0],text:n=>`ブロック${n[0]}`,play:n=>gainBlock(n[0])},
+  stare:{name:'凝視',cost:1,kind:'skl',n:[1,1],text:n=>`幻惑-${n[0]}<br>${n[1]}枚引く`,play:n=>{reduceIllusion(n[0]);draw(n[1]);}},
+  expose:{name:'暴露',cost:1,kind:'atk',n:[5],lm:[0],text:n=>`いま画面にある嘘の数×${n[0]}ダメージ`,
+    play:n=>{const c=lieCount();hitEnemy(c?c*n[0]+dmgBonus():0);log(c?`嘘を${c}つ暴いた。`:'嘘は…なかった。');}},
+  truth:{name:'真実の目',cost:0,kind:'skl',n:[2],exhaust:true,text:n=>`このターンの嘘を消す<br>幻惑-${n[0]}<br>使うと消滅`,
+    play:n=>{clearLies();reduceIllusion(n[0]);log('視界が澄んだ。');}},
+  doubt:{name:'疑心',cost:1,kind:'skl',n:[5,5],blk:[0],text:n=>`ブロック${n[0]}<br>敵が本当に攻撃するなら+${n[1]}`,
+    play:n=>gainBlock(n[0]+(enemy.intent.t==='atk'?n[1]:0))},
+  read:{name:'見切り',cost:1,kind:'atk',only:'mira',n:[5,1],dmg:[0],text:n=>`${n[0]}ダメージ<br>${n[1]}枚引く`,play:n=>{hitEnemy(n[0]);draw(n[1]);}},
+  twin:{name:'二連撃',cost:1,kind:'atk',only:'ren',n:[4,2],dmg:[0],text:n=>`${n[0]}ダメージ×${n[1]}`,play:n=>{multiHit(n[0],n[1]);}},
+  bash:{name:'強打',cost:2,kind:'atk',n:[13],dmg:[0],text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  wall:{name:'鉄壁',cost:2,kind:'skl',n:[12],blk:[0],text:n=>`ブロック${n[0]}`,play:n=>gainBlock(n[0])},
+  jab:{name:'牽制',cost:0,kind:'atk',n:[3],dmg:[0],text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  parry:{name:'受け流し',cost:1,kind:'skl',n:[7],blk:[0],text:n=>`ブロック${n[0]}`,play:n=>gainBlock(n[0])},
+  shieldbash:{name:'盾打ち',cost:1,kind:'atk',only:'haru',n:[1],text:n=>`いまのブロックの${n[0]}倍ダメージ`,play:n=>hitEnemy(block*n[0]+dmgBonus())},
+  despair:{name:'背水',cost:1,kind:'atk',only:'ren',n:[3,15],dmg:[1],text:n=>`HPを${n[0]}失う<br>${n[1]}ダメージ`,
+    play:n=>{hp=Math.max(1,hp-n[0]);hitEnemy(n[1]);}},
+  flurry:{name:'連打',cost:2,kind:'atk',only:'ren',n:[3,4],dmg:[0],text:n=>`${n[0]}ダメージ×${n[1]}`,play:n=>{multiHit(n[0],n[1]);}},
+  leech:{name:'吸血',cost:2,kind:'atk',only:'haru',n:[9],dmg:[0],text:n=>`${n[0]}ダメージ<br>与えた分の半分回復`,
+    play:n=>{const d=hitEnemy(n[0]);hp=Math.min(maxHp,hp+Math.floor(d/2));}},
+  doubtblade:{name:'疑いの刃',cost:1,kind:'atk',n:[8],dmg:[0],text:n=>`${n[0]}ダメージ<br>敵HPの表示が嘘なら2倍`,
+    play:n=>{const x=lies.enemyHp;hitEnemy(n[0]*(x?2:1));log(x?'見抜いた。':'表示は本当だった。');}},
+  see:{name:'看破',cost:1,kind:'skl',n:[1,2],text:n=>`${n[0]}枚引く<br>行動予告が嘘ならエネルギー+${n[1]}`,
+    play:n=>{draw(n[0]);if(lies.intent){energy+=n[1];log('予告は嘘だ。');}else log('予告は本当だった。');}},
+  liarshield:{name:'嘘の盾',cost:1,kind:'skl',n:[4],lm:[0],text:n=>`いま画面にある嘘の数×${n[0]}ブロック`,
+    play:n=>{const c=lieCount();gainBlock(c?c*n[0]+pdex:0);}},
+  defiance:{name:'開き直り',cost:1,kind:'skl',only:'kuro',n:[3],text:n=>`幻惑の数×${n[0]}ブロック`,play:n=>gainBlock(illusion?illusion*n[0]+pdex:0)},
+  farce:{name:'狂言',cost:2,kind:'atk',only:'kuro',n:[2,20],dmg:[1],text:n=>`幻惑+${n[0]}<br>${n[1]}ダメージ`,
+    play:n=>{illusion+=n[0];hitEnemy(n[1]);}},
+  breath:{name:'深呼吸',cost:1,kind:'skl',only:'mira',n:[2],text:n=>`${n[0]}枚引く`,play:n=>draw(n[0])},
+  focus:{name:'集中',cost:0,kind:'skl',only:'mira',n:[1],exhaust:true,text:n=>`エネルギー+${n[0]}<br>使うと消滅`,play:n=>{energy+=n[0];}},
+  rage:{name:'気合',cost:1,kind:'pow',only:'ren',n:[2],text:n=>`筋力+${n[0]}`,play:n=>{pstr+=n[0];log('力がみなぎる。');}},
+  stance:{name:'構え',cost:1,kind:'pow',only:'ren',n:[2],text:n=>`敏捷+${n[0]}`,play:n=>{pdex+=n[0];log('守りを固めた。');}},
+  heed:{name:'注視',cost:1,kind:'pow',only:'mira',n:[2],text:n=>`観察力+${n[0]}`,play:n=>{pobs+=n[0];log('次のターンから嘘が減る。');}},
+  bluff:{name:'虚勢',cost:0,kind:'pow',only:'kuro',n:[3,2],text:n=>`筋力+${n[0]}<br>幻惑+${n[1]}`,
+    play:n=>{pstr+=n[0];illusion+=n[1];log('強がってみせた。');}},
+  /* 共通：追加アタック */
+  kick:{name:'回し蹴り',cost:1,kind:'atk',only:'ren',n:[5,3],dmg:[0],blk:[1],text:n=>`${n[0]}ダメージ<br>ブロック${n[1]}`,play:n=>{hitEnemy(n[0]);gainBlock(n[1]);}},
+  knives:{name:'小刀投げ',cost:0,kind:'atk',only:'ren',n:[2,2],dmg:[0],text:n=>`${n[0]}ダメージ×${n[1]}`,play:n=>{multiHit(n[0],n[1]);}},
+  finisher:{name:'とどめ',cost:2,kind:'atk',n:[10],dmg:[0],text:n=>`${n[0]}ダメージ<br>敵の本当のHPが半分以下なら2倍`,
+    play:n=>{const h=enemy.hp*2<=enemy.max;hitEnemy(n[0]*(h?2:1));log(h?'とどめの一撃。':'まだ浅い。');}},
+  thunder:{name:'雷撃',cost:2,kind:'atk',n:[11],dmg:[0],text:n=>`ブロックを無視して${n[0]}ダメージ`,play:n=>hitEnemy(n[0],true)},
+  liarfist:{name:'偽りの拳',cost:1,kind:'atk',only:'kuro',n:[6,6],dmg:[0],text:n=>`${n[0]}ダメージ<br>手札の数値が嘘なら+${n[1]}`,
+    play:n=>{const x=lies.cards;hitEnemy(n[0]+(x?n[1]:0));log(x?'嘘ごと殴った。':'手札は本当だった。');}},
+  allout:{name:'全力',cost:3,kind:'atk',n:[24],dmg:[0],text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  /* 共通：追加スキル */
+  substitute:{name:'身代わり',cost:1,kind:'skl',only:'haru',n:[6,1],blk:[0],text:n=>`ブロック${n[0]}<br>${n[1]}枚引く`,play:n=>{gainBlock(n[0]);draw(n[1]);}},
+  smokescreen:{name:'煙幕',cost:1,kind:'skl',n:[8,1],blk:[0],text:n=>`ブロック${n[0]}<br>幻惑+${n[1]}`,play:n=>{gainBlock(n[0]);illusion+=n[1];}},
+  firstaid:{name:'応急手当',cost:1,kind:'skl',n:[6],exhaust:true,text:n=>`HP+${n[0]}<br>使うと消滅`,play:n=>{hp=Math.min(maxHp,hp+n[0]);}},
+  quick:{name:'早業',cost:0,kind:'skl',n:[1],text:n=>`${n[0]}枚引く`,play:n=>draw(n[0])},
+  pray:{name:'祈り',cost:1,kind:'skl',n:[2,3],blk:[1],text:n=>`幻惑-${n[0]}<br>ブロック${n[1]}`,play:n=>{reduceIllusion(n[0]);gainBlock(n[1]);}},
+  /* 共通：パワー（戦闘中ずっと続く） */
+  ironwill:{name:'鉄の意志',cost:1,kind:'pow',n:[4],text:n=>`毎ターン開始時<br>ブロック${n[0]}`,play:n=>{pw.block+=n[0];addPower('ironwill');}},
+  liareat:{name:'嘘喰い',cost:2,kind:'pow',only:'luna',n:[1],text:n=>`嘘があるターンの開始時<br>筋力+${n[0]}`,play:n=>{pw.lieStr+=n[0];addPower('liareat');}},
+  clair:{name:'千里眼',cost:2,kind:'pow',n:[1],text:n=>`毎ターン${n[0]}枚多く引く`,play:n=>{pw.draw+=n[0];addPower('clair');}},
+  paranoia:{name:'疑心暗鬼',cost:1,kind:'pow',only:'mira',n:[1],text:n=>`予告が嘘のターンの開始時<br>エネルギー+${n[0]}`,play:n=>{pw.lieEnergy+=n[0];addPower('paranoia');}},
+  regen:{name:'再生',cost:2,kind:'pow',only:'haru',n:[2],text:n=>`毎ターン終了時<br>HP+${n[0]}`,play:n=>{pw.regen+=n[0];addPower('regen');}},
+  venom:{name:'毒の刃',cost:1,kind:'pow',only:'luna',n:[2],text:n=>`アタックを使うたび<br>追加で${n[0]}ダメージ`,play:n=>{pw.edge+=n[0];addPower('venom');}},
+  calm:{name:'静寂',cost:1,kind:'pow',only:'mira',n:[3],text:n=>`敵から幻惑を受けると<br>次のターンブロック${n[0]}`,play:n=>{pw.calm+=n[0];addPower('calm');}},
+  kenki:{name:'剣気',cost:1,kind:'pow',n:[1],only:'ren',text:n=>`毎ターン連撃${n[0]}から始まる`,play:n=>{pw.comboStart+=n[0];pcombo+=n[0];addPower('kenki');}},
+  starbless:{name:'星の加護',cost:1,kind:'pow',n:[4],only:'mira',text:n=>`予知で嘘を払うたび<br>ブロック${n[0]}`,play:n=>{pw.foreBlock+=n[0];addPower('starbless');}},
+  silver:{name:'舌先三寸',cost:1,kind:'pow',n:[3],only:'kuro',text:n=>`毎ターン開始時<br>ハッタリ+${n[0]}`,play:n=>{pw.hatTurn+=n[0];addPower('silver');}},
+  /* 追加カード第2弾 */
+  legsweep:{name:'足払い',cost:1,kind:'atk',only:'ren',n:[4,1],dmg:[0],text:n=>`${n[0]}ダメージ<br>敵の筋力-${n[1]}`,play:n=>{hitEnemy(n[0]);enemy.str-=n[1];}},
+  headbutt:{name:'頭突き',cost:1,kind:'atk',only:'ren',n:[9,2],dmg:[0],text:n=>`${n[0]}ダメージ<br>自分もHP-${n[1]}`,play:n=>{hitEnemy(n[0]);hp=Math.max(1,hp-n[1]);}},
+  charge:{name:'突進',cost:2,kind:'atk',only:'ren',n:[11,1],dmg:[0],text:n=>`${n[0]}ダメージ<br>${n[1]}枚引く`,play:n=>{hitEnemy(n[0]);draw(n[1]);}},
+  assassin:{name:'暗殺',cost:1,kind:'atk',only:'kuro',n:[20,5],dmg:[0,1],text:n=>`敵にブロックがなければ${n[0]}ダメージ<br>あれば${n[1]}`,
+    play:n=>hitEnemy(enemy.block>0?n[1]:n[0])},
+  lies800:{name:'嘘八百',cost:2,kind:'atk',only:'kuro',n:[7],dmg:[0],text:n=>`いま画面にある嘘の数だけ<br>${n[0]}ダメージを繰り返す`,
+    play:n=>{const c=lieCount();multiHit(n[0],c);log(c?`嘘を${c}回突いた。`:'突く嘘がなかった。');}},
+  reflect:{name:'鏡返し',cost:1,kind:'atk',only:'mira',n:[],text:()=>'敵が本当に攻撃するなら<br>その威力をそのまま返す',
+    play:()=>{const it=enemy.intent;if(it.t==='atk'){hitEnemy(Math.max(0,it.v+enemy.str)*(it.x||1)+dmgBonus());log('攻撃を映し返した。');}else log('映す攻撃がなかった。');}},
+  konshin:{name:'渾身',cost:2,kind:'atk',only:'ren',n:[8],dmg:[0],text:n=>`${n[0]}ダメージ<br>筋力の効果3倍`,play:n=>hitEnemy(n[0]+2*pstr)},
+  zanshin:{name:'残心',cost:1,kind:'skl',only:'ren',n:[5,1],blk:[0],text:n=>`ブロック${n[0]}<br>次のターンエネルギー+${n[1]}`,play:n=>{gainBlock(n[0]);pw.eNext+=n[1];}},
+  fortify:{name:'堅守',cost:1,kind:'skl',only:'ren',n:[],text:()=>'いまのブロックを2倍にする',play:()=>gainBlock(block)},
+  spellbook:{name:'呪文書',cost:1,kind:'skl',only:'luna',n:[],exhaust:true,text:()=>'手札の全カードを<br>このターンコスト0にする<br>使うと消滅',play:()=>hand.forEach(c=>c.tFree=true)},
+  bravado:{name:'空元気',cost:0,kind:'skl',only:'kuro',n:[1,1],text:n=>`エネルギー+${n[0]}<br>幻惑+${n[1]}`,play:n=>{energy+=n[0];illusion+=n[1];}},
+  scheme:{name:'計略',cost:1,kind:'skl',n:[2,2],text:n=>`${n[0]}枚引く<br>予告が嘘ならさらに${n[1]}枚`,play:n=>{draw(n[0]);if(lies.intent){draw(n[1]);log('読み通りだ。');}}},
+  doubletake:{name:'二度見',cost:1,kind:'skl',only:'mira',n:[1,5],blk:[1],text:n=>`幻惑-${n[0]}<br>ブロック${n[1]}`,play:n=>{reduceIllusion(n[0]);gainBlock(n[1]);}},
+  madness:{name:'狂気',cost:3,kind:'pow',only:'luna',n:[1,2],text:n=>`毎ターン開始時<br>幻惑+${n[0]}　筋力+${n[1]}`,play:n=>{pw.madI+=n[0];pw.madS+=n[1];addPower('madness');}},
+  thief:{name:'盗賊の手',cost:1,kind:'pow',only:'kuro',n:[20],text:n=>`この戦闘に勝つと<br>金貨+${n[0]}`,play:n=>{pw.bounty+=n[0];addPower('thief');}},
+  immovable:{name:'不動',cost:3,kind:'pow',only:'haru',n:[10],text:n=>`毎ターン開始時<br>ブロック${n[0]}`,play:n=>{pw.block+=n[0];addPower('immovable');}},
+  mirrorheart:{name:'鏡の心',cost:2,kind:'pow',only:'mira',n:[6],text:n=>`嘘があるターンの開始時<br>ブロック${n[0]}`,play:n=>{pw.lieBlock+=n[0];addPower('mirrorheart');}},
+  issen:{name:'一閃',cost:2,kind:'atk',n:[8],only:'ren',text:n=>`連撃×${n[0]}ダメージ`,play:n=>hitEnemy(pcombo*n[0]+dmgBonus())},
+  foresee:{name:'未来視',cost:1,kind:'pow',n:[2],only:'mira',text:n=>`予知+${n[0]}`,play:n=>{pfore+=n[0];log('未来がはっきり見える。');}},
+  gamble:{name:'大博打',cost:1,kind:'atk',n:[30,8],dmg:[0],only:'kuro',text:n=>`半々で${n[0]}ダメージ<br>外れると自分がHP-${n[1]}`,
+    play:n=>{if(Math.random()<.5){hitEnemy(n[0]);log('大当たり。');}else{hp=Math.max(1,hp-n[1]);log('大外れ。');}}},
+  antifog:{name:'曇り止め',cost:0,kind:'skl',n:[],only:'mira',text:()=>'水晶玉の使用回数を<br>全回復する',play:()=>{lensTime=lensMaxNow();updateGauge();log('水晶玉が澄みわたった。');}},
+  unmask:{name:'見破り',cost:1,kind:'atk',n:[6,4],dmg:[0],only:'mira',text:n=>`${n[0]}ダメージ<br>このターン水晶玉で暴いた嘘1つにつき+${n[1]}`,play:n=>hitEnemy(n[0]+lensFound*n[1])},
+  keengaze:{name:'慧眼',cost:1,kind:'pow',n:[4],only:'mira',text:n=>`水晶玉で嘘を暴くたび<br>ブロック${n[0]}`,play:n=>{pw.lensBlock+=n[0];addPower('keengaze');}},
+  polish:{name:'玉磨き',cost:1,kind:'pow',n:[1],only:'mira',text:n=>`水晶玉を毎ターン<br>${n[0]}回多く使える`,play:n=>{pw.lensBig=1;pw.lensPlus+=n[0];lensTime+=n[0];updateGauge();addPower('polish');}},
+  /* 詐欺師クロ専用（追加） */
+  excuse:{name:'逃げ口上',cost:1,kind:'skl',n:[5,3],blk:[0],only:'kuro',text:n=>`ブロック${n[0]}<br>ハッタリ+${n[1]}`,play:n=>{gainBlock(n[0]);gainHat(n[1]);}},
+  pickpocket:{name:'スリ',cost:0,kind:'atk',n:[4,3],dmg:[0],only:'kuro',text:n=>`${n[0]}ダメージ<br>金貨+${n[1]}`,play:n=>{hitEnemy(n[0]);gold+=n[1];}},
+  peten:{name:'ペテン',cost:1,kind:'skl',n:[4,1],only:'kuro',text:n=>`ハッタリ+${n[0]}<br>${n[1]}枚引く`,play:n=>{gainHat(n[0]);draw(n[1]);}},
+  overlie:{name:'嘘の上塗り',cost:1,kind:'skl',n:[4],lm:[0],only:'kuro',text:n=>`いま画面にある嘘の数×${n[0]}ハッタリ<br>（最低${n[0]}）`,
+    play:n=>{const v=Math.max(1,lieCount())*n[0];gainHat(v);log(`嘘を塗り重ねた。ハッタリ+${v}`);}},
+  peel:{name:'化けの皮',cost:1,kind:'atk',n:[2],only:'kuro',text:n=>`ハッタリをすべて使い<br>その${n[0]}倍のダメージ`,
+    play:n=>{const v=phat;phat=0;hitEnemy(v*n[0]+(v?dmgBonus():0));log(v?`化けの皮をはいだ。`:'はぐ皮がなかった。');}},
+  strip:{name:'身ぐるみ',cost:2,kind:'atk',n:[12,30],dmg:[0],only:'kuro',text:n=>`${n[0]}ダメージ<br>これで倒すと金貨+${n[1]}`,
+    play:n=>{hitEnemy(n[0]);if(enemy.hp<=0){gold+=n[1];log(`身ぐるみはいだ。金貨+${n[1]}`);}}},
+  smooth:{name:'口八丁',cost:0,kind:'skl',n:[1,2],only:'kuro',text:n=>`手札のスキルのコスト-${n[0]}<br>（このターン）ハッタリ+${n[1]}`,
+    play:n=>{hand.forEach(c=>{if(CARDS[c.id].kind==='skl')c.tMod=(c.tMod||0)-n[0];});gainHat(n[1]);}},
+  fakesignal:{name:'偽りの合図',cost:2,kind:'skl',n:[5],exhaust:true,only:'kuro',text:n=>`敵の次の行動を本当に<br>「守 ${n[0]}」にすり替える<br>使うと消滅`,
+    play:n=>{enemy.intent={t:'def',v:n[0]};lies.intent=false;log('偽の合図を送った。敵は守りに入るようだ。');}},
+  ledger:{name:'二重帳簿',cost:2,kind:'pow',n:[5,1],only:'kuro',text:n=>`嘘があるターンの開始時<br>ハッタリ+${n[0]}　エネルギー+${n[1]}`,
+    play:n=>{pw.ledgerH+=n[0];pw.ledgerE+=n[1];addPower('ledger');}},
+  /* 獣使いハル専用 */
+  kamitsuke:{name:'かみつけ',cost:1,kind:'atk',n:[2],only:'haru',text:n=>`シロが牙×${n[0]}のダメージ`,
+    play:n=>{if(petOk()){petFx();hitEnemy(pet.atk*n[0]+dmgBonus(),false,true);}else log('シロは戦えない。');}},
+  mamore:{name:'まもれ',cost:1,kind:'skl',n:[6],only:'haru',text:n=>`このターン、敵の攻撃をシロが受ける<br>シロにブロック${n[0]}`,
+    play:n=>{if(petOk()){pet.guard=true;pet.block+=n[0];log('シロが前に出た。');}else log('シロは戦えない。');}},
+  yoshi:{name:'よしよし',cost:0,kind:'skl',n:[5,1],only:'haru',text:n=>`シロのHP+${n[0]}<br>牙+${n[1]}`,
+    play:n=>{if(petOk()){pet.hp=Math.min(pet.max,pet.hp+n[0]);pet.atk+=n[1];log('シロがしっぽを振っている。');}else log('シロは戦えない。');}},
+  together:{name:'いっしょに',cost:1,kind:'atk',n:[6],dmg:[0],only:'haru',text:n=>`${n[0]}ダメージ<br>シロも牙のダメージ`,
+    play:n=>{hitEnemy(n[0]);if(petOk()){petFx();hitEnemy(pet.atk,false,true);}}},
+  howl:{name:'遠吠え',cost:1,kind:'skl',n:[3,1],only:'haru',text:n=>`シロの牙+${n[0]}<br>幻惑-${n[1]}`,
+    play:n=>{if(petOk())pet.atk+=n[0];reduceIllusion(n[1]);log('遠吠えが響く。');}},
+  sniff:{name:'嗅ぎ分け',cost:1,kind:'skl',n:[2],only:'haru',text:n=>`${n[0]}枚引く<br>予告が嘘なら、シロが本当の予告を嗅ぎ当てる`,
+    play:n=>{draw(n[0]);if(petOk()&&lies.intent){seen.intent=true;log(`シロが嗅ぎ当てた。本当は「${intentText(enemy.intent)}」だ。`);}else if(petOk())log('シロは落ち着いている。予告は本当らしい。');}},
+  recall:{name:'呼び戻し',cost:1,kind:'skl',n:[],exhaust:true,only:'haru',text:()=>'倒れたシロを<br>HP半分で起こす<br>使うと消滅',
+    play:()=>{if(pet&&pet.down){pet.down=false;pet.hp=Math.ceil(pet.max/2);log('シロが立ち上がった！');}else log('シロは元気だ。');}},
+  pack:{name:'群れの絆',cost:2,kind:'pow',n:[1],only:'haru',text:n=>`シロの攻撃回数+${n[0]}`,play:n=>{pw.pack+=n[0];addPower('pack');}},
+  wild:{name:'野生解放',cost:1,kind:'skl',n:[],exhaust:true,only:'haru',text:()=>'シロの牙を2倍にする<br>使うと消滅',
+    play:()=>{if(petOk()){pet.atk*=2;log('シロの目つきが変わった。');}else log('シロは戦えない。');}},
+  /* 魔法使いルナ専用 */
+  mist:{name:'毒の霧',cost:1,kind:'skl',n:[3],only:'luna',text:n=>`毒${n[0]}`,play:n=>addStatus('poison',n[0])},
+  fireball:{name:'火球',cost:1,kind:'atk',n:[6,2],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>火傷${n[1]}`,play:n=>{hitEnemy(n[0]);addStatus('burn',n[1]);}},
+  icebolt:{name:'氷の礫',cost:1,kind:'atk',n:[5,2],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>弱体${n[1]}`,play:n=>{hitEnemy(n[0]);addStatus('weak',n[1]);}},
+  manashield:{name:'魔力の盾',cost:1,kind:'skl',n:[5,4],blk:[0],only:'luna',text:n=>`ブロック${n[0]}<br>敵が状態異常なら+${n[1]}`,play:n=>gainBlock(n[0]+(statusKinds()?n[1]:0))},
+  decay:{name:'衰弱の呪い',cost:1,kind:'skl',n:[2,2],only:'luna',text:n=>`弱体${n[0]}<br>毒${n[1]}`,play:n=>{addStatus('weak',n[0]);addStatus('poison',n[1]);}},
+  toxic:{name:'猛毒',cost:2,kind:'skl',n:[],only:'luna',text:()=>'敵の毒を2倍にする',play:()=>{if(enemy.st.poison>0)addStatus('poison',enemy.st.poison);else log('毒がかかっていない。');}},
+  frost:{name:'凍てつく息',cost:2,kind:'skl',n:[1],exhaust:true,only:'luna',text:n=>`凍結${n[0]}<br>（敵の次の行動を止める）<br>使うと消滅`,play:n=>addStatus('freeze',n[0])},
+  chaincast:{name:'連鎖詠唱',cost:1,kind:'atk',n:[5],only:'luna',text:n=>`敵の状態異常1種類につき<br>${n[0]}ダメージ`,
+    play:n=>{const k=statusKinds();hitEnemy(k?k*n[0]+dmgBonus():0);if(!k)log('状態異常がかかっていない。');}},
+  inferno:{name:'業火',cost:2,kind:'atk',n:[4],only:'luna',text:n=>`火傷×${n[0]}ダメージ<br>火傷を0にする`,
+    play:n=>{const b=enemy.st.burn;hitEnemy(b?b*n[0]+dmgBonus():0);enemy.st.burn=0;if(!b)log('火傷がかかっていない。');}},
+  hex:{name:'呪詛',cost:2,kind:'pow',n:[2,1],only:'luna',text:n=>`毎ターン開始時<br>敵に毒${n[0]}、火傷${n[1]}`,play:n=>{pw.hexP+=n[0];pw.hexB+=n[1];addPower('hex');}},
+  /* 追加：剣士レン */
+  midare:{name:'乱れ桜',cost:2,kind:'atk',n:[3],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージを<br>（連撃+2）回`,play:n=>multiHit(n[0],pcombo+2)},
+  shingan:{name:'心眼',cost:1,kind:'skl',n:[2],only:'ren',text:n=>`連撃+${n[0]}`,play:n=>{pcombo+=n[0];log('心の目で間合いを測る。');}},
+  zanzou:{name:'残像',cost:1,kind:'skl',n:[5,1],blk:[0],only:'ren',text:n=>`ブロック${n[0]}<br>連撃+${n[1]}`,play:n=>{gainBlock(n[0]);pcombo+=n[1];}},
+  kesa:{name:'袈裟斬り',cost:1,kind:'atk',n:[8],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  nitou:{name:'二刀流',cost:2,kind:'pow',n:[1],only:'ren',text:n=>`アタックを使うたび<br>連撃がさらに+${n[0]}`,play:n=>{pw.combo2+=n[0];addPower('nitou');}},
+  meikyo:{name:'明鏡止水',cost:1,kind:'skl',n:[3,1],exhaust:true,only:'ren',text:n=>`連撃×${n[0]}ブロック<br>エネルギー+${n[1]}<br>使うと消滅`,play:n=>{gainBlock(pcombo*n[0]+pdex);energy+=n[1];}},
+  /* 追加：占い師ミラ */
+  horoscope:{name:'星占い',cost:1,kind:'skl',n:[1,1],only:'mira',text:n=>`予知+${n[0]}<br>${n[1]}枚引く`,play:n=>{pfore+=n[0];draw(n[1]);}},
+  clairvoy:{name:'透視',cost:1,kind:'skl',n:[],only:'mira',text:()=>'このターンの嘘を<br>すべて暴く',
+    play:()=>{let k=0;if(lies.intent&&!seen.intent){revealLie('intent');k++;}if(lies.enemyHp&&!seen.enemyHp){revealLie('enemyHp');k++;}if(lies.playerHp&&!seen.playerHp){revealLie('playerHp');k++;}
+      if(lies.cards)hand.forEach(c=>{if(!seen['card:'+c.uid]){revealLie('card:'+c.uid);k++;}});if(!k)log('暴く嘘はなかった。');}},
+  fatethread:{name:'運命の糸',cost:1,kind:'atk',n:[5],only:'mira',text:n=>`予知×${n[0]}ダメージ`,play:n=>hitEnemy(pfore?pfore*n[0]+dmgBonus():0)},
+  omen:{name:'吉兆',cost:0,kind:'skl',n:[1,1],only:'mira',text:n=>`水晶玉+${n[0]}回<br>幻惑-${n[1]}`,play:n=>{lensTime+=n[0];reduceIllusion(n[1]);updateGauge();}},
+  prescience:{name:'未来予知',cost:2,kind:'pow',n:[1],only:'mira',text:n=>`毎ターン開始時<br>予知+${n[0]}`,play:n=>{pw.foreTurn+=n[0];addPower('prescience');}},
+  revelation:{name:'啓示',cost:2,kind:'atk',n:[12],dmg:[0],only:'mira',text:n=>`${n[0]}ダメージ<br>このターン嘘を2つ以上暴いていれば2倍`,play:n=>hitEnemy(n[0]*(lensFound>=2?2:1))},
+  /* 追加：詐欺師クロ */
+  oburoshiki:{name:'大風呂敷',cost:1,kind:'skl',n:[7],only:'kuro',text:n=>`ハッタリ+${n[0]}`,play:n=>{gainHat(n[0]);log('大風呂敷を広げた。');}},
+  ikasama:{name:'いかさま',cost:1,kind:'atk',n:[16,6,10],dmg:[0,1],only:'kuro',text:n=>`金貨${n[2]}を払えば${n[0]}ダメージ<br>払えなければ${n[1]}`,
+    play:n=>{if(gold>=n[2]){gold-=n[2];hitEnemy(n[0]);log(`金貨${n[2]}で細工した。`);}else hitEnemy(n[1]);}},
+  sashu:{name:'詐取',cost:1,kind:'skl',n:[2,3],only:'kuro',text:n=>`敵の筋力-${n[0]}<br>ハッタリ+${n[1]}`,play:n=>{enemy.str-=n[0];gainHat(n[1]);}},
+  sanmai:{name:'三枚舌',cost:1,kind:'pow',n:[2],only:'kuro',text:n=>`ハッタリを得るたび<br>さらに+${n[0]}`,play:n=>{pw.hatPlus+=n[0];addPower('sanmai');}},
+  yonige:{name:'夜逃げ',cost:1,kind:'skl',n:[],only:'kuro',text:()=>'ハッタリの数だけブロック<br>（ハッタリは減らない）',play:()=>gainBlock(phat?phat+pdex:0)},
+  kuchifu:{name:'口封じ',cost:1,kind:'atk',n:[7,2],dmg:[0],only:'kuro',text:n=>`${n[0]}ダメージ<br>ハッタリ+${n[1]}`,play:n=>{hitEnemy(n[0]);gainHat(n[1]);}},
+  /* 追加：獣使いハル */
+  hoero:{name:'ほえろ',cost:1,kind:'skl',n:[1,1],only:'haru',text:n=>`敵に弱体${n[0]}<br>シロの牙+${n[1]}`,play:n=>{addStatus('weak',n[0]);if(petOk())pet.atk+=n[1];}},
+  kari:{name:'狩りの合図',cost:1,kind:'atk',n:[2],only:'haru',text:n=>`シロが牙のダメージを<br>${n[0]}回`,play:n=>{if(petOk()){petFx();multiHit(pet.atk,n[0]);}else log('シロは戦えない。');}},
+  kezu:{name:'毛づくろい',cost:1,kind:'skl',n:[8,4],only:'haru',text:n=>`シロのHP+${n[0]}<br>シロにブロック${n[1]}`,play:n=>{if(petOk()){pet.hp=Math.min(pet.max,pet.hp+n[0]);pet.block+=n[1];}else log('シロは戦えない。');}},
+  chuken:{name:'忠犬',cost:1,kind:'pow',n:[],only:'haru',text:()=>'シロが受けるダメージが<br>半分になる',play:()=>{pw.loyal=1;addPower('chuken');}},
+  renkei:{name:'連携攻撃',cost:2,kind:'atk',n:[8],dmg:[0],only:'haru',text:n=>`${n[0]}ダメージ<br>シロが元気なら2回`,play:n=>multiHit(n[0],petOk()?2:1)},
+  hone:{name:'骨',cost:0,kind:'skl',n:[2],exhaust:true,only:'haru',text:n=>`シロの牙+${n[0]}<br>使うと消滅`,play:n=>{if(petOk()){pet.atk+=n[0];log('シロが骨をかじっている。');}}},
+  mate:{name:'待て',cost:1,kind:'skl',n:[8,4],blk:[1],only:'haru',text:n=>`シロにブロック${n[0]}<br>自分にブロック${n[1]}`,play:n=>{if(petOk())pet.block+=n[0];gainBlock(n[1]);}},
+  kudaki:{name:'噛み砕き',cost:2,kind:'atk',n:[3],only:'haru',text:n=>`シロが牙×${n[0]}のダメージ<br>（ブロック無視）`,play:n=>{if(petOk()){petFx();hitEnemy(pet.atk*n[0]+dmgBonus(),true,true);}else log('シロは戦えない。');}},
+  yasei:{name:'野性の勘',cost:1,kind:'skl',n:[2,1],only:'haru',text:n=>`${n[0]}枚引く<br>シロの牙+${n[1]}`,play:n=>{draw(n[0]);if(petOk())pet.atk+=n[1];}},
+  arrow:{name:'狩人の矢',cost:1,kind:'atk',n:[7,1],dmg:[0],only:'haru',text:n=>`${n[0]}ダメージ<br>弱体${n[1]}`,play:n=>{hitEnemy(n[0]);addStatus('weak',n[1]);}},
+  beastking:{name:'獣の王',cost:3,kind:'pow',n:[12,4],only:'haru',text:n=>`シロの最大HP+${n[0]}<br>牙+${n[1]}（HPも回復）`,play:n=>{if(pet){pet.max+=n[0];pet.hp=pet.max;pet.down=false;pet.atk+=n[1];}addPower('beastking');log('シロが王の風格をまとった。');}},
+  /* 追加：魔法使いルナ */
+  magicmissile:{name:'魔法の矢',cost:1,kind:'atk',n:[5],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ×2<br>状態異常があれば3回`,play:n=>multiHit(n[0],statusKinds()?3:2)},
+  raimei:{name:'雷鳴',cost:2,kind:'atk',n:[14],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>凍結か弱体なら2倍`,play:n=>hitEnemy(n[0]*((enemy.st.freeze||enemy.st.weak)?2:1))},
+  dokunuma:{name:'毒沼',cost:2,kind:'skl',n:[5,1],only:'luna',text:n=>`毒${n[0]}<br>弱体${n[1]}`,play:n=>{addStatus('poison',n[0]);addStatus('weak',n[1]);}},
+  grimoire:{name:'魔導書',cost:1,kind:'skl',n:[2,1],only:'luna',text:n=>`${n[0]}枚引く<br>火傷${n[1]}`,play:n=>{draw(n[0]);addStatus('burn',n[1]);}},
+  kinju:{name:'禁呪',cost:2,kind:'skl',n:[3],exhaust:true,only:'luna',text:n=>`毒・火傷・弱体を${n[0]}ずつ<br>使うと消滅`,play:n=>{addStatus('poison',n[0]);addStatus('burn',n[0]);addStatus('weak',n[0]);}},
+  dokubari:{name:'毒針',cost:0,kind:'atk',n:[3,2],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>毒${n[1]}`,play:n=>{hitEnemy(n[0]);addStatus('poison',n[1]);}},
+  honowall:{name:'炎の壁',cost:1,kind:'skl',n:[6,1],blk:[0],only:'luna',text:n=>`ブロック${n[0]}<br>火傷${n[1]}`,play:n=>{gainBlock(n[0]);addStatus('burn',n[1]);}},
+  fubuki:{name:'吹雪',cost:2,kind:'atk',n:[4,3,1],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ×${n[1]}<br>弱体${n[2]}`,play:n=>{addStatus('weak',n[2]);multiHit(n[0],n[1]);}},
+  bousou:{name:'魔力暴走',cost:2,kind:'atk',n:[3],only:'luna',text:n=>`敵の状態異常の合計×${n[0]}ダメージ`,
+    play:n=>{const t=Object.values(enemy.st).reduce((a,b)=>a+b,0);hitEnemy(t?t*n[0]+dmgBonus():0);if(!t)log('状態異常がかかっていない。');}},
+  fushoku:{name:'腐食',cost:1,kind:'skl',n:[2],only:'luna',text:n=>`毒の数だけ敵のブロックを削る<br>毒+${n[0]}`,
+    play:n=>{const r=Math.min(enemy.block,enemy.st.poison);enemy.block-=r;if(r)log(`毒が鎧を溶かした。ブロック-${r}`);addStatus('poison',n[0]);}},
+  eitou:{name:'永久凍土',cost:2,kind:'pow',n:[1],only:'luna',text:n=>`毎ターン開始時<br>敵に弱体${n[0]}`,play:n=>{pw.frostTurn+=n[0];addPower('eitou');}},
+  /* 第3弾：剣士レン */
+  iuchi:{name:'抜き打ち',cost:0,kind:'atk',n:[4,1],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージ<br>連撃+${n[1]}`,play:n=>{hitEnemy(n[0]);pcombo+=n[1];}},
+  ittou:{name:'一刀両断',cost:3,kind:'atk',n:[20,5],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージ<br>＋連撃×${n[1]}`,play:n=>hitEnemy(n[0]+pcombo*n[1])},
+  iainuki:{name:'居合抜き',cost:1,kind:'atk',n:[15,5],dmg:[0,1],only:'ren',text:n=>`連撃が0なら${n[0]}ダメージ<br>それ以外は${n[1]}`,play:n=>hitEnemy(pcombo===0?n[0]:n[1])},
+  toushin:{name:'刀身一体',cost:1,kind:'pow',n:[2],only:'ren',text:n=>`アタックを使うたび<br>ブロック${n[0]}`,play:n=>{pw.atkBlock+=n[0];addPower('toushin');}},
+  kiribarai:{name:'斬り払い',cost:1,kind:'atk',n:[6,1],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージ<br>${n[1]}枚引く`,play:n=>{hitEnemy(n[0]);draw(n[1]);}},
+  kokyu:{name:'呼吸法',cost:1,kind:'skl',n:[6,1],blk:[0],only:'ren',text:n=>`ブロック${n[0]}<br>手札のアタック1枚のコスト-${n[1]}`,
+    play:n=>{gainBlock(n[0]);const a=hand.find(c=>CARDS[c.id].kind==='atk'&&costOf(c)>0);if(a)a.tMod=(a.tMod||0)-n[1];}},
+  kenbu:{name:'剣舞',cost:1,kind:'skl',n:[3],only:'ren',text:n=>`手札のアタック1枚につき<br>ブロック${n[0]}`,play:n=>{const k=hand.filter(c=>CARDS[c.id].kind==='atk').length;gainBlock(k?k*n[0]+pdex:0);}},
+  musou:{name:'無双',cost:2,kind:'atk',n:[4],dmg:[0],only:'ren',text:n=>`連撃の数だけ<br>${n[0]}ダメージを繰り返す`,play:n=>multiHit(n[0],Math.max(1,pcombo))},
+  shippu:{name:'疾風',cost:0,kind:'skl',n:[2,1],only:'ren',text:n=>`${n[0]}枚引く<br>引いたアタックのコスト-${n[1]}`,
+    play:n=>{const b=hand.length;draw(n[0]);hand.slice(b).forEach(c=>{if(CARDS[c.id].kind==='atk')c.tMod=(c.tMod||0)-n[1];});}},
+  kakugo:{name:'覚悟',cost:1,kind:'skl',n:[4,2],only:'ren',text:n=>`HPを${n[0]}失う<br>エネルギー+${n[1]}`,play:n=>{hp=Math.max(1,hp-n[0]);energy+=n[1];}},
+  /* 第3弾：占い師ミラ */
+  senseijutsu:{name:'占星術',cost:1,kind:'skl',n:[4],only:'mira',text:n=>`予知の数だけ引く<br>（最大${n[0]}枚）`,play:n=>{const k=Math.min(n[0],pfore);if(k)draw(k);else log('予知がない。');}},
+  suishomamori:{name:'水晶の守り',cost:1,kind:'skl',n:[6,1],blk:[0],only:'mira',text:n=>`ブロック${n[0]}<br>予知+${n[1]}`,play:n=>{gainBlock(n[0]);pfore+=n[1];}},
+  senriya:{name:'千里の矢',cost:1,kind:'atk',n:[6,1],dmg:[0],only:'mira',text:n=>`${n[0]}ダメージ<br>水晶玉+${n[1]}回`,play:n=>{hitEnemy(n[0]);lensTime+=n[1];updateGauge();}},
+  shinjitsu:{name:'真実の光',cost:2,kind:'atk',n:[7],lm:[0],only:'mira',text:n=>`いま画面の嘘の数×${n[0]}ダメージ<br>嘘をすべて消す`,
+    play:n=>{const c=lieCount();hitEnemy(c?c*n[0]+dmgBonus():0);clearLies();log(c?'真実の光が嘘を焼き払った。':'照らす嘘がなかった。');}},
+  zankyo:{name:'未来の残響',cost:1,kind:'pow',n:[3],only:'mira',text:n=>`予知で嘘を払うたび<br>敵に${n[0]}ダメージ`,play:n=>{pw.foreDmg+=n[0];addPower('zankyo');}},
+  rinne:{name:'宿命の輪',cost:1,kind:'skl',n:[1],only:'mira',text:n=>`捨て札から1枚手札に戻す<br>予知+${n[0]}`,
+    play:n=>{pfore+=n[0];if(discard.length&&hand.length<8){const c=discard.splice(Math.floor(Math.random()*discard.length),1)[0];hand.push(c);log(`「${CARDS[c.id].name}」が巡ってきた。`);}}},
+  tengan:{name:'天眼',cost:1,kind:'skl',n:[1],exhaust:true,only:'mira',text:n=>`この戦闘中、水晶玉を<br>毎ターン${n[0]}回多く使える<br>使うと消滅`,
+    play:n=>{pw.lensBig=1;pw.lensPlus+=n[0];lensTime+=n[0];updateGauge();}},
+  kyocho:{name:'凶兆',cost:1,kind:'skl',n:[1,1],only:'mira',text:n=>`敵の筋力-${n[0]}<br>幻惑-${n[1]}`,play:n=>{enemy.str-=n[0];reduceIllusion(n[1]);}},
+  hoshifuri:{name:'星降り',cost:2,kind:'atk',n:[3],dmg:[0],only:'mira',text:n=>`${n[0]}ダメージを<br>（予知+2）回`,play:n=>multiHit(n[0],pfore+2)},
+  kansoku:{name:'観測者',cost:1,kind:'pow',n:[1,1],only:'mira',text:n=>`観察力+${n[0]}<br>予知+${n[1]}`,play:n=>{pobs+=n[0];pfore+=n[1];addPower('kansoku');}},
+  /* 第3弾：詐欺師クロ */
+  karategata:{name:'空手形',cost:0,kind:'skl',n:[4,1],only:'kuro',text:n=>`ハッタリ+${n[0]}<br>次のターンエネルギー-${n[1]}`,play:n=>{gainHat(n[0]);pw.eNext-=n[1];}},
+  sodenoshita:{name:'袖の下',cost:0,kind:'skl',n:[6,2],only:'kuro',text:n=>`金貨${n[0]}を払って<br>エネルギー+${n[1]}`,
+    play:n=>{if(gold>=n[0]){gold-=n[0];energy+=n[1];log('袖の下を渡した。');}else log('渡す金貨がない。');}},
+  gishou:{name:'偽証',cost:1,kind:'skl',n:[],only:'kuro',text:()=>'このターン、手札の数値の嘘が<br>大きいほうなら本当になる',play:()=>{gishou=true;log('嘘を真実だと言い張った。');}},
+  oshiuri:{name:'押し売り',cost:1,kind:'atk',n:[8,15],dmg:[0],only:'kuro',text:n=>`${n[0]}ダメージ<br>敵にブロックがあれば金貨+${n[1]}`,play:n=>{if(enemy.block>0){gold+=n[1];log(`押し売り成功。金貨+${n[1]}`);}hitEnemy(n[0]);}},
+  amai:{name:'甘い言葉',cost:1,kind:'skl',n:[1,3],only:'kuro',text:n=>`敵に弱体${n[0]}<br>ハッタリ+${n[1]}`,play:n=>{addStatus('weak',n[0]);gainHat(n[1]);}},
+  kemudama:{name:'煙玉',cost:1,kind:'skl',n:[7,2,1],blk:[0],only:'kuro',text:n=>`ブロック${n[0]}<br>ハッタリ+${n[1]}　幻惑+${n[2]}`,play:n=>{gainBlock(n[0]);gainHat(n[1]);illusion+=n[2];}},
+  satsutaba:{name:'札束ビンタ',cost:1,kind:'atk',n:[5,40],only:'kuro',text:n=>`金貨÷${n[0]}のダメージ<br>（最大${n[1]}）`,play:n=>hitEnemy(Math.min(n[1],Math.floor(gold/n[0]))+dmgBonus())},
+  ryugi:{name:'詐欺師の流儀',cost:1,kind:'pow',n:[1,3],only:'kuro',text:n=>`嘘があるターンの開始時<br>${n[0]}枚多く引き、ハッタリ+${n[1]}`,play:n=>{pw.ryugiD+=n[0];pw.ryugiH+=n[1];addPower('ryugi');}},
+  demakase:{name:'出まかせ',cost:0,kind:'skl',n:[1],only:'kuro',text:n=>`手札のランダムな1枚を<br>このターンコスト0　幻惑+${n[0]}`,
+    play:n=>{const c=pick(hand.filter(x=>costOf(x)>0)||[]);if(c){c.tFree=true;log(`「${CARDS[c.id].name}」がタダになった。`);}illusion+=n[0];}},
+  shippokiri:{name:'尻尾切り',cost:1,kind:'skl',n:[11],blk:[0],only:'kuro',text:n=>`ブロック${n[0]}<br>手札をランダムに1枚捨てる`,
+    play:n=>{gainBlock(n[0]);if(hand.length){const c=hand.splice(Math.floor(Math.random()*hand.length),1)[0];discard.push(resetTurn(c));log(`「${CARDS[c.id].name}」を切り捨てた。`);}}},
+  /* 第3弾：獣使いハル */
+  fuse:{name:'伏せ',cost:0,kind:'skl',n:[5,3],only:'haru',text:n=>`シロにブロック${n[0]}<br>シロのHP+${n[1]}`,play:n=>{if(petOk()){pet.block+=n[0];pet.hp=Math.min(pet.max,pet.hp+n[1]);}}},
+  moushin:{name:'猛進',cost:2,kind:'atk',n:[8,2],dmg:[0],only:'haru',text:n=>`${n[0]}ダメージ<br>シロが牙×${n[1]}のダメージ`,play:n=>{hitEnemy(n[0]);if(petOk()){petFx();hitEnemy(pet.atk*n[1],false,true);}}},
+  kyukaku:{name:'嗅覚',cost:1,kind:'skl',n:[1,1],only:'haru',text:n=>`${n[0]}枚引く<br>予告が嘘ならエネルギー+${n[1]}`,play:n=>{draw(n[0]);if(petOk()&&lies.intent){energy+=n[1];log('シロが嘘を嗅ぎつけた。');}}},
+  mure:{name:'狼の群れ',cost:2,kind:'pow',n:[1],only:'haru',text:n=>`毎ターン開始時<br>シロの牙+${n[0]}`,play:n=>{pw.packGrow+=n[0];addPower('mure');}},
+  kubiwa:{name:'首輪',cost:1,kind:'skl',n:[8],exhaust:true,only:'haru',text:n=>`シロの最大HP+${n[0]}<br>HP全回復<br>使うと消滅`,play:n=>{if(pet){pet.max+=n[0];pet.hp=pet.max;pet.down=false;}}},
+  kyomei:{name:'共鳴',cost:1,kind:'atk',n:[],only:'haru',text:()=>'牙の数だけブロック<br>シロが牙のダメージ',play:()=>{if(petOk()){gainBlock(pet.atk);petFx();hitEnemy(pet.atk,false,true);}else log('シロは戦えない。');}},
+  osuwari:{name:'おすわり',cost:1,kind:'skl',n:[5,1],blk:[0],only:'haru',text:n=>`ブロック${n[0]}<br>シロの牙+${n[1]}`,play:n=>{gainBlock(n[0]);if(petOk())pet.atk+=n[1];}},
+  ezuke:{name:'餌付け',cost:0,kind:'skl',n:[5,10],only:'haru',text:n=>`金貨${n[0]}を払って<br>シロのHP+${n[1]}`,play:n=>{if(petOk()&&gold>=n[0]){gold-=n[0];pet.hp=Math.min(pet.max,pet.hp+n[1]);log('シロがおいしそうに食べている。');}else log('あげられない。');}},
+  sutemi:{name:'捨て身',cost:1,kind:'atk',n:[5,3],only:'haru',text:n=>`シロのHPを${n[0]}削って<br>牙×${n[1]}のダメージ`,
+    play:n=>{if(petOk()){pet.hp=Math.max(1,pet.hp-n[0]);petFx();hitEnemy(pet.atk*n[1]+dmgBonus(),false,true);}else log('シロは戦えない。');}},
+  sakebi:{name:'野生の叫び',cost:2,kind:'skl',n:[4],exhaust:true,only:'haru',text:n=>`シロが${n[0]}回かみつく<br>使うと消滅`,play:n=>{if(petOk()){petFx();multiHit(pet.atk,n[0]);}else log('シロは戦えない。');}},
+  /* 第3弾：魔法使いルナ */
+  hebi:{name:'蛇の牙',cost:1,kind:'atk',n:[4,3],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>毒${n[1]}`,play:n=>{hitEnemy(n[0]);addStatus('poison',n[1]);}},
+  okibi:{name:'熾火',cost:1,kind:'skl',n:[3],only:'luna',text:n=>`火傷${n[0]}`,play:n=>addStatus('burn',n[0])},
+  shimo:{name:'霜の鎧',cost:1,kind:'skl',n:[8,1],blk:[0],only:'luna',text:n=>`ブロック${n[0]}<br>敵に弱体${n[1]}`,play:n=>{gainBlock(n[0]);addStatus('weak',n[1]);}},
+  shakunetsu:{name:'灼熱',cost:2,kind:'atk',n:[10],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>火傷を2倍にする`,play:n=>{hitEnemy(n[0]);if(enemy.st.burn)addStatus('burn',enemy.st.burn);}},
+  dokubaku:{name:'毒爆',cost:1,kind:'atk',n:[2],only:'luna',text:n=>`毒×${n[0]}ダメージ<br>（毒は減らない）`,play:n=>{const p=enemy.st.poison;hitEnemy(p?p*n[0]+dmgBonus():0);if(!p)log('毒がかかっていない。');}},
+  tsurara:{name:'氷柱',cost:1,kind:'atk',n:[8],dmg:[0],only:'luna',text:n=>`${n[0]}ダメージ<br>凍結中なら3倍`,play:n=>hitEnemy(n[0]*(enemy.st.freeze?3:1))},
+  rensa:{name:'呪いの連鎖',cost:1,kind:'pow',n:[2],only:'luna',text:n=>`状態異常をかけるたび<br>敵に${n[0]}ダメージ`,play:n=>{pw.stDmg+=n[0];addPower('rensa');}},
+  shuchu:{name:'魔力集中',cost:0,kind:'skl',n:[1,2],only:'luna',text:n=>`${n[0]}枚引く<br>状態異常1種類につきブロック${n[1]}`,play:n=>{draw(n[0]);const k=statusKinds();gainBlock(k?k*n[1]+pdex:0);}},
+  jikan:{name:'時間停止',cost:3,kind:'skl',n:[2],exhaust:true,only:'luna',text:n=>`凍結${n[0]}<br>使うと消滅`,play:n=>addStatus('freeze',n[0])},
+  kekkai:{name:'毒霧の結界',cost:1,kind:'pow',n:[],only:'luna',text:()=>'毎ターン開始時<br>敵の毒の数だけブロック',play:()=>{pw.poisonBlock=1;addPower('kekkai');}},
+  /* 呪いカード：使えない。持っていると損しかない */
+  brand:{name:'嘘の烙印',cost:0,kind:'curse',unplayable:true,n:[1],text:n=>`使えない<br>ターン終了時に手札にあると幻惑+${n[0]}`},
+  burden:{name:'重荷',cost:0,kind:'curse',unplayable:true,n:[],text:()=>'使えない<br>手札をふさぐだけ'},
+  chill:{name:'悪寒',cost:0,kind:'curse',unplayable:true,n:[2],text:n=>`使えない<br>ターン終了時に手札にあるとHP-${n[0]}`},
+  doubtseed:{name:'疑念の種',cost:0,kind:'curse',unplayable:true,n:[1],text:n=>`使えない<br>引いたターン、虫眼鏡の回数-${n[0]}`},
+  shackle:{name:'呪縛',cost:0,kind:'curse',unplayable:true,n:[1],text:n=>`使えない<br>引いたターン、エネルギー-${n[0]}`},
+  glass:{name:'割れた鏡片',cost:0,kind:'curse',unplayable:true,n:[1],text:n=>`使えない<br>ターン終了時に手札にあると最大HP-${n[0]}`},
+  /* 条件付きカード：条件がそろったときだけ使える */
+  combo:{name:'連携',cost:1,kind:'atk',n:[20],dmg:[0],needText:'このターンすでに3枚使った',need:()=>playedTurn>=3,
+    text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  lastcard:{name:'切り札',cost:0,kind:'atk',n:[24],dmg:[0],needText:'手札がこのカードだけ',need:()=>hand.length===1,
+    text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  nightmare:{name:'悪夢返し',cost:1,kind:'atk',only:'luna',n:[18,2],dmg:[0],needText:'幻惑4以上',need:()=>illusion>=4,
+    text:n=>`${n[0]}ダメージ<br>幻惑-${n[1]}`,play:n=>{hitEnemy(n[0]);reduceIllusion(n[1]);}},
+  counter:{name:'反撃',cost:1,kind:'atk',only:'haru',n:[2],needText:'ブロック10以上',need:()=>block>=10,
+    text:n=>`いまのブロック×${n[0]}ダメージ`,play:n=>hitEnemy(block*n[0]+dmgBonus())},
+  judge:{name:'審判',cost:1,kind:'atk',n:[18],dmg:[0],needText:'このターン虫眼鏡で嘘を暴いた',need:()=>lensFound>0,
+    text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  pursuit:{name:'追撃',cost:0,kind:'atk',only:'ren',n:[9],dmg:[0],needText:'このターンすでにアタックを使った',need:()=>atkTurn>=1,
+    text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  crush:{name:'鎧砕き',cost:1,kind:'atk',n:[14],dmg:[0],needText:'敵がブロックを持っている',need:()=>enemy.block>0,
+    text:n=>`敵のブロックを消して<br>${n[0]}ダメージ`,play:n=>{enemy.block=0;hitEnemy(n[0]);}},
+  usurp:{name:'力の簒奪',cost:1,kind:'skl',only:'kuro',n:[],needText:'敵の筋力が1以上',need:()=>enemy.str>0,
+    text:()=>'敵の筋力を<br>すべて自分のものにする',play:()=>{const v=enemy.str;pstr+=v;enemy.str=0;log(`筋力を${v}奪った。`);}},
+  attrition:{name:'物量作戦',cost:1,kind:'skl',only:'kuro',n:[3,2],needText:'捨て札が8枚以上',need:()=>discard.length>=8,
+    text:n=>`${n[0]}枚引く<br>エネルギー+${n[1]}`,play:n=>{draw(n[0]);energy+=n[1];}},
+  mighty:{name:'剛力',cost:1,kind:'atk',only:'ren',n:[12,2],dmg:[0],needText:'筋力3以上',need:()=>pstr>=3,
+    text:n=>`${n[0]}ダメージ×${n[1]}`,play:n=>{multiHit(n[0],n[1]);}},
+  ougi:{name:'奥義',cost:1,kind:'atk',n:[30],dmg:[0],only:'ren',needText:'連撃4以上',need:()=>pcombo>=4,
+    text:n=>`${n[0]}ダメージ`,play:n=>hitEnemy(n[0])},
+  prophecy:{name:'天啓',cost:0,kind:'skl',n:[3,2],only:'mira',needText:'予知2以上',need:()=>pfore>=2,
+    text:n=>`${n[0]}枚引く<br>エネルギー+${n[1]}`,play:n=>{draw(n[0]);energy+=n[1];}},
+  bribe:{name:'買収',cost:1,kind:'atk',n:[2],only:'kuro',needText:'ハッタリ8以上',need:()=>phat>=8,
+    text:n=>`ハッタリ×${n[0]}ダメージ<br>ハッタリは減らない`,play:n=>hitEnemy(phat*n[0]+dmgBonus())},
+  /* 共通：召喚・コスト操作 */
+  call:{name:'呼び声',cost:1,kind:'skl',only:'haru',n:[2],text:n=>`「牽制」を${n[0]}枚手札に加える`,play:n=>{for(let i=0;i<n[0];i++)summon('jab');}},
+  echo:{name:'反響',cost:1,kind:'skl',n:[],text:()=>'直前に使ったカードの複製を手札に加える',
+    play:()=>{if(lastPlayed&&lastPlayed!=='echo'){summon(lastPlayed);log(`「${CARDS[lastPlayed].name}」が響いた。`);}else log('何も響かなかった。');}},
+  deft:{name:'手際',cost:1,kind:'skl',only:'kuro',n:[1],text:n=>`手札の全カードのコスト-${n[0]}<br>（このターン）`,play:n=>{hand.forEach(c=>c.tMod=(c.tMod||0)-n[0]);}},
+  forge:{name:'鍛造',cost:1,kind:'skl',n:[],text:()=>'ランダムな攻撃カードを手札に加える<br>このターンコスト0',
+    play:()=>{const id=pick(pool().filter(k=>CARDS[k].kind==='atk'));summon(id,true);log(`「${CARDS[id].name}」を打ち出した。`);}},
+  simplify:{name:'簡略化',cost:1,kind:'skl',only:'kuro',n:[1],text:n=>`手札でいちばん重いカードのコスト-${n[0]}<br>（この戦闘中）`,
+    play:n=>{const t=hand.slice().sort((a,b)=>costOf(b)-costOf(a))[0];if(t){t.bMod=(t.bMod||0)-n[0];log(`「${CARDS[t.id].name}」が軽くなった。`);}}},
+
+  /* 剣士レン専用 */
+  iai:{name:'居合',cost:1,kind:'atk',n:[7],dmg:[0],firstFree:true,only:'ren',text:n=>`${n[0]}ダメージ<br>ターン最初のカードならコスト0`,play:n=>hitEnemy(n[0])},
+  tsubame:{name:'燕返し',cost:1,kind:'atk',n:[3],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージを<br>（連撃+1）回`,
+    play:n=>{const k=pcombo+1;multiHit(n[0],k);}},
+  battou:{name:'抜刀術',cost:2,kind:'atk',n:[8,4],dmg:[0],only:'ren',text:n=>`${n[0]}ダメージ<br>＋連撃×${n[1]}`,play:n=>hitEnemy(n[0]+pcombo*n[1])},
+  togi:{name:'刀を研ぐ',cost:1,kind:'skl',n:[1],only:'ren',text:n=>`手札の攻撃カードのコスト-${n[0]}<br>（このターン）`,
+    play:n=>{hand.forEach(c=>{if(CARDS[c.id].kind==='atk')c.tMod=(c.tMod||0)-n[0];});}},
+  kage:{name:'影分身',cost:1,kind:'skl',n:[],only:'ren',text:()=>'手札の攻撃カード1枚を複製する<br>複製はこのターンコスト0',
+    play:()=>{const a=hand.filter(c=>CARDS[c.id].kind==='atk');if(a.length){const t=pick(a);summon(t.id,true);log(`「${CARDS[t.id].name}」の影が現れた。`);}else log('分身する技がない。');}},
+
+  /* 占い師ミラ専用 */
+  crystal:{name:'水晶玉',cost:1,kind:'pow',n:[1],only:'mira',text:n=>`予知+${n[0]}`,play:n=>{pfore+=n[0];log('未来が少し見えた。');}},
+  tarot:{name:'タロット',cost:1,kind:'skl',n:[],only:'mira',text:()=>'ランダムなカードを手札に加える<br>このターンコスト0',
+    play:()=>{const id=pick(pool());summon(id,true);log(`「${CARDS[id].name}」を引き当てた。`);}},
+  hoshi:{name:'星詠み',cost:0,kind:'skl',n:[2,1],only:'mira',text:n=>`${n[0]}枚引く<br>幻惑+${n[1]}`,play:n=>{draw(n[0]);illusion+=n[1];}},
+  reverse:{name:'逆位置',cost:1,kind:'atk',n:[12,8],dmg:[0],blk:[1],only:'mira',text:n=>`予告が嘘なら${n[0]}ダメージ<br>本当ならブロック${n[1]}`,
+    play:n=>{if(lies.intent){hitEnemy(n[0]);log('逆位置。予告は嘘だった。');}else{gainBlock(n[1]);log('正位置。予告は本当だった。');}}},
+  fate:{name:'宿命',cost:2,kind:'skl',n:[2,2],exhaust:true,only:'mira',text:n=>`敵の筋力-${n[0]}<br>幻惑-${n[1]}<br>使うと消滅`,
+    play:n=>{enemy.str-=n[0];reduceIllusion(n[1]);log('運命を書き換えた。');}},
+
+  /* 詐欺師クロ専用 */
+  nimai:{name:'二枚舌',cost:1,kind:'skl',n:[5],blk:[0],only:'kuro',text:n=>`ハッタリ+${n[0]}`,play:n=>{gainHat(n[0]);log('もっともらしい嘘をついた。');}},
+  fakecoin:{name:'偽金',cost:0,kind:'skl',n:[8],exhaust:true,only:'kuro',text:n=>`金貨+${n[0]}<br>使うと消滅`,play:n=>{gold+=n[0];log(`金貨を${n[0]}枚こしらえた。`);}},
+  swap:{name:'すり替え',cost:1,kind:'skl',n:[1],only:'kuro',text:n=>`手札を全部捨て同じ枚数引く<br>引いたカードのコスト-${n[0]}`,
+    play:n=>{const k=hand.length;discard.push(...hand.map(resetTurn));hand=[];draw(k);hand.forEach(c=>c.tMod=(c.tMod||0)-n[0]);}},
+  forgery:{name:'偽造',cost:1,kind:'skl',n:[],only:'kuro',text:()=>'手札でいちばん重いカードを複製<br>複製はこのターンコスト0',
+    play:()=>{const t=hand.slice().sort((a,b)=>costOf(b)-costOf(a))[0];if(t){summon(t.id,true);log(`「${CARDS[t.id].name}」を偽造した。`);}else log('偽造するものがない。');}},
+  smoke:{name:'煙に巻く',cost:1,kind:'atk',n:[4],lm:[0],only:'kuro',text:n=>`幻惑の数×${n[0]}ダメージ<br>幻惑を0にする`,
+    play:n=>{hitEnemy(illusion?illusion*n[0]+dmgBonus():0);illusion=0;log('煙に巻いた。');}}
+};
+const RARITY={
+  R:['ittou','musou','zankyo','tengan','gishou','ryugi','mure','sakebi','rensa','jikan','beastking','kinju','nitou','meikyo','prescience','sanmai','chuken','bousou','eitou','pack','wild','inferno','hex','fakesignal','ledger','keengaze','allout','farce','clair','liareat','regen','battou','fate','forgery','bluff','assassin','lies800','spellbook','madness','immovable','issen','foresee','gamble'],
+  U:['iainuki','toushin','kenbu','shippu','senseijutsu','shinjitsu','rinne','hoshifuri','oshiuri','satsutaba','demakase','moushin','kubiwa','kyomei','sutemi','shakunetsu','dokubaku','tsurara','kekkai','kudaki','yasei','raimei','dokunuma','midare','shingan','clairvoy','fatethread','revelation','ikasama','sashu','yonige','kari','renkei','fubuki','fushoku','together','howl','sniff','recall','toxic','frost','chaincast','decay','overlie','peel','strip','smooth','combo','lastcard','nightmare','counter','judge','pursuit','crush','usurp','attrition','mighty','ougi','prophecy','bribe','unmask','polish','expose','truth','doubtblade','see','liarshield','despair','flurry','leech','finisher','thunder','liarfist','focus','rage','stance','heed',
+     'ironwill','paranoia','venom','calm','kenki','starbless','silver','echo','deft','forge','simplify','tsubame','togi','kage','crystal','tarot',
+     'reverse','swap','smoke','reflect','konshin','zanshin','fortify','scheme','thief','mirrorheart','charge']
+};
+for(const k in CARDS)CARDS[k].r=CARDS[k].kind==='curse'?'X':RARITY.R.includes(k)?'R':RARITY.U.includes(k)?'U':'C';
+const RLABEL={C:'コモン',U:'アンコモン',R:'レア',X:'呪い'};
+const CURSES=Object.keys(CARDS).filter(k=>CARDS[k].kind==='curse');
+function addCurse(id){id=id||pick(CURSES);deck.push(newCard(id));dexAdd(id);return CARDS[id].name;}
+function rollRarity(boost){const x=Math.random();return x<.1+boost?'R':x<.42+boost*1.5?'U':'C';}
+function pickCards(n,boost=0){
+  const out=[],all=pool();
+  let guard=0;
+  while(out.length<n&&guard++<200){
+    const r=rollRarity(boost);const cand=all.filter(k=>CARDS[k].r===r&&!out.includes(k));
+    if(cand.length)out.push(pick(cand));
+  }
+  return out;
+}
+const pool=()=>Object.keys(CARDS).filter(k=>!['slash','guard'].includes(k)&&CARDS[k].kind!=='curse'&&(!CARDS[k].only||CARDS[k].only===char));
+function costOf(c){
+  const d=CARDS[c.id];
+  if(c.tFree)return 0;
+  if(d.firstFree&&playedTurn===0)return 0;
+  return Math.max(0,d.cost+(c.bMod||0)+(c.tMod||0));
+}
+function resetTurn(c){c.tMod=0;c.tFree=false;return c;}
+function summon(id,free){
+  if(hand.length>=8){log('手札がいっぱいだ。');return;}
+  const c=newCard(id);if(free)c.tFree=true;hand.push(c);
+}
+const dmgBonus=()=>pstr+(char==='ren'?pcombo:0)+(char==='luna'?statusKinds():0);
+
+/* ---------- card art ---------- */
+const MOTIF={
+sword:["........#.",".......#o#","......#o#.",".....#o#..","....#o#...","#..#o#....",".##o#.....","..##......",".#+##.....","#+#..#...."],
+shield:[".########.","#oooooooo#","#o++++++o#","#o+#++#+o#","#o++##++o#","#o++##++o#",".#o++++o#.","..#o++o#..","...#oo#...","....##...."],
+eye:["","..######..",".#oooooo#.","#oo####oo#","#o##++##o#","#o##++##o#","#oo####oo#",".#oooooo#.","..######.."],
+card:["..######..","..#oooo#..","..#o+#o#..","..#o##o#..","..#o#+o#..","..#oooo#..","..#o##o#..","..#oooo#..","..######.."],
+coin:["...####...","..#oooo#..",".#oo##oo#.",".#o#oooo#.",".#oo##oo#.",".#oooo#o#.",".#oo##oo#.","..#oooo#..","...####..."],
+flame:["....#.....","...#o#....","...#o#.#..","..#oo##o#.","..#o+oo+#.",".#o++o++o#",".#o+##+oo#",".#o+##++o#","..#o++oo#.","...####..."],
+star:["....#.....","...#o#....","...#o#....","####o####.","#ooooooo#.",".#ooooo#..","..#ooo#...",".#oo#oo#..","#o#...#o#.","#.......#."],
+crystal:["...####...","..#oooo#..",".#oo+ooo#.",".#o+oooo#.",".#oooooo#.","..#oooo#..","...####...","..#++++#..",".########."],
+mask:[".########.","#oooooooo#","#o##oo##o#","#o#+oo+#o#","#oooooooo#","#oo#oo#oo#",".#oo##oo#.","..#oooo#..","...####..."],
+fist:["","..######..",".#o#o#o##.",".#o#o#o#o#",".#ooooooo#",".#oooooo#.",".#ooooo#..","..#oooo#..","..#++++#..","..######.."],
+scroll:[".########.","#o#oooooo#","#o#o####o#",".##oooooo#","..#o####o#","..#oooooo#","..#o###oo#","..#oooooo#","..########"],
+heart:["",".##...##..","#oo#.#oo#.","#ooo#ooo#.","#ooooooo#.",".#ooooo#..","..#ooo#...","...#o#....","....#....."],
+bolt:[".....###..","....#oo#..","...#oo#...","..#oo#....",".#ooooo#..","..##oo#...","...#oo#...","..#oo#....",".#o#......",".##......."],
+cloud:["","...###....","..#ooo#...",".#ooooo##.","#oooooooo#","#o+oo+ooo#",".#oooooo#.","..######..","...+..+...","..+..+...."],
+moon:["...####...","..#oo#....",".#oo#.....",".#oo#.....","#ooo#.....","#ooo#.....",".#oo#.....",".#ooo#....","..#ooo##..","...####..."],
+drop:["....#.....","....#.....","...#+#....","...#+#....","..#+++#...",".#++o++#..",".#+o+++#..",".#+++++#..","..#+++#...","...###...."],
+spiral:["..######..",".#oooooo#.","#o#####oo#","#o#ooo#oo#","#o#o#o#oo#","#o#o##o#o#","#o#oooo#o#","#o######o#",".#oooooo#.","..######.."],
+chain:["","###.......","#o#.......","###.......",".#o###....","..#o#o#...","..###o#...","....#o###.",".....#o#o#",".....#####"],
+bell:["....##....","...#oo#...","..#oooo#..","..#oooo#..",".#oooooo#.",".#oooooo#.","#oooooooo#","##########","....##...."],
+hand:["...#.#....","..#o#o#.#.","..#o#o##o#","#.#o#o#o#.","#o#oooooo#",".#ooooooo#",".#oooooo#.","..#ooooo#.","...#ooo#..","...#####.."],
+hammer:[".#####....","#ooooo#...","#o+++o#...",".#####....","...#o#....","...#o#....","...#o#....","...#o#....","...#o#....","...###...."],
+dagger:["","......#...",".....#o#..","....#o#...","...#o#....","..#o#.....","#####.....",".#+#......","#+#.......","##........"],
+skull:["..######..",".#oooooo#.","#oooooooo#","#o##oo##o#","#o##oo##o#","#ooo##ooo#",".#oooooo#.","..#o#o#o#.","..#######."],
+wing:["#.........","#o#.......","#oo##.....",".#ooo##...",".#oooooo#.","..#ooooo##","..#oo####.","...#oo#...","....##...."],
+paw:["..#....#..",".#o#..#o#.",".#o#..#o#.","..#.##.#..","...#oo#...","..#oooo#..",".#oooooo#.",".#oooooo#.","..#oooo#..","...####..."],
+wand:["........#.",".......#o#","......#oo#",".......##.","......#+#.",".....#+#..","....#+#...","...#+#....","..#+#.....","..##......"],
+snow:["....#.....",".#..#..#..","..#.#.#...","...###....","#########.","...###....","..#.#.#...",".#..#..#..","....#....."],
+tongue:["..######..",".#oooooo#.","#o######o#","#o#++++#o#",".#+++++#..","..#+++#...","..#+#+#...","..#+.+#...","..#...#..."]
+};
+const ART={
+  slash:['sword'],guard:['shield'],stare:['eye'],expose:['eye','bolt'],truth:['eye',null,'spark'],doubt:['shield','spiral'],
+  read:['eye','sword'],twin:['sword',null,'double'],bash:['fist'],wall:['shield',null,'double'],jab:['dagger'],parry:['dagger','shield'],
+  shieldbash:['shield','fist'],despair:['skull','sword'],flurry:['fist',null,'double'],leech:['drop','sword'],doubtblade:['dagger','spiral'],
+  see:['eye',null,'double'],liarshield:['mask','shield'],defiance:['spiral','shield'],farce:['mask','bolt'],breath:['cloud'],
+  focus:['bolt',null,'spark'],rage:['fist',null,'spark'],stance:['shield',null,'spark'],heed:['eye',null,'mirror'],bluff:['mask',null,'spark'],
+  call:['bell'],echo:['bell',null,'double'],deft:['hand',null,'spark'],forge:['hammer','sword'],simplify:['scroll'],
+  iai:['sword',null,'spark'],tsubame:['wing','sword'],battou:['sword',null,'mirror'],togi:['sword','hand'],kage:['mask','sword'],
+  crystal:['crystal'],tarot:['card'],hoshi:['star'],reverse:['card',null,'mirror'],fate:['star','chain'],
+  nimai:['tongue'],fakecoin:['coin'],swap:['card',null,'double'],forgery:['scroll','coin'],smoke:['cloud',null,'double'],
+  kick:['fist',null,'mirror'],knives:['dagger',null,'double'],finisher:['skull',null,'spark'],thunder:['bolt',null,'double'],
+  liarfist:['mask','fist'],allout:['fist','flame'],substitute:['shield','card'],smokescreen:['cloud','shield'],firstaid:['heart'],
+  quick:['hand'],pray:['moon'],ironwill:['shield','flame'],liareat:['tongue','spiral'],clair:['eye','star'],paranoia:['spiral','eye'],
+  regen:['heart',null,'spark'],venom:['drop','dagger'],calm:['moon',null,'spark'],kenki:['sword','flame'],starbless:['star','shield'],
+  silver:['tongue',null,'spark'],midare:['sword','cloud'],iuchi:['sword','bolt'],ittou:['sword',null,'spark'],iainuki:['sword','moon'],toushin:['sword','shield'],kiribarai:['sword','card'],kokyu:['cloud','moon'],kenbu:['sword','star'],musou:['sword','flame'],shippu:['wing','bolt'],kakugo:['heart','sword'],
+senseijutsu:['star','scroll'],suishomamori:['crystal','shield'],senriya:['crystal','dagger'],shinjitsu:['eye','flame'],zankyo:['crystal','bell'],rinne:['crystal','spiral'],tengan:['eye',null,'double'],kyocho:['skull','star'],hoshifuri:['star',null,'double'],kansoku:['eye','moon'],
+karategata:['scroll','tongue'],sodenoshita:['coin','hand'],gishou:['mask','scroll'],oshiuri:['coin','shield'],amai:['tongue','heart'],kemudama:['cloud',null,'double'],satsutaba:['coin',null,'double'],ryugi:['mask',null,'spark'],demakase:['tongue','bolt'],shippokiri:['dagger','shield'],
+fuse:['paw','moon'],moushin:['paw','flame'],kyukaku:['paw','spiral'],mure:['paw','star'],kubiwa:['paw','chain'],kyomei:['paw','bell'],osuwari:['paw','shield'],ezuke:['paw','coin'],sutemi:['paw','heart'],sakebi:['paw','bolt'],
+hebi:['dagger','snow'],okibi:['flame','cloud'],shimo:['snow','shield'],shakunetsu:['flame','bolt'],dokubaku:['drop','bolt'],tsurara:['snow','dagger'],rensa:['chain','wand'],shuchu:['wand','eye'],jikan:['snow','moon'],kekkai:['drop','shield'],mate:['shield','paw'],kudaki:['paw','skull'],yasei:['paw','card'],arrow:['dagger','bolt'],beastking:['paw',null,'mirror'],magicmissile:['wand',null,'double'],raimei:['bolt','snow'],dokunuma:['drop','cloud'],grimoire:['scroll','wand'],kinju:['skull','wand'],shingan:['moon','eye'],zanzou:['mask','cloud'],kesa:['sword','chain'],nitou:['dagger','sword'],meikyo:['moon','shield'],horoscope:['star','card'],clairvoy:['eye','crystal'],fatethread:['chain','crystal'],omen:['star','cloud'],prescience:['crystal','moon'],revelation:['bolt','eye'],oburoshiki:['tongue','cloud'],ikasama:['coin','dagger'],sashu:['hand','tongue'],sanmai:['tongue','star'],yonige:['cloud','coin'],kuchifu:['fist','tongue'],hoero:['paw','bolt'],kari:['paw','dagger'],kezu:['paw','cloud'],chuken:['paw','star'],renkei:['fist','paw'],hone:['paw','drop'],dokubari:['dagger','drop'],honowall:['flame','shield'],fubuki:['snow',null,'double'],bousou:['wand',null,'spark'],fushoku:['drop','shield'],eitou:['snow','moon'],kamitsuke:['paw','fist'],mamore:['paw','shield'],yoshi:['paw','heart'],together:['sword','paw'],howl:['paw','moon'],sniff:['paw','eye'],recall:['paw','bell'],pack:['paw',null,'double'],wild:['paw',null,'spark'],mist:['cloud','drop'],fireball:['wand','flame'],icebolt:['wand','snow'],manashield:['wand','shield'],decay:['wand','skull'],toxic:['drop',null,'spark'],frost:['snow',null,'spark'],chaincast:['wand','bolt'],inferno:['flame',null,'double'],hex:['wand','spiral'],excuse:['cloud','tongue'],pickpocket:['dagger','coin'],peten:['tongue','card'],overlie:['tongue',null,'double'],peel:['mask',null,'mirror'],strip:['coin','fist'],smooth:['tongue','hand'],fakesignal:['bell','mask'],ledger:['scroll',null,'double'],brand:['tongue','chain'],burden:['chain',null,'double'],chill:['drop','skull'],doubtseed:['spiral','drop'],shackle:['chain','bolt'],glass:['skull','spiral'],combo:['hand','sword'],lastcard:['card','bolt'],nightmare:['spiral','sword'],counter:['shield','bolt'],judge:['eye','hammer'],pursuit:['wing','dagger'],crush:['hammer','shield'],usurp:['hand','fist'],attrition:['scroll','bolt'],mighty:['flame','sword'],ougi:['sword','star'],prophecy:['star','crystal'],bribe:['coin','tongue'],antifog:['crystal','cloud'],unmask:['crystal','sword'],keengaze:['crystal','shield'],polish:['crystal','hand'],
+  legsweep:['fist','chain'],headbutt:['skull','fist'],charge:['bolt','fist'],assassin:['dagger',null,'spark'],lies800:['tongue','bolt'],
+  reflect:['shield',null,'mirror'],konshin:['flame','fist'],zanshin:['moon','sword'],fortify:['chain','shield'],spellbook:['scroll',null,'spark'],
+  bravado:['heart','spiral'],scheme:['scroll','eye'],doubletake:['eye','shield'],madness:['spiral',null,'spark'],thief:['hand','coin'],
+  immovable:['shield','moon'],mirrorheart:['heart','eye'],issen:['sword','bolt'],foresee:['crystal',null,'spark'],gamble:['coin','skull']
+};
+const artCache={};
+function cardArt(id){
+  if(artCache[id]!==undefined)return artCache[id];
+  const d=CARDS[id],[m1,m2,fx]=ART[id]||['card'];
+  const cv=document.createElement('canvas');cv.width=20;cv.height=12;
+  const x=cv.getContext('2d');
+  if(!x||!cv.toDataURL)return artCache[id]='';
+  const C={'#':'#0f380f','+':'#306230','-':'#8bac0f','o':'#9bbc0f'};
+  for(let yy=0;yy<12;yy++)for(let xx=0;xx<20;xx++){
+    let c;
+    if(d.kind==='curse')c=(xx*3+yy*5)%11===0?C['+']:C['#'];
+    else if(d.kind==='atk')c=(xx+yy)%4===0?C['-']:C['o'];
+    else if(d.kind==='pow')c=((xx-10)*(xx-10)+(yy-6)*(yy-6))%7===0?C['-']:C['+'];
+    else c=(xx%5===0&&yy%4===0)?C['-']:C['o'];
+    x.fillStyle=c;x.fillRect(xx,yy,1,1);
+  }
+  const put=(name,ox,oy,flip)=>{
+    const rows=MOTIF[name];
+    for(let yy=0;yy<10;yy++){const r=(rows[yy]||'').padEnd(10,'.');
+      for(let xx=0;xx<10;xx++){const ch=r[flip?9-xx:xx];if(C[ch]&&ch!=='-'){x.fillStyle=C[ch];x.fillRect(ox+xx,oy+yy,1,1);}}}
+  };
+  if(m2){put(m1,0,1);put(m2,10,1);}
+  else if(fx==='double'){put(m1,2,1);put(m1,8,1);}
+  else put(m1,5,1,fx==='mirror');
+  if(fx==='spark'){
+    x.fillStyle=C['#'];[[16,1],[15,2],[17,2],[16,3],[3,8],[2,9],[4,9],[3,10]].forEach(([a,b])=>x.fillRect(a,b,1,1));
+    x.fillStyle=C['o'];x.fillRect(16,2,1,1);x.fillRect(3,9,1,1);
+  }
+  return artCache[id]=cv.toDataURL();
+}
+
+/* ---------- characters ---------- */
+const CHARS={
+  ren:{name:'剣士レン',hp:60,spr:'ren',
+    passive:'連撃：攻撃カードを使うたび、そのターンの攻撃+1',
+    deck:['slash','slash','slash','slash','guard','guard','guard','guard','iai','tsubame']},
+  mira:{name:'占い師ミラ',hp:46,spr:'mira',
+    passive:'虫眼鏡の代わりに水晶玉。毎ターン2回使え、嘘を暴いた手札は強くなる。観察力+1。予知：ターン開始時、予知の数だけ嘘を払う',
+    deck:['slash','slash','slash','slash','guard','guard','guard','guard','crystal','reverse']},
+  kuro:{name:'詐欺師クロ',hp:56,spr:'kuro',
+    passive:'嘘のあるターンはエネルギー+1。戦闘開始時ハッタリ+4。ハッタリ：敵のブロックをその数だけ削る',
+    deck:['slash','slash','slash','slash','guard','guard','guard','excuse','nimai','smoke']},
+  haru:{name:'獣使いハル',hp:48,spr:'haru',
+    passive:'相棒の狼シロと戦う。シロは毎ターン終了時に牙の数だけ攻撃する。予告が嘘だとシロがうなることがある',
+    deck:['slash','slash','slash','slash','guard','guard','guard','guard','kamitsuke','mamore']},
+  luna:{name:'魔法使いルナ',hp:44,spr:'luna',
+    passive:'毒・火傷・弱体・凍結の状態異常を操る。敵の状態異常1種類につき、アタックのダメージ+1',
+    deck:['slash','slash','slash','slash','guard','guard','guard','guard','mist','fireball']}
+};
+const CHAR_IDS=Object.keys(CHARS);
+
+/* ---------- relics ---------- */
+const R={
+  ring:{g:'力',name:'力の指輪',desc:'戦闘開始時、筋力+1'},
+  boots:{g:'靴',name:'鉄の靴',desc:'戦闘開始時、敏捷+1'},
+  monocle:{g:'眼',name:'片眼鏡',desc:'観察力+1。戦闘も看板も値札も嘘が減る'},
+  hourglass:{g:'砂',name:'砂時計',desc:'毎ターン開始時、ブロック3'},
+  coin:{g:'金',name:'古い金貨',desc:'戦闘に勝つたび金貨+10'},
+  cup:{g:'杯',name:'血の杯',desc:'戦闘に勝つたびHP+6'},
+  shard:{g:'鏡',name:'鏡の欠片',desc:'嘘があるターンはカードを1枚多く引く'},
+  pendulum:{g:'振',name:'振り子',desc:'ターン開始時、画面の嘘の数がログに出る'},
+  talisman:{g:'札',name:'呪い除けの札',desc:'敵から受ける幻惑が1減る'},
+  jester:{g:'道',name:'道化の仮面',desc:'嘘の数を数えるカードの倍率+2'},
+  cog:{g:'歯',name:'狂った歯車',desc:'毎ターンのエネルギー+1。戦闘開始時に幻惑+2'},
+  tag:{g:'値',name:'値切りの札',desc:'ショップの値札が嘘をつかない'},
+  feather:{g:'羽',name:'地図職人の羽根',desc:'道の看板が嘘をつかない'},
+  lantern:{g:'灯',name:'灯火',desc:'休憩の回復量+10'},
+  whistle:{g:'笛',name:'先手の笛',desc:'戦闘の最初のターン、2枚多く引く'},
+  steel:{g:'心',name:'鋼の心臓',desc:'拾ったとき最大HP+12'},
+  weight:{g:'腕',name:'重い腕輪',desc:'戦闘開始時、筋力+3。毎ターン引く枚数-1'},
+  philo:{g:'賢',name:'賢者の石',desc:'戦闘開始時、筋力+1・敏捷+1・観察力+1'},
+  phoenix:{g:'鳳',name:'不死鳥の羽',desc:'HPが0になったとき一度だけ、HP半分で復活する'},
+  truthmirror:{g:'真',name:'真実の鏡',desc:'戦闘の最初のターンは嘘が一切出ない'},
+  tmap:{g:'図',name:'宝の地図',desc:'宝箱の金貨が2倍'},
+  biglens:{g:'拡',name:'大きなレンズ',desc:'虫眼鏡で嘘を見つけると、回数が1回戻る（1ターン1回）'},
+  cloth:{g:'布',name:'曇り止めの布',desc:'虫眼鏡（水晶玉）を1回多く使える'},
+  hat:{g:'帽',name:'探偵の帽子',desc:'戦闘中、虫眼鏡で嘘を暴くたびカードを1枚引く（1ターン2回まで。手札の嘘はまとめて1つ）'},
+  accuse:{g:'告',name:'告発状',desc:'戦闘中、虫眼鏡で嘘を暴くたび敵に3ダメージ（手札の嘘はまとめて1つ）'}
+};
+const RELIC_RARITY={
+  R:['cog','philo','phoenix','truthmirror','jester','hat'],
+  U:['monocle','talisman','shard','tag','feather','steel','weight','cloth','accuse']
+};
+for(const k in R)R[k].r=RELIC_RARITY.R.includes(k)?'R':RELIC_RARITY.U.includes(k)?'U':'C';
+function pickRelicByRarity(boost=0,exclude=[]){
+  const u=unownedRelics().filter(k=>!exclude.includes(k));if(!u.length)return null;
+  const x=Math.random();const want=x<.15+boost?'R':(x<.5+boost||boost>=.25)?'U':'C';
+  const order=want==='R'?['R','U','C']:want==='U'?['U','R','C']:['C','U','R'];
+  for(const r of order){const c=u.filter(k=>R[k].r===r);if(c.length)return pick(c);}
+  return null;
+}
+const relicLine=id=>`【${RLABEL[R[id].r]}】${R[id].name}：${R[id].desc}`;
+const has=id=>relics.includes(id);
+function gainRelic(id){relics.push(id);sfx('relic');if(id==='steel'){maxHp+=12;hp+=12;}}
+const unownedRelics=()=>Object.keys(R).filter(k=>!has(k));
+
+/* ---------- enemies ---------- */
+const A=(v,x)=>({t:'atk',v,x}),D=v=>({t:'def',v}),C=v=>({t:'curse',v}),B=v=>({t:'buff',v});
+const E={
+  slime:{name:'ヌメリ',max:22,spr:'slime',moves:[A(6),A(8),D(6)]},
+  bat:{name:'コウモリ',max:18,spr:'bat',moves:[A(4,2),A(7),C(1)]},
+  mirror:{name:'鏡の亡霊',max:33,spr:'mirror',openCurse:true,moves:[C(2),A(9),A(5,2),D(7)]},
+  skel:{name:'骸骨兵',max:36,spr:'skel',moves:[A(10),D(10),A(6,2)]},
+  doll:{name:'嘘つき人形',max:30,spr:'doll',init:2,moves:[C(2),A(8),D(6),A(4,2)]},
+  knight:{name:'仮面の騎士',max:54,spr:'knight',moves:[A(16),D(14),A(6,3),B(2)]},
+  bigmirror:{name:'大鏡',max:48,spr:'mirror',init:1,openCurse:true,moves:[C(3),A(12),A(5,3)]},
+  king:{name:'偽りの王',max:75,spr:'king',init:1,openCurse:true,whisper:2,moves:[A(14),A(5,3),D(14),C(2)]},
+
+  ghost:{name:'さまよう霊',max:34,spr:'ghost',openCurse:true,moves:[C(2),A(9),A(4,3)]},
+  snake:{name:'二枚舌の蛇',max:40,spr:'snake',moves:[A(12),D(8),B(2)]},
+  swindler:{name:'詐欺師',max:36,spr:'merchant',init:2,moves:[C(2),A(10),B(2),D(8)]},
+  skel2:{name:'骸骨兵長',max:44,spr:'skel',moves:[A(13),D(12),A(7,2),B(2)]},
+  twins:{name:'双子の影',max:64,spr:'doppel',moves:[A(7,2),B(3),D(12),C(2)]},
+  knight2:{name:'黒仮面の騎士',max:70,spr:'knight',moves:[A(18),D(16),A(7,3),B(2)]},
+  faces:{name:'千の顔',max:115,spr:'faces',init:1,openCurse:true,alwaysIntentLie:true,moves:[A(16),A(6,3),B(3),C(3),D(16)]},
+
+  eye:{name:'大目玉',max:44,spr:'eye',openCurse:true,moves:[C(3),A(12),A(5,3)]},
+  garg:{name:'ガーゴイル',max:54,spr:'garg',moves:[A(16),D(15),B(3)]},
+  ghost3:{name:'亡霊の群れ',max:50,spr:'ghost',init:2,moves:[A(6,3),C(2),A(14)]},
+  mirror3:{name:'割れた鏡',max:48,spr:'mirror',init:2,moves:[C(3),A(15),D(10)]},
+  inquis:{name:'審問官',max:86,spr:'knight',init:2,moves:[A(20),B(3),A(8,3),C(3)]},
+  twins3:{name:'影の王子',max:80,spr:'doppel',moves:[A(9,2),B(3),D(15),C(2)]},
+  heart:{name:'嘘の心臓',max:160,spr:'heart',init:2,openCurse:true,alwaysHpLie:true,whisper:1,moves:[A(20),A(7,4),B(4),C(3),D(20)]},
+
+  dojo:{name:'道場破り',max:38,spr:'ren',only:'ren',act:0,role:'normal',moves:[A(9),B(2),A(5,2)]},
+  rival:{name:'宿敵の剣士',max:72,spr:'ren',only:'ren',act:1,role:'elite',parry:2,moves:[A(14),A(6,3),B(2),D(12)]},
+  blade:{name:'折れた名刀',max:84,spr:'blade',only:'ren',act:2,role:'elite',thorns:2,moves:[A(18),A(9,2),B(3)]},
+  prophet:{name:'偽の預言者',max:30,spr:'mira',only:'mira',act:0,role:'normal',alwaysIntentLie:true,moves:[C(1),A(8),D(6)]},
+  futuremira:{name:'未来のミラ',max:70,spr:'mira',only:'mira',act:1,role:'elite',noForesight:true,init:2,moves:[C(2),A(12),A(5,3),D(10)]},
+  stareater:{name:'星喰い',max:88,spr:'eye',only:'mira',act:2,role:'elite',eatObs:true,openCurse:true,moves:[C(3),A(16),A(6,3)]},
+  debt:{name:'借金取り',max:34,spr:'merchant',only:'kuro',act:0,role:'normal',stealGold:10,moves:[A(7),A(4,2),D(6)]},
+  duped:{name:'騙された商人',max:66,spr:'merchant',only:'kuro',act:1,role:'elite',rampUp:true,moves:[A(12),A(5,2),D(10)]},
+  partner:{name:'元相棒',max:84,spr:'kuro',only:'kuro',act:2,role:'elite',noBluff:true,init:2,moves:[A(17),A(6,3),C(2),B(3)]},
+  tdummy:{name:'訓練用ヌメリ',max:18,spr:'slime',seq:[0,1,0,2],moves:[A(5),D(4),A(6)]},
+  tdoll:{name:'練習用の人形',max:26,spr:'doll',init:4,tutForce:true,seq:[0,1,2,0,3],moves:[A(8),C(1),A(4,2),D(6)]},
+  poacher:{name:'密猟者',max:34,spr:'skel',only:'haru',act:0,role:'normal',targetPet:true,moves:[A(7),A(4,2),D(5)]},
+  cagekeeper:{name:'檻の番人',max:70,spr:'knight',only:'haru',act:1,role:'elite',petStun:true,moves:[A(14),D(12),A(6,2)]},
+  alpha:{name:'群れの長',max:82,spr:'dog',only:'haru',act:2,role:'elite',moves:[A(8,3),B(3),A(18)]},
+  viper:{name:'毒蛇',max:32,spr:'snake',only:'luna',act:0,role:'normal',immune:['poison'],moves:[A(8),A(4,2),D(5)]},
+  salamander:{name:'炎の精',max:68,spr:'ghost',only:'luna',act:1,role:'elite',immune:['burn'],moves:[A(13),A(5,3),B(2)]},
+  spelleater:{name:'魔法喰らい',max:84,spr:'eye',only:'luna',act:2,role:'elite',eatStatus:true,moves:[A(16),A(6,3),C(2)]},
+  tharu:{name:'練習用のイノシシ',max:40,spr:'slime',seq:[0,1,0,2],moves:[A(8),D(5),A(4,2)]},
+  tluna:{name:'練習用の泥人形',max:44,spr:'doll',seq:[0,1,2,0],moves:[A(7),A(5),D(4)]},
+  tren:{name:'練習用のかかし',max:48,spr:'doll',seq:[0,1,0,0,1],moves:[A(5),D(4)]},
+  tmira:{name:'占いの人形',max:34,spr:'mirror',init:4,tutCards:true,seq:[0,1,2,0],moves:[A(7),C(1),D(5)]},
+  tkuro:{name:'練習用の盗賊',max:40,spr:'doppel',init:3,seq:[0,1,0,2],moves:[D(8),A(6),A(9)]},
+  mimic:{name:'ミミック店主',max:42,spr:'mimic',init:2,moves:[A(11),D(8),A(3,4),C(2)]}
+};
+const ACTS=[
+  {name:'第1章　嘘の入口',early:['slime','bat'],normals:['mirror','skel','doll','bat'],elites:['knight','bigmirror'],boss:'king'},
+  {name:'第2章　偽りの城下',early:['ghost','snake'],normals:['ghost','snake','swindler','skel2'],elites:['twins','knight2'],boss:'faces'},
+  {name:'第3章　真実の底',early:['eye','garg'],normals:['eye','garg','ghost3','mirror3'],elites:['inquis','twins3'],boss:'heart'}
+];
+
+/* ---------- map nodes ---------- */
+const NODE={
+  battle:{g:'戦',l:'戦闘',d:'敵と戦う'},
+  elite:{g:'強',l:'精鋭',d:'強敵がいる。レリックを落とす'},
+  rest:{g:'休',l:'休憩',d:'焚き火でHPを回復'},
+  shop:{g:'店',l:'ショップ',d:'カードや回復を買える'},
+  treasure:{g:'宝',l:'宝箱',d:'金貨が入っている'},
+  mystery:{g:'？',l:'謎',d:'イベント。ハイリスク・ハイリターン'},
+  boss:{g:'王',l:'玉座',d:'この章の主が待つ'},
+  mimic:{g:'喰',l:'ミミック',d:'店主のふりをした魔物'}
+};
+const SHOWABLE=['battle','elite','rest','shop','treasure','mystery'];
+
+/* ---------- state ---------- */
+let view='title',busy=false,act=0,step=1,gold=0,hp=50,maxHp=50,deck=[],relics=[],drawPile=[],discard=[],hand=[],exhaustPile=[];
+let energy=3,block=0,illusion=0,enemy=null,battleKind='normal',sel=0,rsel=0,rewardOpts=[],uidN=0,totalLies=0,warned=false,pturn=0;
+let pet=null,gishou=false;
+let pw={},powers=[],atkTurn=0,csRow=0,tutRetry=null;
+let pstr=0,pdex=0,pobs=0,pcombo=0,pfore=0,phat=0,playedTurn=0,lastPlayed=null,char='ren',csSel=0;
+let history=[],mapChoices=[],mSel=0,shopItems=[],shSel=0,lieNote='',relicOpts=[],rpSel=0,evNext=null;
+let logLines=[],glitchTargets=[];
+let runToken=0,menuOpen=false,mSel2=0,giveupArmed=false,tSel=0;
+let seen={};
+const LENS_T=1,LENS_R=38;
+let lensFound=0,lensDraws=0;
+let lensTime=LENS_T,lensHeld=false,lensKey=false,lensX=0,lensY=0,lensLast=0,lensHits={};
+let tutorial=false,tutStage=0,tutQueue=[],tutAfter=null,tutFlags={};
+function later(fn,ms){const t=runToken;setTimeout(()=>{if(t===runToken)fn();},ms);}
+let lies={intent:false,enemyHp:false,playerHp:false,cards:false};
+let fake={intent:null,eOff:0,pOff:0,cardOff:{}};
+
+const newCard=id=>({uid:++uidN,id});
+const VIEWS=['title','charSel','dex','battle','map','shop','event','relicPick','reward','end'];
+function show(v){
+  if(lensHeld)dropLens(true);
+  const prev=view,pe=$(prev);
+  if(prev!==v&&pe&&!pe.hidden)transition(pe,v);
+  view=v;if(!['battle','map','shop'].includes(v))$('lens').hidden=true;VIEWS.forEach(k=>$(k).hidden=(k!==v));glitchTargets=[];setBgm(bgmFor(v));
+}
+let transitioning=false,transTimer=null;
+function transition(oldEl,to){
+  const tr=$('trans');
+  if(!tr.animate)return;
+  clearTimeout(transTimer);
+  if(tr.getAnimations)tr.getAnimations({subtree:true}).forEach(a=>a.cancel());
+  tr.innerHTML='';tr.hidden=false;transitioning=true;
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const enc=to==='battle';
+  const end=()=>{tr.hidden=true;tr.innerHTML='';transitioning=false;if(tr.getAnimations)tr.getAnimations().forEach(a=>a.cancel());};
+  if(reduce){tr.animate([{opacity:1},{opacity:0}],{duration:450,delay:150,fill:'forwards'});transTimer=setTimeout(end,620);return;}
+  sfx(enc?'encounter':'swoosh');
+  const N=8,bars=[];
+  for(let i=0;i<N;i++){const b=document.createElement('div');b.className='bar';b.style.top=(i*100/N-.5)+'%';tr.appendChild(b);bars.push(b);}
+  const flashT=enc?360:0,closeT=enc?300:260,stag=enc?30:22,hold=enc?160:110,openT=enc?320:280,fadeT=200;
+  if(enc)tr.animate([{backgroundColor:'#9bbc0f'},{backgroundColor:'#0f380f'},{backgroundColor:'#9bbc0f'},{backgroundColor:'#0f380f'},{backgroundColor:'#9bbc0f'},{backgroundColor:'#0f380f'},{backgroundColor:'#9bbc0f'}],{duration:flashT});
+  bars.forEach((b,i)=>{
+    const dir=i%2?1:-1;
+    b.animate([{transform:`translateX(${dir*110}%)`},{transform:'none'}],{duration:closeT,delay:flashT+i*stag,fill:'both',easing:'ease-in'});
+  });
+  const closed=flashT+closeT+(N-1)*stag;
+  transTimer=setTimeout(()=>{
+    bars.forEach((b,i)=>{
+      const dir=i%2?-1:1;
+      b.animate([{transform:'none'},{transform:`translateX(${dir*110}%)`}],{duration:openT,delay:i*stag,fill:'forwards',easing:'ease-out'});
+    });
+    const opened=openT+(N-1)*stag;
+    transTimer=setTimeout(()=>{
+      tr.animate([{opacity:1},{opacity:0}],{duration:fadeT,fill:'forwards'});
+      transTimer=setTimeout(end,fadeT+10);
+    },opened);
+  },closed+hold);
+}
+function log(s){logLines.push(s);logLines=logLines.slice(-2);$('log').innerHTML=logLines.join('<br>');}
+function shake(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
+const floorTxt=()=>`${act+1}-${step}`;
+const statusLine=()=>`<span>階層 ${floorTxt()}</span><span>HP ${hp}/${maxHp}</span><span>${gold}G</span>`;
+function takeNote(){const n=lieNote;lieNote='';return n?n+'<br>':'';}
+const obsFactor=o=>Math.max(0,1-.2*o);
+const relicObs=()=>has('monocle')?1:0;
+
+function renderRelics(el){
+  el.innerHTML='';el.classList.toggle('many',relics.length>10&&el.id==='bRelics');
+  relics.forEach(id=>{
+    const b=document.createElement('button');b.className='rl';b.textContent=R[id].g;b.title=relicLine(id);
+    b.classList.add('r-'+R[id].r);
+    b.onclick=e=>{e.stopPropagation();relicInfo(id);};
+    el.appendChild(b);
+  });
+}
+function relicInfo(id){
+  const t=relicLine(id);
+  if(view==='battle')log(t);else if(view==='map')$('mapInfo').textContent=t;else if(view==='shop')$('shopMsg').textContent=t;
+}
+
+/* ---------- battle lies ---------- */
+function lieCount(){return Object.values(lies).filter(Boolean).length;}
+function clearLies(){for(const k in lies)lies[k]=false;}
+function fakeNum(v,off,min,max){
+  let x=Math.min(max,Math.max(min,v+off));
+  if(x===v)x=Math.min(max,Math.max(min,v-off));
+  return x;
+}
+function fakeIntent(real){
+  const others=enemy.moves.filter(m=>m.t!==real.t);
+  if(others.length&&Math.random()<.65)return {...pick(others)};
+  return {...real,v:Math.max(1,real.v+sign()*rand(3,7))};
+}
+function rollLies(){
+  const base=Math.min(.18*illusion,.85)*obsFactor(pobs);
+  const pIntent=(tutorial?Math.min(.18*illusion,.85):Math.min(.4+.1*illusion,.92))*obsFactor(pobs);
+  for(const k in lies)lies[k]=Math.random()<(k==='intent'?pIntent:base);
+  if(enemy.alwaysIntentLie)lies.intent=true;
+  if(enemy.alwaysHpLie)lies.enemyHp=true;
+  if(pturn===1&&has('truthmirror'))clearLies();
+  if(enemy.tutForce&&pturn===1){clearLies();lies.intent=true;lies.enemyHp=true;}
+  if(enemy.tutCards&&pturn===1){clearLies();lies.cards=true;lies.intent=true;}
+  fake.intent=fakeIntent(enemy.intent);
+  if(enemy.tutForce&&pturn===1)fake.intent={t:'def',v:6};
+  fake.eOff=sign()*rand(4,14);
+  fake.pOff=sign()*rand(4,12);
+  fake.cardOff={};
+  const c=lieCount();totalLies+=c;
+  if(c>0&&!warned){warned=true;log('……視界が歪む。数字を信じすぎるな。');log(`怪しいところは${lensName()}で調べよう。嘘なら本当の内容が赤く出る。`);}
+}
+function trueNums(c){
+  const d=CARDS[c.id];
+  const bo=c.boost||0;
+  return d.n.map((v,i)=>v+(((d.dmg||[]).includes(i)||(d.blk||[]).includes(i))?bo:0)+((d.dmg||[]).includes(i)?dmgBonus():0)+((d.blk||[]).includes(i)?pdex:0)+((d.lm||[]).includes(i)&&has('jester')?2:0));
+}
+function cardNums(c){
+  const t=trueNums(c);
+  if(!lies.cards)return t;
+  if(!fake.cardOff[c.uid])fake.cardOff[c.uid]=t.map(v=>v<=2?(v===1?1:pick([-1,1])):sign()*rand(2,4));
+  return t.map((v,i)=>Math.max(1,v+fake.cardOff[c.uid][i]));
+}
+const shownEnemyHp=()=>lies.enemyHp?fakeNum(enemy.hp,fake.eOff,1,enemy.max):enemy.hp;
+const shownPlayerHp=()=>lies.playerHp?fakeNum(hp,fake.pOff,1,maxHp):hp;
+function intentText(it){
+  if(it.t==='atk'){const raw=Math.max(0,it.v+enemy.str);const v=enemy.st&&enemy.st.weak>0?Math.floor(raw*.7):raw;return `攻 ${v}${it.x>1?'×'+it.x:''}`;}
+  if(it.t==='def')return `守 ${it.v}`;
+  if(it.t==='buff')return `強 +${it.v}`;
+  return `呪 +${it.v}`;
+}
+
+/* ---------- battle actions ---------- */
+function hitEnemy(d,pierce,noReact){
+  d=Math.max(0,d);
+  const b=pierce?0:Math.min(enemy.block,d);enemy.block-=b;const dealt=Math.min(enemy.hp,d-b);enemy.hp-=dealt;
+  if(d>0&&enemy.hp>0&&!noReact){
+    if(enemy.parry)enemy.block+=enemy.parry;
+    if(enemy.thorns){hp=Math.max(0,hp-enemy.thorns);const q=scrPt($('pHp'));pop(`-${enemy.thorns}`,q.x+20,q.y-14,'hurt');}
+  }
+  spriteFx('hit');
+  if(d>0){const q=scrPt($('spriteWrap'));pop(dealt>0?`-${dealt}`:'防がれた',q.x+rand(-30,30),q.y+rand(-24,6),dealt>0?'dmg':'guard');sfx(dealt>0?'hit':'block');}
+  return dealt;
+}
+function gainBlock(n){block+=Math.max(0,n);if(n>0&&view==='battle'){const q=scrPt($('pHp'));pop(`+${n}`,q.x+70,q.y-12,'blk');sfx('block');}}
+function isDead(){
+  if(hp>0)return false;
+  if(has('phoenix')){relics=relics.filter(x=>x!=='phoenix');hp=Math.floor(maxHp/2);log('不死鳥の羽が燃え上がり、よみがえった。');renderRelics($('bRelics'));return false;}
+  return true;
+}
+function applyBluff(){
+  if(!phat||!enemy||enemy.block<=0)return;
+  if(enemy.noBluff){if(!enemy._bluffNoted){enemy._bluffNoted=1;log('ハッタリは見抜かれている……');}return;}
+  const r=Math.min(phat,enemy.block);enemy.block-=r;phat-=r;
+  const q=scrPt($('spriteWrap'));pop(`ハッタリ -${r}`,q.x+40,q.y-34,'info');
+  log(`ハッタリで敵のブロックを${r}削った。`);
+  tutEvent('bluff',r);
+}
+const petOk=()=>!!(pet&&!pet.down);
+const ST_LABEL={poison:'毒',burn:'火傷',weak:'弱体',freeze:'凍結'};
+function statusKinds(){if(!enemy||!enemy.st)return 0;return Object.values(enemy.st).filter(v=>v>0).length;}
+function addStatus(k,n){
+  if(!enemy.st)enemy.st={poison:0,burn:0,weak:0,freeze:0};
+  if((enemy.immune||[]).includes(k)){log(`${enemy.name}に${ST_LABEL[k]}は効かない。`);return;}
+  enemy.st[k]+=n;
+  if(pw.stDmg)hitEnemy(pw.stDmg,true,true);
+  const q=scrPt($('spriteWrap'));pop(`${ST_LABEL[k]}+${n}`,q.x-40,q.y-30,'info');sfx('curse');
+}
+function petFx(){const pb=$('petBox');if(!pb)return;pb.classList.remove('bite');void pb.offsetWidth;pb.classList.add('bite');sfx('atk');}
+function dmgPet(d){
+  if(pw.loyal)d=Math.ceil(d/2);
+  const b=Math.min(pet.block,d);pet.block-=b;const loss=d-b;pet.hp=Math.max(0,pet.hp-loss);
+  const q=scrPt($('petBox'));pop(loss>0?`-${loss}`:'ガード',q.x,q.y-20,loss>0?'hurt':'guard');sfx(loss>0?'hurt':'block');
+  if(pet.hp<=0&&!pet.down){pet.down=true;log('シロが倒れた……');}
+  return loss;
+}
+function gainHat(n){if(n>0)phat+=n+(pw.hatPlus||0);}
+function addPower(id){if(!powers.includes(id))powers.push(id);}
+function reduceIllusion(n){illusion=Math.max(0,illusion-n);}
+function dmgPlayer(d){
+  const b=Math.min(block,d);block-=b;const loss=d-b;hp=Math.max(0,hp-loss);
+  shake($('battle'));
+  const q=scrPt($('pHp'));pop(loss>0?`-${loss}`:'ガード',q.x+rand(-6,24),q.y-16,loss>0?'hurt':'guard');
+  if(loss>0){sfx('hurt');flash('hurt');}else sfx('block');
+  return loss;
+}
+function draw(n){
+  for(let i=0;i<n;i++){
+    if(!drawPile.length){if(!discard.length)break;drawPile=shuffle(discard);discard=[];}
+    if(hand.length>=8)break;
+    hand.push(drawPile.pop());
+  }
+}
+
+/* ---------- run flow ---------- */
+function showCharSel(){csSel=0;csRow=0;show('charSel');renderCharSel();}
+function renderCharSel(){
+  const box=$('charOpts');box.innerHTML='';
+  CHAR_IDS.forEach((id,i)=>{
+    const c=CHARS[id];
+    const b=document.createElement('button');b.className='cnode'+(i===csSel?' sel':'');
+    b.innerHTML=`<canvas class="spr" width="16" height="16"></canvas><span class="nl">${c.name}</span><span class="ch">HP ${c.hp}</span><span class="nd">${c.passive}</span>`;
+    drawSprite(b.querySelector('canvas'),SPR[c.spr]);
+    b.onclick=()=>{if(csSel===i&&csRow===0)startRun(id);else{csSel=i;csRow=0;renderCharSel();}};
+    box.appendChild(b);
+  });
+  const tb=$('charTuts');tb.innerHTML='';
+  CHAR_IDS.forEach((id,i)=>{
+    const b=document.createElement('button');b.className=(csRow===1&&i===csSel)?'sel':'';
+    b.textContent=`${CHARS[id].name.slice(-2)}の使い方`;
+    b.onclick=()=>{if(csRow===1&&csSel===i)startCharTutorial(id);else{csSel=i;csRow=1;renderCharSel();}};
+    tb.appendChild(b);
+  });
+  const sig=Object.keys(CARDS).filter(k=>CARDS[k].only===CHAR_IDS[csSel]).map(k=>CARDS[k].name).join('、');
+  $('charInfo').textContent=`専用カード：${sig}`;
+}
+function startRun(cid){
+  tutorial=false;$('tutBar').hidden=true;
+  char=cid;
+  hp=maxHp=CHARS[cid].hp;act=0;step=1;gold=30;totalLies=0;warned=false;uidN=0;history=[];lieNote='';relics=[];
+  deck=CHARS[cid].deck.map(newCard);runToken++;
+  history.push({truth:'battle',shown:'battle',lie:false});
+  save({t:'node',truth:'battle'});
+  startBattle('normal');
+}
+function nextStep(){step++;showMap();}
+function enemyFor(kind){
+  const a=ACTS[act];
+  if(kind==='boss')return a.boss;
+  if(kind==='mimic')return 'mimic';
+  const ex=role=>Object.keys(E).find(k=>E[k].only===char&&E[k].act===act&&E[k].role===role);
+  if(kind==='elite'){const x=ex('elite');return x&&Math.random()<.45?x:pick(a.elites);}
+  if(act===0&&step===1)return 'slime';
+  const x=ex('normal');
+  if(x&&step>2&&Math.random()<.3)return x;
+  return step<=3?pick(a.early):pick(a.normals);
+}
+function startBattle(kind,forced){
+  battleKind=kind;
+  const eid=forced||enemyFor(kind),d=E[eid];
+  let mul=kind==='normal'?1+.04*(step-1):1;
+  if(kind==='mimic')mul=1+.45*act;
+  const mx=Math.round(d.max*mul*(tutorial?1:1.15));
+  enemy={...d,id:eid,max:mx,hp:mx,block:0,str:kind==='mimic'?act*3:0,turn:0,lastIdx:-1,intent:null,st:{poison:0,burn:0,weak:0,freeze:0}};
+  if(!tutorial)enemy.moves=d.moves.map(m=>m.t==='atk'?{...m,v:Math.ceil(m.v*1.15)}:m);
+  pet=char==='haru'?{max:24,hp:24,atk:4,guard:false,block:0,down:false,stunned:false}:null;
+  illusion=d.init||0;pturn=0;
+  pstr=(has('ring')?1:0)+(has('weight')?3:0)+(has('philo')?1:0);pdex=(has('boots')?1:0)+(has('philo')?1:0);pobs=relicObs()+(char==='mira'?1:0)+(has('philo')?1:0);pfore=0;phat=char==='kuro'?4:0;lastPlayed=null;
+  pw={block:0,lieStr:0,draw:0,lieEnergy:0,regen:0,edge:0,calm:0,comboStart:0,foreBlock:0,hatTurn:0,pending:0,eNext:0,madI:0,madS:0,bounty:0,lieBlock:0,lensBlock:0,lensBig:0,lensPlus:0,ledgerH:0,ledgerE:0,pack:0,hexP:0,hexB:0,combo2:0,foreTurn:0,hatPlus:0,loyal:0,frostTurn:0,atkBlock:0,foreDmg:0,ryugiD:0,ryugiH:0,packGrow:0,stDmg:0,poisonBlock:0};powers=[];
+  if(has('cog'))illusion+=2;
+  drawPile=shuffle(deck.map(c=>({...c,bMod:0,tMod:0,tFree:false,boost:0})));discard=[];hand=[];exhaustPile=[];logLines=[];
+  $('sprite').className='spr';drawSprite($('sprite'),SPR[d.spr]);drawSprite($('petSprite'),SPR.dog);show('battle');
+  renderRelics($('bRelics'));
+  if(lieNote){log(lieNote);lieNote='';}
+  log(`${enemy.name}が現れた。`);
+  chooseIntent();startPlayerTurn();busy=false;renderBattle();
+}
+function chooseIntent(){
+  let m;
+  let idx;
+  if(enemy.seq)idx=enemy.seq[enemy.turn%enemy.seq.length];
+  else if(enemy.turn===0&&enemy.openCurse)idx=enemy.moves.findIndex(x=>x.t==='curse');
+  else idx=pick(enemy.moves.map((_,i)=>i).filter(i=>i!==enemy.lastIdx));
+  enemy.lastIdx=idx;enemy.turn++;enemy.intent={...enemy.moves[idx]};
+}
+function startPlayerTurn(){
+  pturn++;gishou=false;block=0;energy=3+(has('cog')?1:0);lensTime=lensMaxNow();seen={};checked={};lensRefund=false;lensFound=0;lensDraws=0;atkTurn=0;pcombo=pw.comboStart;playedTurn=0;
+  block+=pw.block+pw.pending;pw.pending=0;if(pw.hatTurn)gainHat(pw.hatTurn);energy+=pw.eNext;pw.eNext=0;
+  if(pw.madI){illusion+=pw.madI;pstr+=pw.madS;}
+  if(enemy.rampUp&&pturn>1){enemy.str++;log(`${enemy.name}の恨みが募る。筋力+1`);}
+  if(pet){pet.guard=false;pet.block=0;
+    if(enemy.petStun&&petOk()&&Math.random()<.5){pet.stunned=true;log('シロが檻の番人に怯えている……');}}
+  if(enemy.eatStatus&&pturn>1&&statusKinds()){const k=statusKinds();enemy.st={poison:0,burn:0,weak:0,freeze:0};enemy.str+=k;log(`${enemy.name}が状態異常を喰らった。筋力+${k}`);}
+  if(pw.hexP){addStatus('poison',pw.hexP);addStatus('burn',pw.hexB);}
+  if(pw.frostTurn)addStatus('weak',pw.frostTurn);
+  if(pw.foreTurn)pfore+=pw.foreTurn;
+  if(enemy.whisper&&pturn>1&&(pturn-1)%enemy.whisper===0){illusion++;log(`${enemy.name}の囁き。幻惑+1`);}
+  if(has('hourglass'))block+=3;
+  rollLies();
+  if(char==='mira'&&pfore>0){
+    if(enemy.noForesight)log('予知が効かない……');
+    else{const ks=shuffle(Object.keys(lies).filter(k=>lies[k])).slice(0,pfore);ks.forEach(k=>lies[k]=false);if(ks.length){log(`予知で嘘を${ks.length}つ払った。`);block+=pw.foreBlock*ks.length;if(pw.foreDmg)hitEnemy(pw.foreDmg*ks.length,true,true);}}
+  }
+  if(char==='kuro'&&lieCount()>0){energy++;log('嘘を糧にした。エネルギー+1');}
+  if(petOk()&&lies.intent&&Math.random()<.5)log('シロが敵をにらんでうなっている……');
+  if(pw.ledgerH&&lieCount()>0){gainHat(pw.ledgerH);energy+=pw.ledgerE;log('二重帳簿が動いた。');}
+  applyBluff();
+  if(pw.lieStr&&lieCount()>0){pstr+=pw.lieStr;log(`嘘を喰らった。筋力+${pw.lieStr}`);}
+  if(pw.lieEnergy&&lies.intent)energy+=pw.lieEnergy;
+  if(pw.lieBlock&&lieCount()>0)block+=pw.lieBlock;
+  let n=5+pw.draw;
+  if(pw.ryugiD&&lieCount()>0){n+=pw.ryugiD;gainHat(pw.ryugiH);applyBluff();}
+  if(pw.packGrow&&petOk())pet.atk+=pw.packGrow;
+  if(pw.poisonBlock&&enemy.st.poison)block+=enemy.st.poison;
+  if(pturn===1&&has('whistle'))n+=2;
+  if(has('weight'))n-=1;
+  if(has('shard')&&lieCount()>0)n+=1;
+  draw(n);sel=0;
+  hand.forEach(c=>{
+    if(c.id==='doubtseed'){lensTime=Math.max(0,lensTime-CARDS.doubtseed.n[0]);log('疑念の種が虫眼鏡を曇らせる。');}
+    if(c.id==='shackle'){energy=Math.max(0,energy-CARDS.shackle.n[0]);log('呪縛でエネルギーを奪われた。');}
+  });
+  if(has('pendulum'))log(`振り子が${lieCount()}回揺れた。`);
+  renderBattle();
+  if(pturn>1){banner('あなたのターン');sfx('turn');}
+  if(enemy.hp<=0){busy=true;renderBattle();later(winBattle,500);return;}
+  saveBattle();
+}
+let pendingHits=[];
+function multiHit(dmg,times){if(times<=0)return;hitEnemy(dmg);for(let i=1;i<times;i++)pendingHits.push(dmg);}
+function runHits(done){
+  const step=()=>{
+    if(!pendingHits.length||enemy.hp<=0){pendingHits=[];return done();}
+    hitEnemy(pendingHits.shift());renderBattle();later(step,260);
+  };
+  later(step,260);
+}
+function playCard(i){
+  if(busy||view!=='battle')return;
+  const c=hand[i];if(!c)return;
+  const d=CARDS[c.id];
+  if(d.unplayable){sfx('error');log(`「${d.name}」は使えない。`);renderBattle();return;}
+  if(d.need&&!d.need()){sfx('error');log(`条件が足りない：${d.needText}`);renderBattle();return;}
+  const cost=costOf(c);
+  if(cost>energy){sfx('error');log('エネルギーが足りない。');renderBattle();return;}
+  ghostCard($('hand').children[i],d.kind);sfx(d.kind);dexAdd(c.id);
+  energy-=cost;hand.splice(i,1);
+  pendingHits=[];
+  {const tn=trueNums(c);d.play(gishou&&lies.cards?cardNums(c).map((v,i)=>Math.max(v,tn[i])):tn);}
+  (d.exhaust||d.kind==='pow'?exhaustPile:discard).push(resetTurn(c));
+  sel=Math.min(sel,Math.max(0,hand.length-1));
+  const finish=()=>{
+    if(d.kind==='atk'&&pw.edge&&enemy.hp>0)hitEnemy(pw.edge);
+    applyBluff();
+    playedTurn++;if(d.kind==='atk')atkTurn++;if(c.id!=='echo')lastPlayed=c.id;
+    if(char==='ren'&&d.kind==='atk')pcombo+=1+(pw.combo2||0);
+    if(d.kind==='atk'&&pw.atkBlock)gainBlock(pw.atkBlock);
+    renderBattle();
+    if(enemy.hp<=0)return winBattle();
+    if(isDead()){busy=true;later(()=>showEnd(false),900);return;}
+    saveBattle();
+    tutEvent('play',c.id);
+  };
+  if(pendingHits.length){busy=true;renderBattle();runHits(()=>{busy=false;finish();});}
+  else finish();
+}
+
+function endTurn(){
+  if(busy||view!=='battle')return;
+  busy=true;
+  const c=lieCount();
+  hand.forEach(x=>{
+    if(x.id==='brand'){illusion+=CARDS.brand.n[0];log('嘘の烙印がうずく。幻惑+1');}
+    if(x.id==='chill'){hp=Math.max(0,hp-CARDS.chill.n[0]);log('悪寒が走る。');}
+    if(x.id==='glass'){maxHp=Math.max(1,maxHp-1);hp=Math.min(hp,maxHp);log('割れた鏡片が体を削る。最大HP-1');}
+  });
+  discard.push(...hand.map(resetTurn));hand=[];clearLies();
+  if(isDead()){renderBattle();later(()=>showEnd(false),900);return;}
+  if(pw.regen)hp=Math.min(maxHp,hp+pw.regen);
+  log(c?`ターン終了。嘘は${c}つあった。`:'ターン終了。');
+  renderBattle();banner('敵のターン');
+  saveBattle('enemy');
+  later(enemyAct,750);
+}
+function enemyAct(){
+  const steps=[];
+  if(petOk())steps.push(petPhase);
+  steps.push(statusPhase,actPhase);
+  const run=()=>{const f=steps.shift();if(!f)return;f(()=>{if(enemy.hp<=0){renderBattle();return winBattle();}run();});};
+  run();
+}
+function petPhase(next){
+  if(pet.stunned){pet.stunned=false;log('シロは怯えて動けなかった。');return later(next,350);}
+  let k=0;const times=1+pw.pack;
+  const bite=()=>{
+    petFx();hitEnemy(pet.atk,false,true);k++;renderBattle();
+    if(k<times&&enemy.hp>0)return later(bite,260);
+    log(`シロが${times>1?times+'回':''}かみついた。`);later(next,380);
+  };
+  bite();
+}
+function statusPhase(next){
+  const st=enemy.st;
+  if(st.poison>0){
+    const q=scrPt($('spriteWrap'));hitEnemy(st.poison,true,true);pop('毒',q.x-40,q.y-40,'lie');
+    log(`毒が回る。${st.poison}ダメージ。`);st.poison--;renderBattle();return later(next,420);
+  }
+  next();
+}
+function actPhase(){
+  const it=enemy.intent,st=enemy.st;enemy.block=0;
+  const ep=scrPt($('spriteWrap'));
+  if(st.freeze>0){st.freeze--;pop('凍結',ep.x,ep.y-30,'info');sfx('block');log(`${enemy.name}は凍りついて動けない。`);return afterEnemy();}
+  if(it.t==='atk'){
+    const times=it.x||1;
+    let tot=0,k=0,petTook=0;
+    const hitOnce=()=>{
+      spriteFx('lunge');sfx('lunge');
+      const raw=Math.max(0,it.v+enemy.str),dmg=st.weak>0?Math.floor(raw*.7):raw;
+      if(petOk()&&(pet.guard||enemy.targetPet)){dmgPet(dmg);petTook++;}
+      else tot+=dmgPlayer(dmg);
+      k++;renderBattle();
+      if(k<times&&hp>0)return later(hitOnce,320);
+      log(`${enemy.name}の攻撃。`+(petTook?`シロが${petTook}回かばった。`:'')+(times-petTook>0?`${times>1?`${times-petTook}回で合計`:''}${tot}ダメージ。`:''));
+      if(enemy.stealGold){const g=Math.min(gold,enemy.stealGold);gold-=g;if(g)log(`金貨を${g}枚奪われた。`);}
+      if(st.burn>0){hitEnemy(st.burn,true,true);pop('火傷',ep.x+40,ep.y-40,'lie');log(`火傷が痛む。${st.burn}ダメージ。`);renderBattle();
+        if(enemy.hp<=0)return later(winBattle,300);}
+      afterEnemy();
+    };
+    hitOnce();return;
+  }
+  if(it.t==='def'){sfx('block');pop(`守+${it.v}`,ep.x,ep.y-30,'blk');enemy.block=it.v;log(`${enemy.name}は身を固めた。`);applyBluff();}
+  else if(it.t==='buff'){sfx('buff');pop(`筋力+${it.v}`,ep.x,ep.y-30,'info');enemy.str+=it.v;log(`${enemy.name}の力が増した。筋力+${it.v}`);}
+  else{sfx('curse');flash('curse');pop('幻惑',ep.x,ep.y-30,'lie');
+    const v=Math.max(0,it.v-(has('talisman')?1:0));illusion+=v;log(`${enemy.name}の呪い。幻惑+${v}`);
+    if(pw.calm&&v>0)pw.pending+=pw.calm;
+    if(enemy.eatObs&&pobs>0){pobs--;log('観察力を喰われた。');}}
+  afterEnemy();
+}
+function afterEnemy(){
+  if(enemy.st){if(enemy.st.weak>0)enemy.st.weak--;if(enemy.st.burn>0)enemy.st.burn--;}
+  if(isDead()){renderBattle();later(()=>showEnd(false),900);return;}
+  renderBattle();
+  later(()=>{chooseIntent();startPlayerTurn();busy=false;renderBattle();tutEvent('turn',pturn);},750);
+}
+
+function winBattle(){
+  busy=true;if(hp<=0)hp=1;log(`${enemy.name}を倒した。`);renderBattle();
+  $('sprite').classList.add('dying');sfx('kill');if(battleKind==='boss')setTimeout(()=>sfx('win'),500);
+  if(has('coin'))gold+=10;
+  if(pw.bounty){gold+=pw.bounty;}
+  if(has('cup'))hp=Math.min(maxHp,hp+6);
+  if(tutorial){later(tutWin,900);return;}
+  later(()=>{
+    if(battleKind==='boss'){if(act>=ACTS.length-1)return showEnd(true);return showRelicPick();}
+    const base=battleKind==='elite'?rand(40,55):battleKind==='mimic'?rand(70,90):rand(15,25);
+    const g=base+act*10;gold+=g;
+    let rid=null;
+    if(battleKind==='elite'){rid=pickRelicByRarity();if(rid)gainRelic(rid);}
+    showReward(g,rid);
+  },1000);
+}
+function showReward(g,rid,opts,msg){
+  rewardOpts=opts||pickCards(3,battleKind==='elite'||battleKind==='mimic'?.1:0);rsel=0;show('reward');
+  save({t:'reward',g,rid,opts:rewardOpts,msg});
+  $('rewardGold').innerHTML=msg?msg:`${g}G手に入れた。`+(rid?`<br>${RLABEL[R[rid].r]}レリック「${R[rid].name}」を手に入れた。<br>${R[rid].desc}`:'');
+  renderReward();busy=false;
+}
+function chooseReward(i){if(i<3){deck.push(newCard(rewardOpts[i]));sfx('pick');}if(tutorial)return tutMap();nextStep();}
+function showRelicPick(opts){
+  if(!opts){relicOpts=[];for(let i=0;i<3;i++){const r=pickRelicByRarity(.25,relicOpts);if(r)relicOpts.push(r);}}else relicOpts=opts;
+  rpSel=0;busy=false;
+  if(!relicOpts.length)return nextAct();
+  save({t:'relicPick',opts:relicOpts});
+  show('relicPick');renderRelicPick();
+}
+function renderRelicPick(){
+  const box=$('relicOpts');box.innerHTML='';
+  relicOpts.forEach((id,i)=>{
+    const b=document.createElement('button');b.className='node r-'+R[id].r+(i===rpSel?' sel':'');
+    b.innerHTML=`<div class="ni"><span class="rar">${RLABEL[R[id].r]}</span><span class="ng">${R[id].g}</span><span class="nl">${R[id].name}</span><span class="nd">${R[id].desc}</span></div>`;
+    b.onclick=()=>{if(rpSel===i)pickRelic(i);else{rpSel=i;renderRelicPick();}};
+    box.appendChild(b);
+  });
+}
+function pickRelic(i){gainRelic(relicOpts[i]);nextAct();}
+function nextAct(){
+  act++;step=1;history=[];hp=maxHp;save({t:'newmap'});
+  showEvent(ACTS[act].name,'王が倒れ、さらに深い階層への扉が開いた。<br>HPが全回復した。',()=>showMap());
+}
+function showEnd(win){
+  if(tutorial&&win!=='quit'){
+    hp=maxHp;tutSay(['やられてしまった……。<br>もう一度挑戦しよう。'],tutRetry||(()=>startBattle('normal',tutStage===4?'tdoll':'tdummy')));return;
+  }
+  if(tutorial){showTitle();return;}
+  clearSave();show('end');sfx(win===true?'win':'lose');
+  $('endTitle').textContent=win==='quit'?'冒険をあきらめた':win?'嘘の心臓を止めた':'力尽きた';
+  $('endSub').innerHTML=`${CHARS[char].name}<br>到達した階層 ${floorTxt()}<br>レリック ${relics.length}個　所持金 ${gold}G<br>見せられた嘘 ${totalLies}回`;
+  busy=false;$('againBtn').focus();
+}
+
+/* ---------- tutorial ---------- */
+function tutSay(lines,after){tutQueue=lines.slice();tutAfter=after||null;$('tutBar').hidden=true;$('tutModal').hidden=false;$('tutText').innerHTML=tutQueue.shift();}
+function tutAdvance(){
+  if(tutQueue.length){$('tutText').innerHTML=tutQueue.shift();return;}
+  $('tutModal').hidden=true;const f=tutAfter;tutAfter=null;
+  if(tutorial&&$('tutBar').textContent)$('tutBar').hidden=false;
+  if(f)f();
+}
+$('tutNext').onclick=tutAdvance;
+function tutGoal(t){$('tutBar').textContent=t?'目標：'+t:'';if($('tutModal').hidden)$('tutBar').hidden=!t;}
+function startTutorial(){
+  tutorial=true;tutStage=1;tutRetry=null;tutFlags={};runToken++;
+  char='ren';hp=maxHp=50;act=0;step=1;gold=30;totalLies=0;warned=true;uidN=0;history=[];lieNote='';relics=[];
+  deck=['slash','slash','slash','slash','slash','guard','guard','guard','guard','expose'].map(newCard);
+  history.push({truth:'battle',shown:'battle',lie:false});
+  startBattle('normal','tdummy');
+  tutGoal('');
+  tutSay(['ようこそ、うそつきダンジョンへ。<br>まずは戦い方を覚えよう。',
+    '下に並んでいるのが<b>手札</b>。<br>左上の数字は<b>コスト</b>。毎ターン、<b>エネルギー3</b>の範囲でカードを使える。',
+    '敵の横の札は<b>行動予告</b>。<br>「攻 5」なら、次のターンに5ダメージの攻撃をしてくる。',
+    '<b>斬撃</b>で攻撃、<b>防御</b>でブロックを得る。ブロックはそのターンの間だけダメージを防ぐ。<br>←→で選んでZ（スマホはカードを2回タップ）で使う。',
+    'キャラ選択画面の各キャラの下にある「使い方」から、キャラごとの特性も練習できる。',
+    'カードを使い終わったら、X（ターン終了ボタン）で敵の番になる。'],()=>tutGoal('カードを使って、Xでターン終了'));
+}
+function tutEvent(type,a,b){
+  if(!tutorial)return;
+  if(typeof tutStage==='string')return charTutEvent(type,a);
+  if(tutStage===1&&type==='turn'&&a===2&&!tutFlags.t1){tutFlags.t1=1;
+    tutSay(['敵が行動した。<br>ブロックがあれば、その分だけダメージが減る。','この調子で敵のHPを0にしよう。'],()=>tutGoal('敵を倒そう'));}
+  if(tutStage===3&&type==='lens'&&!tutFlags.m){
+    if(a['node:0']===true){tutFlags.m=1;
+      tutSay(['看板が<b>赤く</b>変わった。嘘を見つけると、<b>本当の内容が赤い文字</b>で表示される。','「宝箱」の正体は<b>戦闘</b>だった。休憩で回復するか、そのまま戦うか、好きな方を選ぼう。'],()=>tutGoal('進む道を選ぼう'));}
+    else if('node:1' in a){tutFlags.m=1;tutSay(['その看板は<b>本当</b>だった。','虫眼鏡はもう使えない。「宝箱」が怪しいかどうかは、自分の勘で判断しよう。'],()=>tutGoal('進む道を選ぼう'));}
+  }
+  if(tutStage===4&&type==='lens'&&'intent' in a&&!tutFlags.i){tutFlags.i=1;
+    tutSay(a.intent?['予告が<b>赤い文字</b>に変わった。本当は<b>攻撃</b>が来る！','敵が前に乗り出していたのもそのせいだ。防御を固めよう。']
+                   :['予告は赤くならなかった＝本当だ。体の動きと合わせて判断しよう。'],()=>tutGoal('嘘に気をつけて敵を倒そう'));}
+  if(tutStage===4&&type==='turn'&&a===2&&!tutFlags.t2){tutFlags.t2=1;
+    tutSay(['手札の<b>暴露</b>は「いま画面にある嘘の数×5」ダメージ。','嘘が多いほど強い。嘘を逆手に取るのも作戦のうちだ。']);}
+}
+const CHAR_TUT={
+  ren:{enemy:'tren',deck:['iai','slash','slash','tsubame','battou','guard','guard','slash','ougi','togi'],
+    intro:['<b>剣士レン</b>の練習だ。',
+      'レンの特性は<b>連撃</b>。<br>アタックを使うたびに連撃が1増え、そのターンのアタックのダメージが<b>連撃の数だけ上がる</b>。ターンが終わると0に戻る。',
+      '<b>居合</b>はターンの最初に使うとコスト0。<br>最初に居合を使えば、タダで連撃を稼げる。',
+      '<b>燕返し</b>は（連撃+1）回攻撃。<b>抜刀術</b>や<b>奥義</b>は連撃が多いほど強い。<br>安いアタックで連撃を稼いでから大技を撃とう。'],
+    goal:'1ターンで連撃を3にしよう'},
+  mira:{enemy:'tmira',deck:['crystal','reverse','slash','slash','slash','guard','guard','antifog','unmask','foresee'],
+    intro:['<b>占い師ミラ</b>の練習だ。',
+      'ミラは生まれつき<b>観察力+1</b>。<br>観察力が高いほど、画面に嘘が出にくくなる。',
+      'ミラは虫眼鏡の代わりに<b>水晶玉</b>を使う。<br><b>毎ターン2回</b>使えて、<b>手札の嘘を暴くと、そのカードが強くなる</b>。',
+      '<b>予知</b>：ターン開始時に、予知の数だけ嘘を自動で消してくれる。<br>「水晶玉」や「未来視」のカードで増やせる。',
+      'いま、手札の数値が嘘をついている。<br>右下の水晶玉をタップしてから、手札のカードをタップしてみよう。'],
+    goal:'水晶玉で手札を調べよう'},
+  kuro:{enemy:'tkuro',deck:['nimai','excuse','peten','peel','bribe','slash','slash','guard','overlie','smoke'],
+    intro:['<b>詐欺師クロ</b>の練習だ。',
+      'クロの特性は<b>ハッタリ</b>。<br>ハッタリがあると、敵の<b>ブロックをその数だけ削る</b>。削った分だけハッタリは減る。',
+      '敵がブロックを張ったときや、敵がブロックを持っているときに、自動で削ってくれる。<br>クロは戦闘開始時にハッタリ4を持っている。',
+      '使われずに残ったハッタリは「<b>化けの皮</b>」（ハッタリの2倍ダメージ）や「<b>買収</b>」（ハッタリ8以上で使える）で攻撃に変えられる。',
+      'さらにクロは、<b>嘘があるターンはエネルギー+1</b>。嘘はクロの味方だ。',
+      '今回の敵は「守 8」で身を固めてくる。<br>「二枚舌」などでハッタリを溜めてから、ターンを終了してみよう。'],
+    goal:'ハッタリを溜めてターン終了'},
+  haru:{enemy:'tharu',deck:['kamitsuke','mamore','yoshi','together','howl','slash','slash','guard','guard','sniff'],
+    intro:['<b>獣使いハル</b>の練習だ。',
+      'ハルは相棒の狼<b>シロ</b>と戦う。<br>左上の枠がシロ。HPと<b>牙</b>（攻撃力）が表示されている。',
+      'シロは<b>毎ターン終了時</b>に、牙の数だけ自動で敵にかみつく。<br>「かみつけ」なら、すぐに牙×2のダメージ。',
+      '「<b>まもれ</b>」を使うと、そのターンの敵の攻撃はシロが受けてくれる。<br>シロが倒れるとその戦闘中は攻撃しなくなるので、「よしよし」で回復してあげよう。',
+      'シロは、敵の予告が嘘のときに<b>うなる</b>ことがある。ログに注目だ。',
+      '敵は「攻 8」で来る。「まもれ」をシロに指示してから、ターンを終了してみよう。'],
+    goal:'「まもれ」を使ってターン終了'},
+  luna:{enemy:'tluna',deck:['mist','fireball','icebolt','manashield','chaincast','slash','slash','guard','guard','decay'],
+    intro:['<b>魔法使いルナ</b>の練習だ。',
+      'ルナは敵に<b>状態異常</b>をかける。<br>・<b>毒</b>：敵の行動前に毒の数だけダメージ（ブロック無視）。毎回1減る。<br>・<b>火傷</b>：敵が攻撃するたびに火傷の数だけダメージ。毎ターン1減る。',
+      '・<b>弱体</b>：敵の攻撃力が3割下がる。毎ターン1減る。<br>・<b>凍結</b>：敵の次の行動を止める。',
+      'さらにルナは、敵にかかっている<b>状態異常1種類につき、アタックのダメージ+1</b>。<br>重ねがけするほど強くなる。',
+      'まずは「毒の霧」と「火球」で、毒と火傷をかけてみよう。'],
+    goal:'毒と火傷をかけてターン終了'}
+};
+function startCharTutorial(cid){
+  const T=CHAR_TUT[cid];
+  tutorial=true;tutStage='c_'+cid;tutFlags={};runToken++;
+  char=cid;hp=maxHp=CHARS[cid].hp;act=0;step=1;gold=0;totalLies=0;warned=true;uidN=0;history=[];lieNote='';relics=[];
+  deck=T.deck.map(newCard);
+  tutRetry=()=>startBattle('normal',T.enemy);
+  tutRetry();
+  tutGoal('');
+  tutSay(T.intro,()=>tutGoal(T.goal));
+}
+function charTutEvent(type,a){
+  const st=tutStage;
+  if(st==='c_haru'||st==='c_luna')return charTutEvent2(type,a);
+  if(st==='c_ren'&&type==='play'&&pcombo>=3&&!tutFlags.c){tutFlags.c=1;
+    tutSay(['連撃が<b>3</b>になった！<br>いまアタックのダメージが、それぞれ+3されている。','この状態で「抜刀術」や「奥義」を使うと大ダメージだ。<br>連撃は毎ターン0から。最初の数枚で稼ぐのがコツ。'],()=>tutGoal('かかしを倒そう'));}
+  if(st==='c_mira'&&type==='lens'&&!tutFlags.c&&Object.keys(a).some(k=>k.startsWith('card:')&&a[k])){tutFlags.c=1;
+    tutSay(['手札の嘘を暴いた！<br>本当の数値が<b>赤く</b>出て、カード名の横に<b>✦（水晶玉の加護）</b>が付いた。',
+      '加護のついたカードは、攻撃やブロックの数値が<b>+3</b>。数値のないカードは、そのターン<b>コスト0</b>になる。'],()=>tutGoal('予知を増やしながら人形を倒そう'));}
+  if(st==='c_mira'&&type==='turn'&&a===2&&!tutFlags.t){tutFlags.t=1;
+    tutSay(['ターン開始時、<b>予知</b>の数だけ嘘が自動で消える。','「逆位置」は、予告が嘘なら12ダメージ、本当ならブロック8。<br>水晶玉で予告を確かめてから使うと確実だ。']);}
+  if(st==='c_kuro'&&type==='bluff'&&!tutFlags.t){tutFlags.t=1;
+    later(()=>tutSay([`ハッタリで敵のブロックを<b>${a}</b>削った！`,'ブロックの薄くなった敵には攻撃が通りやすい。<br>使われずに残ったハッタリは、「化けの皮」や「買収」で攻撃に変えられる。'],()=>tutGoal('ハッタリを攻撃に変えて盗賊を倒そう')),900);}
+}
+function charTutEvent2(type,a){
+  const st=tutStage;
+  if(st==='c_haru'&&type==='turn'&&a===2&&!tutFlags.t){tutFlags.t=1;
+    tutSay(['ターンの終わりに、シロが自動でかみついた。','「まもれ」を使っていれば、敵の攻撃はシロが受け止める。シロのHPに気をつけよう。<br>「遠吠え」や「よしよし」で牙を伸ばせば、シロはどんどん強くなる。'],()=>tutGoal('シロと一緒にイノシシを倒そう'));}
+  if(st==='c_luna'&&type==='turn'&&a===2&&!tutFlags.t){tutFlags.t=1;
+    tutSay(['敵の名前の横に、かかっている状態異常が表示されている。','毒は敵の行動前に、火傷は敵が攻撃したときにダメージを与える。<br>「連鎖詠唱」は状態異常の種類が多いほど強い。重ねがけしよう。'],()=>tutGoal('状態異常で泥人形を倒そう'));}
+}
+function tutWin(){
+  if(typeof tutStage==='string'){
+    tutSay([`<b>${CHARS[char].name}</b>の練習完了！`,'キャラ選択に戻る。気に入ったら、そのまま冒険に出よう。'],()=>{tutorial=false;$('tutBar').hidden=true;showCharSel();});
+    return;
+  }
+  if(tutStage===1){
+    tutSay(['勝利！<br>戦闘に勝つと<b>金貨</b>と<b>カード</b>がもらえる。','報酬からカードを1枚選んでデッキに加えよう。'],()=>{
+      tutStage=2;gold+=15;showReward(15,null,['doubtblade','see','truth']);tutGoal('カードを1枚選ぼう');});
+  }else{
+    tutSay(['見事！ チュートリアル完了だ。','本番では<b>3章・30階層</b>を進む。<br>キャラごとに専用のカードと敵がいる。',
+      'ほかにもショップの<b>値札</b>や、<b>店主</b>そのものが嘘をついていることも……。<br>虫眼鏡と勘を頼りに進もう。'],()=>{
+      try{localStorage.setItem('usotsuki-tut','1');}catch(e){}tutDone=true;showTitle();});
+  }
+}
+function tutMap(){
+  tutStage=3;step=2;
+  mapChoices=[{truth:'battle',shown:'treasure',lie:true},{truth:'rest',shown:'rest',lie:false}];
+  mSel=0;lensTime=1;checked={};show('map');$('mapInfo').textContent='';renderMap();
+  tutSay(['ここは<b>分かれ道</b>。<br>看板の行き先へ進めるが、看板は<b>嘘をつく</b>ことがある。',
+    '怪しいと思ったら、画面右下の<b>虫眼鏡</b>をタップしてから、調べたい看板をタップしよう。<br>嘘なら<b>本当の内容が赤い文字</b>で現れる。<br>（キーボードはCで構え、矢印で選んでZ）',
+    '虫眼鏡は<b>1回きり</b>。分かれ道ごとに1か所しか調べられない。どこを調べるかが勝負だ。'],
+    ()=>tutGoal('虫眼鏡で「宝箱」の看板を調べよう'));
+}
+function tutBattle2(){
+  tutStage=4;step=3;
+  startBattle('normal','tdoll');
+  tutSay(['この敵は<b>幻惑</b>をかけてくる。<br>上に出ている幻惑の値が高いほど、画面が嘘をつきやすくなる。',
+    '嘘をつくのは<b>敵の行動予告・敵のHP・自分のHP・手札の数値</b>。<br>内部では本当の値で処理される。',
+    '見抜くコツは2つ。<br>①<b>敵の体の動きは嘘をつかない</b>。攻撃なら前に乗り出し、防御ならかがみ、呪いなら揺れる。',
+    '②<b>虫眼鏡</b>で調べると、嘘の部分が<b>本当の内容（赤い文字）</b>に変わる。<br>戦闘では<b>1ターンに1回</b>だけ使える。',
+    '今の予告は「守」だが……敵の姿勢をよく見てごらん。<br>虫眼鏡をタップしてから、行動予告をタップしてみよう。'],()=>tutGoal('虫眼鏡で行動予告を調べよう'));
+}
+
+/* ---------- デッキからカードを選ぶ ---------- */
+let dp={open:false,list:[],sel:0,cb:null,cancel:null};
+function openDeckPick(title,filter,cb,onCancel){
+  const list=deck.filter(filter||(()=>true));
+  if(!list.length){if(onCancel)onCancel('none');return;}
+  dp={open:true,list,sel:0,cb,cancel:onCancel||null};
+  $('dpTitle').textContent=title;$('deckPick').hidden=false;renderDeckPick();
+}
+function renderDeckPick(){
+  const g=$('dpGrid');g.innerHTML='';
+  dp.list.forEach((c,i)=>{
+    const d=CARDS[c.id];const el=cardEl(d,d.n);
+    if(i===dp.sel)el.classList.add('sel');
+    el.onclick=()=>{if(dp.sel===i)pickDeck(i);else{dp.sel=i;renderDeckPick();sfx('blip');}};
+    g.appendChild(el);
+  });
+  const s=g.children[dp.sel];if(s&&s.scrollIntoView)s.scrollIntoView({block:'nearest'});
+}
+function pickDeck(i){const c=dp.list[i];const cb=dp.cb;dp.open=false;$('deckPick').hidden=true;sfx('pick');if(cb)cb(c);}
+function cancelDeckPick(){if(!dp.open)return;const f=dp.cancel;dp.open=false;$('deckPick').hidden=true;if(f)f('cancel');}
+$('dpCancel').onclick=cancelDeckPick;
+function removeFromDeck(c){const i=deck.indexOf(c);if(i>=0)deck.splice(i,1);}
+
+/* ---------- ？マスのイベント ---------- */
+let evChoices=[],evSel=0,evTitleNow='';
+function showChoiceEvent(id){
+  const E_=EVENTS[id];if(!E_)return nextStep();
+  save({t:'evt',id});
+  const ev=E_();evTitleNow=ev.title;
+  evNext=null;show('event');
+  $('evTitle').textContent=ev.title;$('evText').innerHTML=takeNote()+ev.text;
+  $('evBtn').hidden=true;
+  evChoices=ev.choices;evSel=evChoices.findIndex(c=>!c.disabled);if(evSel<0)evSel=evChoices.length-1;
+  renderChoices();
+}
+function renderChoices(){
+  const box=$('evChoices');box.innerHTML='';box.hidden=false;
+  evChoices.forEach((c,i)=>{
+    const b=document.createElement('button');b.className='evc'+(i===evSel?' sel':'')+(c.disabled?' off':'');
+    b.innerHTML=`<span class="evl">${c.label}</span>${c.sub?`<span class="evs">${c.disabled&&c.why?c.why:c.sub}</span>`:''}`;
+    b.onclick=()=>{if(c.disabled){sfx('error');return;}if(evSel===i)chooseEvent(i);else{evSel=i;renderChoices();sfx('blip');}};
+    box.appendChild(b);
+  });
+}
+function chooseEvent(i){const c=evChoices[i];if(!c||c.disabled)return sfx('error');sfx('pick');c.fn();}
+function evDone(text){save({t:'advance'});showEvent(evTitleNow,text);}
+const leave={label:'立ち去る',sub:'何もしない',fn:()=>evDone('何もせずに立ち去った。')};
+const hasCurse=()=>deck.some(c=>CARDS[c.id].kind==='curse');
+const rareOpts=()=>{const all=pool().filter(k=>CARDS[k].r==='R');return shuffle(all).slice(0,3);};
+const EVENTS={
+  altar:()=>({title:'血の祭壇',text:'古い祭壇が血で濡れている。<br>何かをささげれば、見返りがあるという。',choices:[
+    {label:'カードを1枚ささげる',sub:'デッキから1枚失い、HPが全回復',disabled:deck.length<2,why:'デッキが少なすぎる',
+      fn:()=>openDeckPick('ささげるカードを選ぶ',null,c=>{removeFromDeck(c);hp=maxHp;evDone(`「${CARDS[c.id].name}」をささげた。<br>傷がふさがっていく。HPが全回復した。`);})},
+    {label:'血をささげる',sub:'HP-10、レアカードを1枚選ぶ',
+      fn:()=>{hp=Math.max(1,hp-10);showReward(0,null,rareOpts(),'血を流した。祭壇がレアカードを差し出す。');}},
+    leave]}),
+  spring:()=>({title:'忘却の泉',text:'澄んだ泉。のぞきこむと、記憶が少しずつ薄れていく……。',choices:[
+    {label:'カードを1枚忘れる',sub:'デッキから1枚削除',disabled:deck.length<2,why:'デッキが少なすぎる',
+      fn:()=>openDeckPick('忘れるカードを選ぶ',null,c=>{removeFromDeck(c);evDone(`「${CARDS[c.id].name}」のことを忘れた。`);})},
+    {label:'深く潜る',sub:'2枚削除、ただし最大HP-6',disabled:deck.length<3,why:'デッキが少なすぎる',
+      fn:()=>openDeckPick('忘れるカードを選ぶ（1枚目）',null,a=>{removeFromDeck(a);
+        openDeckPick('忘れるカードを選ぶ（2枚目）',null,b=>{removeFromDeck(b);maxHp=Math.max(1,maxHp-6);hp=Math.min(hp,maxHp);
+          evDone(`「${CARDS[a.id].name}」と「${CARDS[b.id].name}」を忘れた。<br>体が冷えきった。最大HP-6`);},()=>evDone(`「${CARDS[a.id].name}」を忘れた。`));})},
+    leave]}),
+  chest:()=>({title:'呪われた宝箱',text:'黒い鎖で縛られた宝箱。<br>中から金貨のこすれる音がする。',choices:[
+    {label:'こじ開ける',sub:'金貨+120、呪いカードを1枚得る',fn:()=>{gold+=120;const n=addCurse();sfx('coin');evDone(`金貨120枚を手に入れた。<br>だが呪い「${n}」がデッキに紛れ込んだ。`);}},
+    {label:'鎖ごと持ち帰る',sub:'レアのレリックを得る、呪いカードを2枚得る',
+      fn:()=>{const r=pickRelicByRarity(.9);if(r)gainRelic(r);const a=addCurse(),b=addCurse();
+        evDone((r?`レリック「${R[r].name}」を手に入れた。<br>${R[r].desc}<br>`:'中は空だった……。<br>')+`呪い「${a}」と「${b}」もついてきた。`);}},
+    leave]}),
+  gambler:()=>({title:'賭博師の亡霊',text:'骸骨の賭博師がサイコロを転がしている。<br>「賭けるかい？ 半か丁か、それだけさ」',choices:[
+    {label:'全財産を賭ける',sub:`半々で金貨が2倍か0（いま${gold}G）`,disabled:gold<=0,why:'賭ける金貨がない',
+      fn:()=>{if(Math.random()<.5){gold*=2;sfx('coin');evDone(`当たり！ 金貨が${gold}Gになった。`);}else{gold=0;sfx('lose');evDone('外れ。金貨をすべて失った。<br>「またおいで」');}}},
+    {label:'命を賭ける',sub:'半々で最大HP+10か、HP-20',
+      fn:()=>{if(Math.random()<.5){maxHp+=10;hp+=10;sfx('relic');evDone('当たり！ 最大HPが10増えた。');}else{hp=Math.max(1,hp-20);sfx('hurt');evDone('外れ。命を削られた。HP-20');}}},
+    leave]}),
+  doors:()=>{const good=Math.random()<.5?0:1,honest=Math.random()<.5;const signGood=honest?good:1-good;
+    const sign=i=>i===signGood?'宝':'罠';
+    const open=i=>()=>{if(i===good){const r=pickRelicByRarity(.2);if(r)gainRelic(r);gold+=40;evDone(`扉の向こうは宝物庫だった！<br>${r?`レリック「${R[r].name}」と`:''}金貨40を手に入れた。`+(honest?'':'<br>看板は嘘だった。'));}
+      else{hp=Math.max(1,hp-12);const n=addCurse();sfx('hurt');evDone(`罠だ！ HP-12<br>呪い「${n}」を背負わされた。`+(honest?'<br>看板は本当だったのに……。':'<br>看板は嘘だった。'));}};
+    return {title:'二つの扉',text:`二つの扉が並んでいる。<br>左の扉には「${sign(0)}」、右の扉には「${sign(1)}」と書かれている。<br>……ここは嘘のダンジョンだ。`,choices:[
+      {label:'左の扉',sub:`看板：「${sign(0)}」`,fn:open(0)},{label:'右の扉',sub:`看板：「${sign(1)}」`,fn:open(1)},
+      {label:'引き返す',sub:'何もしない',fn:()=>evDone('嫌な予感がして引き返した。')}]};},
+  demon:()=>({title:'悪魔の契約',text:'黒い霧の中から声がする。<br>「力が欲しいか？ 代償はいただくがな」',choices:[
+    {label:'契約する',sub:'最大HP-10、レアカードを1枚選ぶ',disabled:maxHp<=15,why:'差し出せる命が足りない',
+      fn:()=>{maxHp-=10;hp=Math.min(hp,maxHp);showReward(0,null,rareOpts(),'契約は結ばれた。最大HP-10<br>悪魔がレアカードを差し出す。');}},
+    {label:'魂を少し売る',sub:'金貨+180、呪い「呪縛」を得る',fn:()=>{gold+=180;addCurse('shackle');sfx('coin');evDone('金貨180枚を手に入れた。<br>魂に呪縛が刻まれた。');}},
+    leave]}),
+  mirror:()=>({title:'鏡の中の自分',text:'鏡の中の自分が笑っている。<br>「そのカード、写してやろうか？」',choices:[
+    {label:'カードを写す',sub:'デッキの1枚を複製、呪い「割れた鏡片」を得る',
+      fn:()=>openDeckPick('写すカードを選ぶ',c=>CARDS[c.id].kind!=='curse',c=>{deck.push(newCard(c.id));addCurse('glass');evDone(`「${CARDS[c.id].name}」が2枚になった。<br>鏡が割れ、破片がデッキに紛れ込んだ。`);})},
+    {label:'鏡を割る',sub:'呪いカードを1枚消す、HP-6',disabled:!hasCurse(),why:'消せる呪いがない',
+      fn:()=>openDeckPick('消す呪いを選ぶ',c=>CARDS[c.id].kind==='curse',c=>{removeFromDeck(c);hp=Math.max(1,hp-6);evDone(`鏡を叩き割った。破片で手を切った。HP-6<br>呪い「${CARDS[c.id].name}」が消えた。`);})},
+    leave]}),
+  potion:()=>({title:'怪しい薬',text:'棚に紫色の薬が一本。<br>ラベルには「万能薬」と書いてある……が、信じていいものか。',choices:[
+    {label:'飲む',sub:'？？？',fn:()=>{if(Math.random()<.5){maxHp+=8;hp=maxHp;sfx('relic');evDone('本物の万能薬だった！<br>最大HP+8、HPが全回復した。');}
+      else{hp=Math.max(1,hp-15);addCurse('chill');sfx('hurt');evDone('毒だ！ HP-15<br>呪い「悪寒」に取りつかれた。');}}},
+    {label:'売り払う',sub:'金貨+40',fn:()=>{gold+=40;sfx('coin');evDone('通りがかりの商人に売りつけた。金貨+40');}},
+    leave]}),
+  bonfire:()=>({title:'青い焚き火',text:'青白い炎が静かに揺れている。<br>呪いを焼き払えるかもしれない。',choices:[
+    {label:'呪いを焼く',sub:'呪いカードをすべて消す、金貨を半分失う',disabled:!hasCurse(),why:'焼く呪いがない',
+      fn:()=>{const n=deck.filter(c=>CARDS[c.id].kind==='curse').length;deck=deck.filter(c=>CARDS[c.id].kind!=='curse');gold=Math.floor(gold/2);evDone(`呪いが${n}枚、青い炎に消えた。<br>金貨が半分になった。`);}},
+    {label:'カードをくべる',sub:'カードを1枚削除、最大HP+4',disabled:deck.length<2,why:'デッキが少なすぎる',
+      fn:()=>openDeckPick('くべるカードを選ぶ',null,c=>{removeFromDeck(c);maxHp+=4;hp+=4;evDone(`「${CARDS[c.id].name}」が炎に溶けた。<br>体が温まる。最大HP+4`);})},
+    leave]})
+};
+const EVENT_IDS=Object.keys(EVENTS);
+
+/* ---------- カード集 ---------- */
+let dex=new Set();try{dex=new Set(JSON.parse(localStorage.getItem('usotsuki-dex')||'[]'));}catch(e){}
+function dexAdd(id){if(dex.has(id))return;dex.add(id);try{localStorage.setItem('usotsuki-dex',JSON.stringify([...dex]));}catch(e){}}
+const DEX_TABS=[['common','共通'],['ren','レン'],['mira','ミラ'],['kuro','クロ'],['haru','ハル'],['luna','ルナ'],['curse','呪い']];
+let dexTab=0;
+const dexCat=k=>CARDS[k].kind==='curse'?'curse':(CARDS[k].only||'common');
+const RORDER={C:0,U:1,R:2,X:3},KORDER={atk:0,skl:1,pow:2,curse:3};
+function showDex(){dexTab=0;show('dex');renderDex();}
+function renderDex(){
+  const all=Object.keys(CARDS);
+  $('dexCount').textContent=`発見 ${all.filter(k=>dex.has(k)).length} / ${all.length}`;
+  const tb=$('dexTabs');tb.innerHTML='';
+  DEX_TABS.forEach(([cat,lab],i)=>{
+    const ids=all.filter(k=>dexCat(k)===cat);
+    const b=document.createElement('button');b.className=i===dexTab?'sel':'';
+    b.textContent=`${lab} ${ids.filter(k=>dex.has(k)).length}/${ids.length}`;
+    b.onclick=()=>{dexTab=i;renderDex();sfx('blip');};tb.appendChild(b);
+  });
+  const g=$('dexGrid');g.innerHTML='';g.scrollTop=0;
+  const cat=DEX_TABS[dexTab][0];
+  all.filter(k=>dexCat(k)===cat).sort((a,b)=>RORDER[CARDS[a].r]-RORDER[CARDS[b].r]||KORDER[CARDS[a].kind]-KORDER[CARDS[b].kind])
+    .forEach(k=>{
+      const d=CARDS[k];
+      if(dex.has(k)){g.appendChild(cardEl(d,d.n,'div'));}
+      else{const el=document.createElement('div');el.className='card unknown r-'+d.r;el.innerHTML=`<span class="q">？？？</span><span class="ul">${RLABEL[d.r]}</span>`;g.appendChild(el);}
+    });
+}
+$('dexBtn').onclick=e=>{e.stopPropagation();showDex();};
+$('dexBack').onclick=()=>showCharSel();
+
+/* ---------- save / load ---------- */
+function saveBattle(phase){
+  if(view!=='battle'||!enemy)return;
+  const e=enemy;
+  save({t:'battle',b:{kind:battleKind,eid:e.id,enemy:{max:e.max,hp:e.hp,block:e.block,str:e.str,turn:e.turn,lastIdx:e.lastIdx,intent:e.intent,st:e.st,moves:e.moves},
+    illusion,pturn,energy,block,pstr,pdex,pobs,pcombo,pfore,phat,playedTurn,lastPlayed,pw,powers,lensTime,seen,lensFound,lensDraws,atkTurn,pet,
+    hand,drawPile,discard,exhaustPile,lies,fake,logLines,uidN,phase}});
+}
+function restoreBattle(b){
+  battleKind=b.kind;
+  enemy={...E[b.eid],id:b.eid,...b.enemy};
+  seen={};
+  ({illusion,pturn,energy,block,pstr,pdex,pobs,pcombo,pfore,phat,playedTurn,lastPlayed,pw,powers,lensTime,seen,lensFound,lensDraws,atkTurn,pet,hand,drawPile,discard,exhaustPile,lies,fake,logLines}=b);
+  uidN=Math.max(uidN,b.uidN||0);lensTime=lensTime??LENS_T;seen=seen||{};lensFound=lensFound||0;lensDraws=lensDraws||0;atkTurn=atkTurn||0;pet=pet||null;if(!enemy.st)enemy.st={poison:0,burn:0,weak:0,freeze:0};
+  $('sprite').className='spr';drawSprite($('sprite'),SPR[enemy.spr]);drawSprite($('petSprite'),SPR.dog);show('battle');renderRelics($('bRelics'));
+  $('log').innerHTML=logLines.join('<br>');
+  sel=0;busy=false;renderBattle();
+  if(b.phase==='enemy'){busy=true;renderBattle();later(enemyAct,700);}
+}
+const SAVE_KEY='usotsuki-save-v1';
+function save(pending){
+  if(tutorial)return;
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({char,act,step,gold,hp,maxHp,deck:deck.map(c=>c.id),relics,history,totalLies,warned,pending}));}catch(e){}
+}
+function clearSave(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
+function loadSave(){try{const t=localStorage.getItem(SAVE_KEY);return t?JSON.parse(t):null;}catch(e){return null;}}
+function resume(){
+  const d=loadSave();if(!d)return showCharSel();
+  runToken++;tutorial=false;
+  ({char,act,step,gold,hp,maxHp,relics,history,totalLies,warned}=d);
+  uidN=0;deck=d.deck.map(newCard);lieNote='';busy=false;
+  const p=d.pending||{t:'newmap'};
+  if(p.t==='map'){mapChoices=p.choices;mSel=0;lensTime=p.mag??LENS_T;show('map');$('mapInfo').textContent='続きから再開した';renderMap();}
+  else if(p.t==='node')enterNode(p.truth);
+  else if(p.t==='battle')restoreBattle(p.b);
+  else if(p.t==='evt')showChoiceEvent(p.id);
+  else if(p.t==='shop')showShop(false,p.items,p.mag);
+  else if(p.t==='reward')showReward(p.g,p.rid,p.opts,p.msg);
+  else if(p.t==='relicPick')showRelicPick(p.opts);
+  else if(p.t==='advance')nextStep();
+  else showMap();
+}
+
+/* ---------- menu ---------- */
+const inRun=()=>!['title','charSel','end','dex'].includes(view);
+function openMenu(){
+  if(!inRun()||menuOpen)return;
+  menuOpen=true;mSel2=0;giveupArmed=false;$('menu').hidden=false;
+  if(lensHeld)dropLens();
+  $('menuNote').textContent=tutorial?'チュートリアルは保存されない':view==='battle'?'戦闘中でも、最後に行動したところから再開できる':'中断しても、この場所から再開できる';
+  renderMenu();
+}
+function closeMenu(){menuOpen=false;$('menu').hidden=true;}
+function renderMenu(){
+  [...document.querySelectorAll('#menu .wbtn')].forEach((b,i)=>b.classList.toggle('sel',i===mSel2));
+  $('giveupBtn').textContent=giveupArmed?'もう一度押すと冒険を終える':'あきらめる';
+}
+function menuAct(i){
+  if(i===0)return closeMenu();
+  if(i===1||(tutorial&&i===2)){closeMenu();runToken++;busy=false;showTitle();return;}
+  if(!giveupArmed){giveupArmed=true;mSel2=2;renderMenu();return;}
+  closeMenu();runToken++;clearSave();showEnd('quit');
+}
+document.querySelectorAll('#menu .wbtn').forEach(b=>b.onclick=()=>menuAct(+b.dataset.i));
+$('menuOpen').onclick=()=>menuOpen?closeMenu():openMenu();
+
+/* ---------- title ---------- */
+let tutDone=false;try{tutDone=localStorage.getItem('usotsuki-tut')==='1';}catch(e){}
+const titleOpts=()=>[...document.querySelectorAll('#titleBtns .wbtn')].filter(b=>!b.hidden);
+function showTitle(){
+  tutorial=false;$('tutBar').hidden=true;$('tutModal').hidden=true;
+  show('title');
+  const sv=!!loadSave();
+  document.querySelector('#titleBtns [data-a="resume"]').hidden=!sv;
+  const opts=titleOpts().map(b=>b.dataset.a);
+  tSel=sv?0:(tutDone?opts.indexOf('new'):opts.indexOf('tut'));
+  renderTitle();
+}
+function renderTitle(){titleOpts().forEach((b,i)=>b.classList.toggle('sel',i===tSel));}
+function titleAct(a){if(a==='resume')resume();else if(a==='tut')startTutorial();else showCharSel();}
+document.querySelectorAll('#titleBtns .wbtn').forEach(b=>b.onclick=e=>{e.stopPropagation();titleAct(b.dataset.a);});
+
+/* ---------- map ---------- */
+function genChoices(){
+  if(step>=FLOORS)return [{truth:'boss',shown:'boss',lie:false}];
+  const w=[['battle',40],['rest',14],['shop',14],['treasure',10],['mystery',12]];
+  if(step>=4||act>0)w.push(['elite',14]);
+  const n=Math.random()<.35?2:3,out=[];
+  while(out.length<n){
+    const pool=w.filter(x=>!out.includes(x[0]));
+    let r=Math.random()*pool.reduce((s,x)=>s+x[1],0);
+    for(const [t,wt] of pool){r-=wt;if(r<=0){out.push(t);break;}}
+  }
+  const p=has('feather')?0:Math.min(.3+.06*step+.06*act,.8)*obsFactor(relicObs());
+  return out.map(t=>{
+    if(t==='shop'&&Math.random()<.3){totalLies++;return {truth:'mimic',shown:'shop',lie:true};}
+    if(Math.random()<p){totalLies++;return {truth:t,shown:pick(SHOWABLE.filter(x=>x!==t)),lie:true};}
+    return {truth:t,shown:t,lie:false};
+  });
+}
+function showMap(){mapChoices=genChoices();mSel=0;checked={};lensTime=lensMaxNow();save({t:'map',choices:mapChoices,mag:lensTime});show('map');$('mapInfo').textContent=relics.length?'レリックをタップで説明':'看板を信じすぎるな';renderMap();}
+function nodeHTML(t){const n=NODE[t];return `<span class="ng">${n.g}</span><span class="nl">${n.l}</span><span class="nd">${n.d}</span>`;}
+function renderMap(){
+  glitchTargets=[];
+  $('mapTop').innerHTML=statusLine();
+  let h='';
+  for(let i=1;i<=FLOORS;i++){
+    const c=history[i-1];
+    if(c)h+=`<span class="hn${c.lie?' liar':''}">${NODE[c.truth].g}</span>`;
+    else if(i===step)h+='<span class="hn now">・</span>';
+    else h+=`<span class="hn future">${i===FLOORS?'王':''}</span>`;
+  }
+  $('hist').innerHTML=h;
+  renderRelics($('mapRelics'));
+  const box=$('mapChoices');box.innerHTML='';
+  mapChoices.forEach((c,i)=>{
+    const b=document.createElement('button');
+    b.className='node'+(i===mSel?' sel':'')+(c.seen?' seenc':'');
+    b.dataset.insp='node:'+i;
+    b.innerHTML=`<div class="ni">${nodeHTML(c.seen?c.truth:c.shown)}</div>`;
+    b.onclick=()=>{if(busy)return;if(mSel===i)chooseNode(i);else{mSel=i;renderMap();}};
+    box.appendChild(b);
+  });
+  afterRender();
+}
+function chooseNode(i){
+  sfx('step');
+  const c=mapChoices[i];history.push(c);
+  if(tutorial){
+    $('tutBar').hidden=true;
+    if(c.truth==='rest'){const h=Math.min(15,maxHp-hp);hp+=h;showEvent('焚き火',`しばらく休んだ。HP+${h}<br>休憩では体力を回復できる。`,tutBattle2);}
+    else{lieNote=c.lie?`「${NODE[c.shown].l}」の看板は嘘だった。`:'';tutBattle2();}
+    return;
+  }
+  save({t:'node',truth:c.truth});
+  if(c.lie&&c.truth!=='mimic')lieNote=`「${NODE[c.shown].l}」の看板は嘘だった。`;
+  enterNode(c.truth);
+}
+function enterNode(t){
+  if(t==='battle')startBattle('normal');
+  else if(t==='elite')startBattle('elite');
+  else if(t==='boss')startBattle('boss');
+  else if(t==='shop')showShop(false);
+  else if(t==='mimic')showShop(true);
+  else if(t==='rest'){const h=Math.min(15+(has('lantern')?10:0),maxHp-hp);hp+=h;save({t:'advance'});showEvent('焚き火',`しばらく休んだ。HP+${h}`);}
+  else if(t==='treasure'){const g=(rand(35,60)+act*15)*(has('tmap')?2:1);gold+=g;save({t:'advance'});showEvent('宝箱',`金貨が入っていた。${g}G手に入れた。`);}
+  else if(t==='mystery'){
+    const r=Math.random();
+    if(r<.6)showChoiceEvent(pick(EVENT_IDS));
+    else enterNode(r<.78?'battle':r<.88?'treasure':(Math.random()<.35?'mimic':'shop'));
+  }
+}
+function showEvent(title,text,next){
+  evNext=next||nextStep;
+  $('evChoices').hidden=true;$('evChoices').innerHTML='';$('evBtn').hidden=false;evChoices=[];
+  show('event');$('evTitle').textContent=title;$('evText').innerHTML=takeNote()+text;$('evBtn').focus();
+}
+
+/* ---------- shop ---------- */
+const SVC={heal:'回復 HP+15',max:'鍛錬 最大HP+6',remove:'削除 カード1枚'};
+function showShop(isMimic,saved,savedMag){
+  checked={};
+  lensTime=savedMag??(LENS_T+(has('cloth')?1:0));
+  const p=has('tag')?0:Math.min(.5+.04*step+.05*act,.88)*obsFactor(relicObs());
+  const up=act*10;
+  shopItems=pickCards(3,.05).map(id=>({kind:'card',id,price:({C:rand(40,55),U:rand(65,85),R:rand(115,140)})[CARDS[id].r]+up}))
+    .concat([{kind:'heal',price:rand(30,40)+up},{kind:'max',price:rand(50,60)+up},{kind:'remove',price:rand(70,85)+act*20}]);
+  const ru=pickRelicByRarity();
+  if(ru)shopItems.push({kind:'relic',id:ru,price:({C:rand(110,130),U:rand(145,170),R:rand(190,220)})[R[ru].r]+act*20});
+  if(saved)shopItems=saved;
+  else shopItems.forEach(it=>{
+    it.sold=false;it.lie=Math.random()<p;
+    it.shown=it.lie?Math.max(5,it.price+sign()*rand(15,35)):it.price;
+    if(it.shown===it.price)it.lie=false;
+    if(it.lie)totalLies++;
+  });
+  if(!isMimic)save({t:'shop',items:shopItems,mag:lensTime});
+  shSel=0;drawSprite($('shopSprite'),SPR.merchant);show('shop');
+  $('shopMsg').innerHTML=takeNote()+'いらっしゃい。安くしとくよ。';
+  renderShop();
+  if(isMimic){
+    busy=true;
+    later(()=>{
+      $('shopMsg').textContent='……ずいぶん、おいしそうな客だ。';sfx('growl');flash('hurt');
+      drawSprite($('shopSprite'),SPR.mimic);shake($('shop'));
+      later(()=>{lieNote='店主は魔物だった。';startBattle('mimic');},1000);
+    },1200);
+  }
+}
+const leaveIdx=()=>shopItems.length;
+function renderShop(){
+  glitchTargets=[];
+  $('shopTop').innerHTML=statusLine();
+  const row=$('shopCards');row.innerHTML='';
+  shopItems.slice(0,3).forEach((it,i)=>{
+    const b=document.createElement('button');
+    b.className='shopItem'+(i===shSel?' sel':'')+(it.sold?' sold':'');
+    const d=CARDS[it.id];b.appendChild(cardEl(d,d.n,'div'));
+    const pr=document.createElement('span');pr.className='price'+(it.seen&&!it.sold?' seen':'');pr.textContent=it.sold?'売切':`${it.seen?it.price:it.shown}G`;
+    if(!it.sold)b.dataset.insp='price:'+i;
+    b.appendChild(pr);
+    b.onclick=()=>shopTap(i);
+    row.appendChild(b);
+  });
+  const sv=$('shopSvc');sv.innerHTML='';
+  shopItems.slice(3).forEach((it,j)=>{
+    const i=j+3;
+    const label=it.kind==='relic'?`${R[it.id].g} ${R[it.id].name}`:SVC[it.kind];
+    const b=document.createElement('button');
+    b.className=(it.kind==='relic'?'r-'+R[it.id].r+' ':'')+'svc'+(i===shSel?' sel':'')+(it.sold?' sold':'');
+    b.innerHTML=`<span>${label}</span><span class="price${it.seen&&!it.sold?' seen':''}">${it.sold?'売切':(it.seen?it.price:it.shown)+'G'}</span>`;
+    if(!it.sold)b.dataset.insp='price:'+i;
+    b.onclick=()=>shopTap(i);
+    sv.appendChild(b);
+  });
+  $('leaveBtn').classList.toggle('sel',shSel===leaveIdx());
+  afterRender();
+}
+function shopSelect(i){
+  shSel=i;
+  const it=shopItems[i];
+  if(it&&it.kind==='relic'&&!it.sold)$('shopMsg').textContent=relicLine(it.id);
+  renderShop();
+}
+function shopTap(i){if(busy)return;if(shSel===i)buy(i);else shopSelect(i);}
+function buy(i){
+  if(busy)return;
+  if(i===leaveIdx())return leaveShop();
+  const it=shopItems[i];
+  if(it.sold){$('shopMsg').textContent='それはもう売り切れだ。';return;}
+  if(gold<it.price){
+    sfx('error');
+    $('shopMsg').textContent=gold>=it.shown?`${it.shown}Gなら払えるはずが……足りない。`:'金が足りないよ。';
+    renderShop();return;
+  }
+  if(it.kind==='remove'){
+    busy=true;
+    openDeckPick('削除するカードを選ぶ',null,c=>{busy=false;gold-=it.price;it.sold=true;sfx('coin');removeFromDeck(c);
+      save({t:'shop',items:shopItems,mag:lensTime});$('shopMsg').textContent=`「${CARDS[c.id].name}」を引き取ったよ。${it.price}Gだ。`+(it.lie?`（値札は${it.shown}Gだった）`:'');renderShop();},
+      ()=>{busy=false;$('shopMsg').textContent='気が変わったかい？';renderShop();});
+    return;
+  }
+  gold-=it.price;it.sold=true;sfx('coin');
+  if(it.kind==='card')deck.push(newCard(it.id));
+  else if(it.kind==='heal')hp=Math.min(maxHp,hp+15);
+  else if(it.kind==='max'){maxHp+=6;hp+=6;}
+  else gainRelic(it.id);
+  save({t:'shop',items:shopItems,mag:lensTime});
+  $('shopMsg').textContent=it.lie?`まいど。${it.price}Gいただくよ。（値札は${it.shown}Gだった）`:`まいど。${it.price}Gいただくよ。`;
+  renderShop();
+}
+function leaveShop(){if(busy)return;nextStep();}
+
+/* ---------- render ---------- */
+const TYPE_LABEL={atk:'アタック',skl:'スキル',pow:'パワー',curse:'のろい'};
+function cardEl(d,nums,tag='button',cost=d.cost){
+  const el=document.createElement(tag);
+  el.className='card '+d.kind+' r-'+d.r;
+  const id=Object.keys(CARDS).find(k=>CARDS[k]===d);
+  const src=cardArt(id);
+  el.innerHTML=`<span class="cost${cost<d.cost?' down':''}">${d.kind==='curse'?'×':cost}</span><span class="nm">${d.name}</span><span class="rar">${RLABEL[d.r]}</span>${src?`<img class="art" alt="" src="${src}">`:'<span class="art"></span>'}<span class="type">${TYPE_LABEL[d.kind]}</span>${d.needText?`<span class="need">条件：${d.needText}</span>`:''}<span class="desc">${d.text(nums)}</span>`;
+  return el;
+}
+function renderBattle(){
+  glitchTargets=[];
+  $('floorLbl').textContent=`階層 ${floorTxt()}`;
+  $('illu').textContent=`幻惑 ${illusion}`;
+  $('piles').textContent=`山札 ${drawPile.length}　捨札 ${discard.length}`;
+  $('eName').textContent=enemy.name+(enemy.str?`　筋${enemy.str}`:'');
+  const ehp=seen.enemyHp?enemy.hp:shownEnemyHp();
+  $('eHpTxt').textContent=`${ehp}/${enemy.max}`;
+  $('eHpTxt').dataset.insp='enemyHp';$('eHpTxt').classList.toggle('seen',!!seen.enemyHp);
+  $('eHpBar').style.width=(ehp/enemy.max*100)+'%';
+  $('eBlock').textContent=enemy.block?`守 ${enemy.block}`:'';
+  $('eStatus').textContent=enemy.st?Object.keys(ST_LABEL).filter(k=>enemy.st[k]>0).map(k=>ST_LABEL[k]+enemy.st[k]).join(' '):'';
+  const pb=$('petBox');pb.hidden=!pet;
+  if(pet){
+    $('petBar').style.width=(pet.hp/pet.max*100)+'%';
+    $('petInfo').textContent=pet.down?'倒れている':`HP${pet.hp}/${pet.max} 牙${pet.atk}`+(pet.block?` 守${pet.block}`:'');
+    pb.classList.toggle('down',pet.down);pb.classList.toggle('guard',!!pet.guard&&!pet.down);
+  }
+  $('intent').textContent=intentText(lies.intent&&!seen.intent?fake.intent:enemy.intent);
+  $('intent').dataset.insp='intent';$('intent').classList.toggle('seen',!!seen.intent);
+  $('spriteWrap').className='pose-'+enemy.intent.t;
+  $('pHp').textContent=seen.playerHp?hp:shownPlayerHp();$('pMax').textContent=maxHp;
+  $('pHp').dataset.insp='playerHp';$('pHp').classList.toggle('seen',!!seen.playerHp);
+  $('pBlock').textContent=block?`ブロック ${block}`:'';
+  $('pBuff').textContent=[pstr?`筋${pstr}`:'',pdex?`敏${pdex}`:'',pobs?`観${pobs}`:'',pcombo?`連撃${pcombo}`:'',pfore?`予知${pfore}`:'',phat?`ハッタリ${phat}`:''].filter(Boolean).join(' ');
+  const pp=$('pPow');pp.innerHTML='';
+  powers.forEach(id=>{const b=document.createElement('button');b.className='rl';b.textContent=CARDS[id].name[0];
+    b.title=CARDS[id].name;b.onclick=()=>log(`${CARDS[id].name}：${CARDS[id].text(CARDS[id].n).replace(/<br>/g,'')}`);pp.appendChild(b);});
+  $('energy').innerHTML='エネルギー<span class="pips">'+Array.from({length:Math.max(3,energy)},(_,i)=>`<span class="pip${i<energy?' on':''}"></span>`).join('')+'</span>';
+  $('endBtn').disabled=busy;
+  const h=$('hand');h.innerHTML='';
+  const n=hand.length;
+  const w=n?Math.min(86,Math.floor((464-(n-1)*6)/n)):86;
+  hand.forEach((c,i)=>{
+    const d=CARDS[c.id];
+    const sk='card:'+c.uid;
+    const el=cardEl(d,seen[sk]?trueNums(c):cardNums(c),'button',costOf(c));
+    el.dataset.insp=sk;if(seen[sk])el.classList.add('seenc');if(c.boost)el.classList.add('boosted');
+    el.style.width=w+'px';
+    if(i===sel)el.classList.add('sel');
+    if(d.need){const m=d.need();el.classList.add(m?'met':'unmet');if(!m)el.classList.add('cant');}
+    if(costOf(c)>energy)el.classList.add('cant');
+    el.onclick=()=>{if(busy)return;if(sel===i)playCard(i);else{sel=i;renderBattle();}};
+    h.appendChild(el);
+  });
+  afterRender();
+}
+function renderReward(){
+  const rc=$('rewardCards');rc.innerHTML='';
+  rewardOpts.forEach((id,i)=>{
+    const d=CARDS[id];const el=cardEl(d,d.n);
+    if(i===rsel)el.classList.add('sel');
+    el.onclick=()=>chooseReward(i);
+    rc.appendChild(el);
+  });
+  $('skipBtn').classList.toggle('sel',rsel===3);
+}
+function renderCurrent(){
+  if(view==='battle')renderBattle();
+  else if(view==='map')renderMap();
+  else if(view==='shop')renderShop();
+}
+
+/* ---------- 虫眼鏡（タップ式・回数制） ---------- */
+const lensEl=$('lens');
+const magView=()=>['battle','map','shop'].includes(view);
+let magSel=0,lensRefund=false,checked={};
+function lensMaxNow(){
+  const base=1+(has('cloth')?1:0);
+  if(view!=='battle')return base;
+  return base+(char==='mira'?1:0)+((pw&&pw.lensPlus)||0);
+}
+const lensName=()=>char==='mira'?'水晶玉':'虫眼鏡';
+function isSeen(key){
+  const [k,a]=key.split(':');
+  if(checked[key])return true;
+  if(view==='battle')return !!seen[key];
+  if(view==='map')return !!(mapChoices[+a]&&mapChoices[+a].seen);
+  if(view==='shop')return !!(shopItems[+a]&&shopItems[+a].seen);
+  return true;
+}
+function revealLie(key){
+  const [k,a]=key.split(':');
+  let truth='';
+  if(view==='battle'){
+    seen[key]=true;
+    const first=k!=='card'||!seen._cards;if(k==='card')seen._cards=true;
+    if(first)lensFound++;
+    if(k==='intent')truth=`行動予告は本当は「${intentText(enemy.intent)}」`;
+    else if(k==='enemyHp')truth=`敵のHPは本当は${enemy.hp}`;
+    else if(k==='playerHp')truth=`自分のHPは本当は${hp}`;
+    else{
+      const c=hand.find(x=>String(x.uid)===a);
+      if(c){
+        const d=CARDS[c.id];
+        if(char==='mira'){
+          if((d.dmg||[]).length||(d.blk||[]).length){c.boost=(c.boost||0)+3;}
+          else c.tFree=true;
+        }
+        truth=`「${d.name}」の本当の効果：${d.text(trueNums(c)).replace(/<br>/g,' ')}`;
+        if(char==='mira')truth+=((d.dmg||[]).length||(d.blk||[]).length)?'　水晶玉の加護で+3':'　水晶玉の加護でこのターンコスト0';
+      }
+    }
+    if(first){
+      if(pw.lensBlock)block+=pw.lensBlock;
+      if(has('hat')&&lensDraws<2){lensDraws++;draw(1);}
+      if(has('accuse'))hitEnemy(3);
+    }
+  }else if(view==='map'){
+    const c=mapChoices[+a];c.seen=true;truth=`本当の行き先は「${NODE[c.truth].l}」`;
+  }else if(view==='shop'){
+    const it=shopItems[+a];it.seen=true;truth=`本当の値段は${it.price}G`;
+  }
+  note(`嘘を見つけた！ ${truth}`);
+  sfx('found');
+  const el=$(view).querySelector(`[data-insp="${key}"]`);if(el){const q=scrPt(el);pop('嘘！',q.x,q.y-18,'lie');}
+}
+function scr(){const r=$('screen').getBoundingClientRect();return {r,s:r.width/480||1};}
+function lieOf(key){
+  const [k,a]=key.split(':');
+  if(view==='battle'){if(k==='intent')return lies.intent;if(k==='enemyHp')return lies.enemyHp;if(k==='playerHp')return lies.playerHp;if(k==='card')return lies.cards;}
+  if(view==='map'){const c=mapChoices[+a];return !!(c&&c.lie);}
+  if(view==='shop'){const it=shopItems[+a];return !!(it&&it.lie&&!it.sold);}
+  return false;
+}
+function note(t){if(view==='battle')log(t);else if(view==='map')$('mapInfo').textContent=t;else if(view==='shop')$('shopMsg').textContent=t;}
+function magTargets(){return magView()?[...$(view).querySelectorAll('[data-insp]')]:[];}
+function placeLens(){
+  const d=magView()?$(view).querySelector('.lensDock'):null;
+  if(!d){lensEl.hidden=true;return;}
+  lensEl.hidden=false;
+  lensEl.classList.toggle('crystal',char==='mira'&&!tutorial);
+  const {r,s}=scr();const dr=d.getBoundingClientRect();
+  lensEl.style.left=((dr.left-r.left)/s+14)+'px';
+  lensEl.style.top=((dr.top-r.top+dr.height/2)/s)+'px';
+}
+function updateGauge(){
+  document.querySelectorAll('.lensGauge').forEach(g=>g.textContent=`×${Math.max(0,lensTime)}`);
+  lensEl.classList.toggle('empty',lensTime<=0);
+  lensEl.classList.toggle('on',lensHeld);
+}
+function applyLens(){
+  $('screen').classList.toggle('magging',lensHeld);
+  const ts=magTargets();ts.forEach(t=>t.classList.remove('magsel'));
+  if(lensHeld&&ts.length){magSel=(magSel+ts.length)%ts.length;ts[magSel].classList.add('magsel');}
+}
+function liftLens(){
+  if(!magView()||busy||lensHeld||!$('tutModal').hidden||menuOpen)return false;
+  if(lensTime<=0){sfx('error');note(view==='battle'?`${lensName()}はもう使えない。次のターンにまた使える。`:`${lensName()}はここではもう使えない。`);return false;}
+  lensHeld=true;magSel=0;sfx('lens');
+  note(`どこを調べる？ 怪しいところをタップ（もう一度${lensName()}でやめる）`);
+  updateGauge();applyLens();return true;
+}
+function dropLens(){
+  if(!lensHeld)return;
+  lensHeld=false;updateGauge();applyLens();
+}
+function inspectKey(key){
+  if(!lensHeld)return;
+  lensHeld=false;
+  if(isSeen(key)){note('そこはもう調べた。');updateGauge();applyLens();return;}
+  lensTime--;
+  const lie=lieOf(key);
+  if(lie){
+    revealLie(key);
+    if(has('biglens')&&!lensRefund){lensRefund=true;lensTime++;}
+  }else{
+    checked[key]=true;sfx('blip');note('……本当だった。ここは嘘をついていない。');
+    const el=$(view).querySelector(`[data-insp="${key}"]`);if(el){const q=scrPt(el);pop('本当',q.x,q.y-18,'blk');}
+  }
+  renderCurrent();
+  if(view==='battle'){if(enemy.hp<=0)return winBattle();saveBattle();}
+  else if(view==='map')save({t:'map',choices:mapChoices,mag:lensTime});
+  else if(view==='shop')save({t:'shop',items:shopItems,mag:lensTime});
+  tutEvent('lens',{[key]:lie});
+}
+$('screen').addEventListener('click',e=>{
+  if(!lensHeld)return;
+  e.preventDefault();e.stopPropagation();
+  if(e.target.closest('#lens'))return dropLens();
+  const t=e.target.closest('[data-insp]');
+  if(t&&$(view).contains(t))inspectKey(t.dataset.insp);else dropLens();
+},true);
+lensEl.addEventListener('click',()=>{if(!lensHeld)liftLens();});
+function afterRender(){placeLens();updateGauge();applyLens();}
+
+/* ---------- title gag ---------- */
+function doGlitch(){
+  if(view==='title'){
+    const t=$('ttLie');t.textContent='ほんとう';t.classList.add('glitch');
+    setTimeout(()=>{t.textContent='うそつき';t.classList.remove('glitch');},120);
+    return;
+  }
+
+}
+(function loop(){setTimeout(()=>{doGlitch();loop();},rand(1600,4200));})();
+
+/* ---------- input ---------- */
+
+$('endBtn').onclick=()=>endTurn();
+$('skipBtn').onclick=()=>chooseReward(3);
+$('againBtn').onclick=()=>showTitle();
+function runEv(){const f=evNext;evNext=null;if(f)f();}
+$('evBtn').onclick=runEv;
+$('leaveBtn').onclick=()=>{if(shSel===leaveIdx())leaveShop();else shopSelect(leaveIdx());};
+document.addEventListener('keydown',e=>{
+  if(transitioning){e.preventDefault();return;}
+  const k=e.key;
+  const ok=['z','Z','Enter',' '].includes(k);
+  const L=k==='ArrowLeft',R_=k==='ArrowRight';
+  if(k==='ArrowUp'||k==='ArrowDown')e.preventDefault();
+  if(L||R_||ok){e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();}
+  if(!$('tutModal').hidden){if(ok||k==='Escape')tutAdvance();e.preventDefault();return;}
+  if(k==='m'||k==='M'){cycleSound();return;}
+  if(dp.open){
+    const n=dp.list.length,cols=Math.max(1,Math.floor(($('dpGrid').clientWidth||460)/92));
+    if(L)dp.sel=(dp.sel-1+n)%n;else if(R_)dp.sel=(dp.sel+1)%n;
+    else if(k==='ArrowUp')dp.sel=Math.max(0,dp.sel-cols);else if(k==='ArrowDown')dp.sel=Math.min(n-1,dp.sel+cols);
+    else if(ok)return pickDeck(dp.sel);
+    else if(k==='x'||k==='X'||k==='Escape')return cancelDeckPick();
+    else return;
+    renderDeckPick();e.preventDefault();return;
+  }
+  if((L||R_)&&!lensHeld&&!busy)sfx('blip');
+  if(view==='dex'&&k==='Escape'){showCharSel();return;}
+  if(k==='Escape'){if(lensHeld)return dropLens();menuOpen?closeMenu():openMenu();return;}
+  if(menuOpen){
+    const U=k==='ArrowUp'||L,Dn=k==='ArrowDown'||R_;
+    if(U){mSel2=(mSel2+2)%3;giveupArmed=giveupArmed&&mSel2===2;renderMenu();}
+    else if(Dn){mSel2=(mSel2+1)%3;giveupArmed=giveupArmed&&mSel2===2;renderMenu();}
+    else if(ok)menuAct(mSel2);
+    e.preventDefault();return;
+  }
+  if(view==='title'){
+    const o=titleOpts();
+    if(L){tSel=(tSel-1+o.length)%o.length;renderTitle();}
+    else if(R_){tSel=(tSel+1)%o.length;renderTitle();}
+    else if(ok)titleAct(o[tSel].dataset.a);
+    return;
+  }
+  if(view==='end'){if(ok)showTitle();return;}
+  if(view==='dex'){
+    if(L){dexTab=(dexTab+DEX_TABS.length-1)%DEX_TABS.length;renderDex();}
+    else if(R_){dexTab=(dexTab+1)%DEX_TABS.length;renderDex();}
+    else if(k==='ArrowUp')$('dexGrid').scrollTop-=80;else if(k==='ArrowDown')$('dexGrid').scrollTop+=80;
+    else if(k==='x'||k==='X'||k==='Escape')showCharSel();
+    return;
+  }
+  if(view==='charSel'){
+    if(k==='d'||k==='D')return showDex();
+    const NC=CHAR_IDS.length;
+    if(L){csSel=(csSel+NC-1)%NC;renderCharSel();}
+    else if(R_){csSel=(csSel+1)%NC;renderCharSel();}
+    else if(k==='ArrowDown'&&csRow===0){csRow=1;renderCharSel();sfx('blip');}
+    else if(k==='ArrowUp'&&csRow===1){csRow=0;renderCharSel();sfx('blip');}
+    else if(ok)csRow===1?startCharTutorial(CHAR_IDS[csSel]):startRun(CHAR_IDS[csSel]);
+    return;
+  }
+  if(magView()&&(k==='c'||k==='C')){if(lensHeld)dropLens();else liftLens();return;}
+  if(lensHeld){
+    const ts=magTargets();
+    if(L||k==='ArrowUp'){magSel--;applyLens();}
+    else if(R_||k==='ArrowDown'){magSel++;applyLens();}
+    else if(ok&&ts[magSel])inspectKey(ts[magSel].dataset.insp);
+    e.preventDefault();return;
+  }
+  if(view==='event'){
+    if(evChoices.length){
+      const n=evChoices.length;
+      if(L||k==='ArrowUp'){evSel=(evSel-1+n)%n;renderChoices();}
+      else if(R_||k==='ArrowDown'){evSel=(evSel+1)%n;renderChoices();}
+      else if(ok)chooseEvent(evSel);
+      return;
+    }
+    if(ok)runEv();return;
+  }
+  if(view==='reward'){
+    if(L){rsel=(rsel+3)%4;renderReward();}
+    else if(R_){rsel=(rsel+1)%4;renderReward();}
+    else if(ok)chooseReward(rsel);
+    return;
+  }
+  if(view==='relicPick'){
+    const n=relicOpts.length;
+    if(L){rpSel=(rpSel-1+n)%n;renderRelicPick();}
+    else if(R_){rpSel=(rpSel+1)%n;renderRelicPick();}
+    else if(ok)pickRelic(rpSel);
+    return;
+  }
+  if(busy)return;
+  if(view==='map'){
+    const n=mapChoices.length;
+    if(L){mSel=(mSel-1+n)%n;renderMap();}
+    else if(R_){mSel=(mSel+1)%n;renderMap();}
+    else if(ok)chooseNode(mSel);
+    return;
+  }
+  if(view==='shop'){
+    const n=leaveIdx()+1;
+    if(L)shopSelect((shSel-1+n)%n);
+    else if(R_)shopSelect((shSel+1)%n);
+    else if(ok)buy(shSel);
+    else if(k==='x'||k==='X')leaveShop();
+    return;
+  }
+  if(view==='battle'){
+    if(L&&hand.length){sel=(sel-1+hand.length)%hand.length;renderBattle();}
+    else if(R_&&hand.length){sel=(sel+1)%hand.length;renderBattle();}
+    else if(ok)playCard(sel);
+    else if(k==='x'||k==='X')endTurn();
+  }
+});
+
+/* ---------- shrink text to fit its box ---------- */
+const FIT_SEL='.cnode .nl,#petInfo,#eStatus,.evs,.evl,#evText,.card .desc,.card .nm,.card .need,#log,#shopMsg,.node .nd,.node .nl,.cnode .nd,#evText,#rewardGold,#endSub,#eName,#pBuff,.svc span:first-child,#mapInfo,#charInfo,#menuNote,#intent,#tutText,#tutBar';
+function overflows(el){return el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1;}
+function fitEl(el){
+  el.style.fontSize='';
+  if(!el.clientHeight&&!el.clientWidth)return;
+  let f=parseFloat(getComputedStyle(el).fontSize);
+  const min=el.matches('.card .desc')?6:7;
+  while(overflows(el)&&f>min){f-=.5;el.style.fontSize=f+'px';}
+}
+function fitAll(){fitPending=false;document.querySelectorAll(FIT_SEL).forEach(el=>{if(el.offsetParent!==null)fitEl(el);});}
+let fitPending=false;
+function scheduleFit(){if(fitPending)return;fitPending=true;requestAnimationFrame(fitAll);}
+new MutationObserver(scheduleFit).observe($('screen'),{childList:true,subtree:true,characterData:true});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleFit);
+
+/* ---------- 音（WebAudioで生成） ---------- */
+let actx=null,master=null,sfxBus=null,bgmBus=null,noiseBuf=null;
+let soundMode='all';try{soundMode=localStorage.getItem('usotsuki-sound')||'all';}catch(e){}
+const SOUND_LABEL={all:'すべて',sfx:'効果音のみ',off:'なし'};
+function initAudio(){
+  if(!actx){
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    try{actx=new AC();}catch(e){return;}
+    master=actx.createGain();master.gain.value=.9;master.connect(actx.destination);
+    sfxBus=actx.createGain();sfxBus.connect(master);
+    bgmBus=actx.createGain();bgmBus.connect(master);
+    noiseBuf=actx.createBuffer(1,actx.sampleRate,actx.sampleRate);
+    const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    applySound();bgm.next=actx.currentTime+.05;
+  }
+  if(actx.state==='suspended')actx.resume();
+}
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,initAudio));
+function applySound(){
+  if(sfxBus)sfxBus.gain.value=soundMode==='off'?0:1;
+  if(bgmBus)bgmBus.gain.value=soundMode==='all'?1:0;
+  $('soundBtn').textContent=`♪ 音：${SOUND_LABEL[soundMode]}（M）`;
+}
+function cycleSound(){soundMode=soundMode==='all'?'sfx':soundMode==='sfx'?'off':'all';try{localStorage.setItem('usotsuki-sound',soundMode);}catch(e){}applySound();}
+$('soundBtn').onclick=cycleSound;
+applySound();
+function tone(f,dur,type,vol,slide,delay,bus){
+  if(!actx)return;
+  const t=actx.currentTime+(delay||0);
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(f,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(20,slide),t+dur);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(bus||sfxBus);o.start(t);o.stop(t+dur+.02);
+}
+function noise(dur,vol,freq,delay,bus,at){
+  if(!actx)return;
+  const t=at!==undefined?at:actx.currentTime+(delay||0);
+  const n=actx.createBufferSource(),f=actx.createBiquadFilter(),g=actx.createGain();
+  n.buffer=noiseBuf;f.type='lowpass';f.frequency.value=freq||2000;
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  n.connect(f);f.connect(g);g.connect(bus||sfxBus);n.start(t);n.stop(t+dur+.02);
+}
+const SFX={
+  blip:()=>tone(880,.04,'square',.04),
+  error:()=>{tone(140,.12,'square',.07);tone(110,.14,'square',.07,null,.08);},
+  atk:()=>{noise(.12,.16,2600);tone(320,.09,'square',.05,120);},
+  skl:()=>tone(500,.08,'triangle',.08,950),
+  pow:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.09,'square',.045,null,i*.06)),
+  hit:()=>{noise(.09,.22,900);tone(130,.12,'triangle',.2,55);},
+  hurt:()=>{tone(220,.2,'square',.08,70);noise(.12,.14,700);},
+  block:()=>{tone(1250,.05,'triangle',.08);tone(1850,.09,'triangle',.05,null,.03);},
+  lunge:()=>noise(.16,.12,350),
+  curse:()=>{tone(420,.45,'sine',.07,150);tone(431,.45,'sine',.06,140);},
+  buff:()=>tone(300,.18,'square',.05,640),
+  found:()=>[988,1319,1568,2093].forEach((f,i)=>tone(f,.07,'square',.05,null,i*.045)),
+  lens:()=>tone(700,.06,'triangle',.05,1100),
+  fog:()=>noise(.35,.07,500),
+  coin:()=>{tone(988,.06,'square',.05);tone(1319,.18,'square',.05,null,.06);},
+  step:()=>{noise(.05,.12,320);noise(.05,.1,320,.14);},
+  pick:()=>{tone(660,.06,'square',.05);tone(990,.12,'square',.05,null,.05);},
+  relic:()=>[784,988,1175,1568].forEach((f,i)=>tone(f,.12,'triangle',.08,null,i*.07)),
+  kill:()=>{noise(.45,.2,1400);tone(620,.45,'square',.05,70);},
+  win:()=>[[523,0,.1],[659,.1,.1],[784,.2,.1],[1047,.3,.25],[784,.6,.1],[1047,.7,.5]].forEach(([f,d,l])=>tone(f,l,'square',.06,null,d)),
+  lose:()=>[392,330,262,196].forEach((f,i)=>tone(f,.28,'square',.06,null,i*.22)),
+  growl:()=>{tone(95,.7,'sawtooth',.1,45);noise(.6,.14,260);},
+  turn:()=>{tone(660,.05,'square',.035);tone(880,.06,'square',.035,null,.06);},
+  encounter:()=>{
+    const run=[0,3,1,4,2,5,3,6,4,7,5,8,6,9,7,10,8,11,9,12];
+    run.forEach((n,i)=>tone(440*2**((n+3)/12),.05,'square',.06,null,i*.034));
+    run.forEach((n,i)=>tone(220*2**((n+3)/12),.05,'square',.035,null,i*.034+.017));
+    noise(.5,.08,3000,.36);
+    [0,4,7,12].forEach((n,i)=>tone(523*2**(n/12),.09,'square',.06,null,.72+i*.06));
+  },
+  swoosh:()=>{noise(.35,.06,1800);[0,5,9].forEach((n,i)=>tone(392*2**(n/12),.07,'triangle',.06,null,.05+i*.06));}
+};
+function sfx(n){if(actx&&soundMode!=='off'&&SFX[n])try{SFX[n]();}catch(e){}}
+
+/* ---------- BGM（簡易シーケンサー） ---------- */
+function midi(n){const m=/^([A-G])(#|b)?(-?\d)$/.exec(n);if(!m)return null;return {C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1]]+(m[2]==='#'?1:m[2]==='b'?-1:0)+(+m[3]+1)*12;}
+function seq(str,len=32){const t=str.trim().split(/\s+/);while(t.length<len)t.push('.');return t.slice(0,len);}
+const TRACKS={
+  title:{bpm:76,lead:seq('A4 . C5 . E5 . . . D5 . C5 . B4 . G#4 . A4 . C5 . E5 . . . F5 . E5 . D5 . B4 .'),
+         bass:seq('A2 . . . . . . . . . . . . . . . F2 . . . . . . . E2 . . . . . . .'),hat:seq(''),lv:.045},
+  map:{bpm:96,lead:seq('E5 . . . D5 . C5 . . . B4 . C5 . . . A4 . . . B4 . C5 . D5 . . . E5 . . .'),
+       bass:seq('A2 . E3 . A2 . E3 . F2 . C3 . F2 . C3 . G2 . D3 . G2 . D3 . E2 . B2 . E2 . G#2 .'),
+       hat:seq('x . . . x . . . x . . . x . . . x . . . x . . . x . . . x . . .'),lv:.04},
+  battle:{bpm:140,lead:seq('E5 . G5 . A5 . . G5 E5 . D5 . E5 . . . E5 . G5 . B5 . A5 . G5 . F#5 . D5 . E5 .'),
+       bass:seq('E2 E3 E2 E3 E2 E3 E2 E3 C2 C3 C2 C3 D2 D3 D2 D3 E2 E3 E2 E3 E2 E3 E2 E3 C2 C3 D2 D3 B1 B2 B1 B2'),
+       hat:seq('. . x . . . x . . . x . . . x . . . x . . . x . . . x . . . x x'),lv:.04},
+  boss:{bpm:152,lead:seq('E5 . . F5 . . E5 . G5 . . A#5 . . B5 . E6 . . D#6 . . D6 . C#6 . C6 . B5 . A#5 .'),
+       bass:seq('E2 E2 E3 E2 F2 F2 F3 F2 E2 E2 E3 E2 G2 G2 F2 F2 E2 E2 E3 E2 F2 F2 F3 F2 A#1 A#1 A#2 A#1 B1 B1 B2 B1'),
+       hat:seq('x . x . x . x . x . x . x . x . x . x . x . x . x . x . x x x x'),lv:.042},
+  shop:{bpm:116,lead:seq('C5 E5 G5 . E5 . F5 A5 G5 . E5 . D5 . . . E5 G5 C6 . G5 . A5 G5 F5 . D5 . C5 . . .'),
+       bass:seq('C3 . G2 . C3 . G2 . F2 . C3 . G2 . D3 . C3 . G2 . C3 . E2 . F2 . G2 . C3 . . .'),
+       hat:seq('. x . x . x . x . x . x . x . x . x . x . x . x . x . x . x . x'),lv:.04}
+};
+const bgm={name:null,step:0,next:0};
+function setBgm(name){if(bgm.name===name)return;bgm.name=name;bgm.step=0;if(actx)bgm.next=actx.currentTime+.08;}
+function bgmFor(v){
+  if(v==='title'||v==='charSel'||v==='dex')return 'title';
+  if(v==='battle')return battleKind==='boss'?'boss':'battle';
+  if(v==='shop')return 'shop';
+  if(v==='end')return null;
+  return 'map';
+}
+function noteLen(arr,i,sd){let k=1;while(k<4&&arr[(i+k)%arr.length]==='.')k++;return k*sd*.9;}
+setInterval(()=>{
+  if(!actx||!bgm.name||soundMode!=='all')return;
+  const T=TRACKS[bgm.name],sd=60/T.bpm/4;
+  if(bgm.next<actx.currentTime-.25)bgm.next=actx.currentTime+.03;
+  while(bgm.next<actx.currentTime+.15){
+    const i=bgm.step,t=bgm.next,d=t-actx.currentTime;
+    const ln=T.lead[i],bs=T.bass[i];
+    if(ln!=='.'){const m=midi(ln);if(m)tone(440*2**((m-69)/12),noteLen(T.lead,i,sd),'square',T.lv,null,d,bgmBus);}
+    if(bs!=='.'){const m=midi(bs);if(m)tone(440*2**((m-69)/12),noteLen(T.bass,i,sd),'triangle',T.lv*2.2,null,d,bgmBus);}
+    if(T.hat[i]==='x')noise(.035,T.lv*.9,7000,0,bgmBus,t);
+    bgm.step=(i+1)%T.lead.length;bgm.next+=sd;
+  }
+},30);
+
+/* ---------- 画面演出 ---------- */
+function scrPt(el){const {r,s}=scr();const b=el.getBoundingClientRect();return {x:(b.left+b.width/2-r.left)/s,y:(b.top+b.height/2-r.top)/s};}
+function pop(text,x,y,cls){
+  const d=document.createElement('div');d.className='pop '+(cls||'');d.textContent=text;
+  d.style.left=x+'px';d.style.top=y+'px';$('screen').appendChild(d);setTimeout(()=>d.remove(),950);
+}
+function banner(t){const b=$('banner');b.textContent=t;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');}
+function flash(c){const f=$('flash');f.className='';void f.offsetWidth;f.className=c;}
+function spriteFx(c){const sp=$('sprite');sp.classList.remove('hit','lunge');void sp.offsetWidth;sp.classList.add(c);}
+function ghostCard(el,kind){
+  if(!el)return;
+  const {r,s}=scr();const b=el.getBoundingClientRect();
+  const g=el.cloneNode(true);g.removeAttribute('data-insp');g.classList.remove('sel');g.classList.add('ghost');
+  const x=(b.left-r.left)/s,y=(b.top-r.top)/s,w=b.width/s,h=b.height/s;
+  Object.assign(g.style,{left:x+'px',top:y+'px',width:w+'px',height:h+'px'});
+  $('screen').appendChild(g);
+  const tg=scrPt(kind==='atk'?$('spriteWrap'):$('pHp'));
+  const dx=tg.x-(x+w/2),dy=tg.y-(y+h/2);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{g.style.transform=`translate(${dx}px,${dy}px) scale(.35) rotate(${kind==='atk'?-14:10}deg)`;g.style.opacity='0';}));
+  setTimeout(()=>g.remove(),420);
+}
+
+/* ---------- scale to fit ---------- */
+function fit(){
+  const st=$('stage');
+  const aw=st.clientWidth-48,ah=st.clientHeight-48;
+  const s=Math.max(.4,Math.min(aw/480,ah/432));
+  $('frame').style.width=480*s+'px';$('frame').style.height=432*s+'px';
+  $('screen').style.transform=`scale(${s})`;
+}
+window.addEventListener('resize',()=>{fit();placeLens();});fit();showTitle();
+</script>
+</body>
+</html>
