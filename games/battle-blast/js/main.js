@@ -917,6 +917,7 @@
     text('敵の予告を見て、攻めるか守るかを選ぼう', 180, 380, 12, '#9aa3c4', 'center');
     button(80, 440, 200, 56, 'スタート', '#2fbf71', true, 22);
     speaker(MUTE.x, 600, SFX.mode);
+    text('ver. ' + ((document.querySelector('meta[name="game-version"]') || {}).content || 'dev'), 8, 630, 9, 'rgba(255,255,255,.35)', 'left');
     if (!MUSIC.ready) text(MUSIC.progress > 0 ? '♪ 音源を読み込み中… ' + Math.round(MUSIC.progress * 100) + '%' : '♪ タップで音が出ます', 180, 600, 11, '#8e98c8', 'center');
   }
 
