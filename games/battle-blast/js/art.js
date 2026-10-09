@@ -483,6 +483,81 @@
     c.restore();
   };
 
+  // ---- ステージ 5・7 の新しい敵 ----
+  ART.yeti = function (c, t, m) {
+    const bob = Math.sin(t * 1.8) * 3, ang = m === 'angry', sway = Math.sin(t * 1.8) * 4;
+    c.save(); c.translate(0, bob);
+    c.fillStyle = 'rgba(0,0,0,.28)'; ellipse(c, 0, 94, 72, 10); c.fill();
+    const fur = grad(c, 0, -80, 0, 100, [[0, '#f4fbff'], [1, '#b8d4ea']]);
+    // 腕
+    [-1, 1].forEach(sd => {
+      const lift = ang ? -22 : sway * sd;
+      c.fillStyle = fur; ellipse(c, sd * 64, 28 + lift, 22, 44); c.fill();
+      c.strokeStyle = 'rgba(120,160,200,.6)'; c.lineWidth = 2.5; c.stroke();
+      c.fillStyle = '#8fb4d6'; ellipse(c, sd * 66, 62 + lift, 17, 15); c.fill();
+      c.fillStyle = '#e8f7ff'; [-6, 0, 6].forEach(o => { c.beginPath(); c.moveTo(sd * 66 + o - 3, 70 + lift); c.lineTo(sd * 66 + o, 82 + lift); c.lineTo(sd * 66 + o + 3, 70 + lift); c.closePath(); c.fill(); });
+    });
+    // 胴
+    c.fillStyle = fur; ellipse(c, 0, 44, 62, 58); c.fill();
+    c.strokeStyle = 'rgba(120,160,200,.55)'; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = 'rgba(150,185,215,.7)'; c.lineWidth = 2.5; c.lineCap = 'round';
+    for (let i = 0; i < 5; i++) { const x = -34 + i * 17; c.beginPath(); c.moveTo(x, 30 + (i % 2) * 6); c.lineTo(x + 5, 46 + (i % 2) * 6); c.stroke(); }
+    // 足
+    [-1, 1].forEach(sd => { c.fillStyle = '#8fb4d6'; ellipse(c, sd * 30, 96, 24, 11); c.fill(); });
+    // 頭
+    c.fillStyle = fur; ellipse(c, 0, -34, 54, 48); c.fill();
+    c.strokeStyle = 'rgba(120,160,200,.6)'; c.lineWidth = 3; c.stroke();
+    for (let i = -2; i <= 2; i++) { c.fillStyle = fur; c.beginPath(); c.moveTo(i * 20 - 11, -76 + Math.abs(i) * 6); c.lineTo(i * 20, -94 + Math.abs(i) * 9); c.lineTo(i * 20 + 11, -76 + Math.abs(i) * 6); c.closePath(); c.fill(); }
+    // 顔
+    c.fillStyle = '#5b7da6'; ellipse(c, 0, -26, 36, 30); c.fill();
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#fff'; ellipse(c, sd * 15, -34, 9, 8); c.fill();
+      c.fillStyle = ang ? '#ff4040' : '#2a6fd6'; ellipse(c, sd * 15, -33, 4.5, 5); c.fill();
+      c.strokeStyle = '#1b2a44'; c.lineWidth = 4.5; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(sd * 27, -48); c.lineTo(sd * 6, -39 + (ang ? 3 : 0)); c.stroke();
+    });
+    c.fillStyle = '#2c3d5e'; ellipse(c, 0, -22, 6, 4.5); c.fill();
+    c.fillStyle = '#1b2433'; A.rr(c, -19, -12, 38, 15, 7); c.fill();
+    c.fillStyle = '#fff'; [-12, -4, 4, 12].forEach(x => { c.beginPath(); c.moveTo(x - 3.5, -12); c.lineTo(x, -3); c.lineTo(x + 3.5, -12); c.closePath(); c.fill(); });
+    // つらら
+    c.fillStyle = 'rgba(190,235,255,.85)';
+    [[-56, -52], [58, -48]].forEach(([x, y]) => { c.beginPath(); c.moveTo(x - 6, y); c.lineTo(x, y + 26); c.lineTo(x + 6, y); c.closePath(); c.fill(); });
+    c.restore();
+  };
+  ART.wizard = function (c, t, m) {
+    const fl = Math.sin(t * 2.2) * 7, ang = m === 'angry';
+    c.save(); c.translate(0, fl);
+    c.fillStyle = 'rgba(0,0,0,.2)'; ellipse(c, 0, 94 - fl, 42 - fl * .6, 7); c.fill();
+    // 杖と宝珠
+    c.save(); c.translate(-66, 10);
+    c.strokeStyle = '#7a5a2a'; c.lineWidth = 7; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 82); c.lineTo(0, -52); c.stroke();
+    const og = c.createRadialGradient(0, -64, 2, 0, -64, ang ? 30 : 22);
+    og.addColorStop(0, '#fff'); og.addColorStop(.35, ang ? '#ff7ad9' : '#9be7ff'); og.addColorStop(1, 'rgba(120,200,255,0)');
+    c.fillStyle = og; c.beginPath(); c.arc(0, -64, ang ? 30 : 22, 0, 7); c.fill();
+    c.restore();
+    // ローブ
+    c.fillStyle = grad(c, 0, -20, 0, 100, [[0, '#5a3fb0'], [1, '#261a60']]);
+    c.beginPath(); c.moveTo(-26, -14); c.quadraticCurveTo(-72, 56, -58, 96); c.lineTo(58, 96); c.quadraticCurveTo(72, 56, 26, -14); c.closePath(); c.fill();
+    c.strokeStyle = '#ffd24a'; c.lineWidth = 3.5; c.beginPath(); c.moveTo(-58, 90); c.lineTo(58, 90); c.stroke();
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(0, 6); c.lineTo(7, 22); c.lineTo(0, 38); c.lineTo(-7, 22); c.closePath(); c.fill();
+    // 腕
+    [-1, 1].forEach(sd => { c.strokeStyle = '#4a3398'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 24, 4); c.quadraticCurveTo(sd * 54, 22, sd * (sd < 0 ? 66 : 58), 40 + (ang && sd > 0 ? -22 : 0)); c.stroke(); });
+    c.fillStyle = '#f4d8b4'; ellipse(c, 58, 40 + (ang ? -22 : 0), 8, 8); c.fill();
+    // 頭・ひげ・帽子
+    c.fillStyle = '#f4d8b4'; ellipse(c, 0, -34, 30, 28); c.fill();
+    c.fillStyle = '#f2f4fa'; c.beginPath(); c.moveTo(-26, -26); c.quadraticCurveTo(-30, 18, 0, 34); c.quadraticCurveTo(30, 18, 26, -26); c.quadraticCurveTo(0, -8, -26, -26); c.closePath(); c.fill();
+    c.fillStyle = grad(c, 0, -110, 0, -50, [[0, '#6a4cd0'], [1, '#341f80']]);
+    c.beginPath(); c.moveTo(-46, -50); c.quadraticCurveTo(-8, -72, 18, -118); c.quadraticCurveTo(28, -80, 46, -50); c.quadraticCurveTo(0, -42, -46, -50); c.closePath(); c.fill();
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.arc(18, -112, 7, 0, 7); c.fill();
+    c.fillStyle = '#ffd24a'; c.fillRect(-46, -54, 92, 5);
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#12142a'; ellipse(c, sd * 11, -38, 8, 5.5); c.fill();
+      c.fillStyle = ang ? '#ff5a5a' : '#9be7ff'; ellipse(c, sd * 11, -38, 3.5, 3.5); c.fill();
+      c.strokeStyle = '#d8dcec'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 20, -50); c.lineTo(sd * 4, -44 + (ang ? 2 : 0)); c.stroke();
+    });
+    c.restore();
+  };
+
   A.enemyArt = (c, key, t, mood) => ART[key](c, t, mood);
 
   // ---------- 敵カードの背景 ----------
@@ -495,7 +570,10 @@
     golem:    { sky: ['#6a5a4a', '#2a2030'], glow: '#ffd24a', ground: '#3a2e2a' },
     knight:   { sky: ['#4a2a5a', '#1c1030'], glow: '#ff6a8a', ground: '#261a3a' },
     imp:      { sky: ['#5a2a6a', '#220f36'], glow: '#d08aff', ground: '#2c1840' },
-    demon:    { sky: ['#6a1030', '#1a0618'], glow: '#ff3a6a', ground: '#2a0c20' }
+    demon:    { sky: ['#6a1030', '#1a0618'], glow: '#ff3a6a', ground: '#2a0c20' },
+    ice:      { sky: ['#2f6a96', '#12264a'], glow: '#bff0ff', ground: '#244468' },
+    volcano:  { sky: ['#8a2c12', '#2a0a10'], glow: '#ff8a3a', ground: '#3a1410' },
+    sky:      { sky: ['#4a4a9a', '#14143c'], glow: '#ffe08a', ground: '#262660' }
   };
   A.theme = key => THEMES[key];
   A.sceneBg = function (c, x, y, w, h, key, t) {

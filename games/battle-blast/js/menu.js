@@ -4,7 +4,9 @@ BB.menu = (function () {
   const D = BB.data, E = BB.equip, G = D.gacha, A = BB.art;
   const RC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d' };
   const SLOT_ORDER = ['weapon', 'armor', 'acc'];
-  const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon' };
+  const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky' };
+  const LIST_TOP = 58, LIST_BOTTOM = 572, CARD_PITCH = 112;   // ステージ一覧の表示範囲（これをはみ出す分はスクロール）
+  let stageScroll = 0, equipTab = 'weapon', pdrag = null, buddyScroll = 0;
 
   let hits = [], sel = null, toast = null;
   let scoutSel = null, recruitRes = null, buddySel = null;   // スカウト場で選んだ候補 / スカウト結果 / 図鑑で選んだバディ
@@ -19,6 +21,10 @@ BB.menu = (function () {
     if (name === 'gacha') gacha = { phase: 'idle', results: [], t0: 0, n: 1, best: 'N', played: false };
     if (name === 'equip' && !(sel in save().owned)) sel = null;
     if (name === 'scout') { scoutSel = null; recruitRes = null; }
+    if (name === 'stages') {   // 次に挑戦するステージが見える位置までスクロール
+      const next = D.stages.findIndex((st, i) => E.isUnlocked(save(), i) && !(save().stages[st.id] || {}).cleared);
+      stageScroll = Math.max(0, (next < 0 ? D.stages.length - 1 : next) * CARD_PITCH - 90);
+    }
   }
   function showToast(t, msg) { toast = { msg, t0: t }; }
 
@@ -132,8 +138,13 @@ BB.menu = (function () {
   function drawStages(ui, t) {
     ui.bg();
     header(ui, 'ステージ選択', 'home');
+    const maxScroll = Math.max(0, D.stages.length * CARD_PITCH - (LIST_BOTTOM - LIST_TOP) + 8);
+    stageScroll = Math.max(0, Math.min(maxScroll, stageScroll));
+    ui.ctx.save();
+    ui.ctx.beginPath(); ui.ctx.rect(0, LIST_TOP, 360, LIST_BOTTOM - LIST_TOP); ui.ctx.clip();
     D.stages.forEach((st, i) => {
-      const y = 62 + i * 112, h = 104, unlocked = E.isUnlocked(save(), i), rec = save().stages[st.id];
+      const y = 62 + i * CARD_PITCH - stageScroll, h = 104, unlocked = E.isUnlocked(save(), i), rec = save().stages[st.id];
+      if (y + h < LIST_TOP || y > LIST_BOTTOM) return;
       const art = THEME_ART[st.theme], th = A.theme(art);
       const c = ui.ctx;
       ui.card(14, y, 332, h, th.sky[0], th.sky[1], 16);
@@ -141,7 +152,7 @@ BB.menu = (function () {
       const g = c.createRadialGradient(290, y + 60, 4, 290, y + 60, 130);
       g.addColorStop(0, A.rgba(th.glow, .3)); g.addColorStop(1, A.rgba(th.glow, 0));
       c.fillStyle = g; c.fillRect(14, y, 332, h); c.restore();
-      st.enemies.forEach((k, j) => ui.drawArt(D.enemies[k].art, 218 + j * 46, y + 58 + (j === 2 ? -4 : 6), (j === 2 ? .28 : .22) * (D.enemies[k].size || 1) * (D.enemies[k].art === 'dragon' ? .85 : 1), 'idle', t / 1000 + j, !unlocked));
+      st.enemies.forEach((k, j) => ui.drawArt(D.enemies[k].art, 218 + j * 46, y + 58 + (j === 2 ? -4 : 6), (j === 2 ? .28 : .22) * (D.enemies[k].size || 1) * (D.enemies[k].art === 'dragon' ? .85 : 1), 'idle', t / 1000 + j, !unlocked, D.enemies[k].tint));
       ui.text('STAGE ' + (i + 1), 30, y + 18, 11, '#cfd6ee', 'left', true);
       ui.textO(st.name, 30, y + 38, 18, '#fff', 'left');
       ui.text(st.desc, 30, y + 60, 11, '#d6dcf2', 'left');
@@ -152,8 +163,17 @@ BB.menu = (function () {
         c.fillStyle = 'rgba(6,9,22,.72)'; ui.rr(14, y, 332, h, 16); c.fill();
         ui.text('🔒', 180, y + 40, 28, '#fff', 'center');
         ui.text('ステージ ' + i + ' をクリアで解放', 180, y + 76, 13, '#cfd6ee', 'center', true);
-      } else reg(14, y, 332, h, () => { ui.SFX.play('ui'); ui.startStage(i); });
+      } else {
+        const vy0 = Math.max(y, LIST_TOP), vy1 = Math.min(y + h, LIST_BOTTOM);
+        reg(14, vy0, 332, vy1 - vy0, () => { ui.SFX.play('ui'); ui.startStage(i); });
+      }
     });
+    ui.ctx.restore();
+    if (maxScroll > 0) {   // スクロールバー
+      const th = (LIST_BOTTOM - LIST_TOP) * (LIST_BOTTOM - LIST_TOP) / (D.stages.length * CARD_PITCH), ty = LIST_TOP + (LIST_BOTTOM - LIST_TOP - th) * stageScroll / maxScroll;
+      ui.ctx.fillStyle = 'rgba(255,255,255,.28)'; ui.rr(353, ty, 4, th, 2); ui.ctx.fill();
+      if (stageScroll < maxScroll - 4) ui.text('▼', 180, LIST_BOTTOM - 2, 11, 'rgba(255,255,255,.55)', 'center', true);
+    }
     // そうび・バディの確認
     ui.text('そうび', 14, 600, 11, '#8e98c8', 'left', true);
     SLOT_ORDER.forEach((slot, i) => {
@@ -321,16 +341,24 @@ BB.menu = (function () {
       ui.button(262, 196, 78, 30, '合体', '#e0a020', (sv.spare[sel] || 0) > 0 || E.spareList(sv, it.rarity).length > 0, 13);
       reg(262, 196, 78, 30, () => { ui.SFX.play('ui'); ui.go('fuse'); });
     } else ui.text('そうびを選んでください', 180, 194, 13, '#8e98c8', 'center', true);
-    // 一覧
-    const items = D.equipment.slice().sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || E.RARITY_ORDER.indexOf(b.rarity) - E.RARITY_ORDER.indexOf(a.rarity));
-    const cw = 80, ch = 66, gx = 8, gy = 6, x0 = 8, y0 = 248;
+    // 一覧（武器・防具・アクセのタブで切り替え）
+    SLOT_ORDER.forEach((slot, i) => {
+      const x = 12 + i * 114, on = equipTab === slot;
+      c.fillStyle = on ? 'rgba(47,123,255,.85)' : 'rgba(8,12,28,.7)'; ui.rr(x, 246, 108, 24, 12); c.fill();
+      c.strokeStyle = on ? '#fff' : 'rgba(255,255,255,.22)'; c.lineWidth = 1; ui.rr(x + .5, 246.5, 107, 23, 11.5); c.stroke();
+      const own = D.equipment.filter(e => e.slot === slot && e.id in sv.owned).length, all = D.equipment.filter(e => e.slot === slot).length;
+      ui.text(slotLabel(slot) + ' ' + own + '/' + all, x + 54, 258.5, 11.5, on ? '#fff' : '#9aa3c4', 'center', true);
+      reg(x, 246, 108, 24, () => { equipTab = slot; ui.SFX.play('pick'); });
+    });
+    const items = D.equipment.filter(e => e.slot === equipTab).sort((a, b) => E.RARITY_ORDER.indexOf(b.rarity) - E.RARITY_ORDER.indexOf(a.rarity));
+    const cw = 80, ch = 62, gx = 8, gy = 4, x0 = 8, y0 = 276;
     items.forEach((item, i) => {
       const x = x0 + (i % 4) * (cw + gx), y = y0 + Math.floor(i / 4) * (ch + gy), l = item.id in sv.owned ? sv.owned[item.id] + 1 : 0;
       itemCard(ui, x, y, cw, ch, item, l, { selected: sel === item.id, equipped: sv.equipped[item.slot] === item.id, t, count: sv.spare[item.id] });
       reg(x, y, cw, ch, () => { sel = item.id; ui.SFX.play('pick'); });
     });
     const have = Object.keys(sv.owned).length;
-    ui.text('所持 ' + have + ' / ' + D.equipment.length, 180, 626, 11, '#8e98c8', 'center', true);
+    ui.text('所持 ' + have + ' / ' + D.equipment.length, 180, 628, 11, '#8e98c8', 'center', true);
   }
 
   // ---------- 合体（凸） ----------
@@ -498,8 +526,10 @@ BB.menu = (function () {
     reg(60, 402, 240, 58, () => { ui.SFX.play('ui'); ui.startScout(); });
     ui.button(60, 478, 240, 44, 'バディ図鑑・へんせい', '#2f7bff', false, 14);
     reg(60, 478, 240, 44, () => { ui.SFX.play('ui'); ui.go('buddies'); });
-    ui.text('バディは1回のせんとうで、それぞれ1回だけスキルが使える', 180, 548, 10.5, '#8e98c8', 'center');
-    ui.text('同じバディをスカウトすると Lv アップ（最大 Lv' + BB.data.scout.maxLevel + '）', 180, 566, 10.5, '#8e98c8', 'center');
+    const rt = SC.ratesFor(sv);
+    ui.text('いまの出現率   N ' + rt.N + '%   R ' + rt.R + '%   SR ' + rt.SR + '%   SSR ' + rt.SSR + '%', 180, 544, 11, '#ffe08a', 'center', true);
+    ui.text('ステージを進めるほど、レアなバディが出やすくなる', 180, 562, 10.5, '#8e98c8', 'center');
+    ui.text('同じバディをスカウトすると Lv アップ（最大 Lv' + BB.data.scout.maxLevel + '）', 180, 580, 10.5, '#8e98c8', 'center');
   }
 
   function drawBuddies(ui, t) {
@@ -526,11 +556,24 @@ BB.menu = (function () {
     // 一覧
     const order = ['SSR', 'SR', 'R', 'N'];
     const list = D.buddies.slice().sort((x, y) => order.indexOf(x.rarity) - order.indexOf(y.rarity));
+    // 一覧（数が多いのでスクロール）
+    const GT = 236, GB = 610, PITCH = 82, rows = Math.ceil(list.length / 4);
+    const maxS = Math.max(0, rows * PITCH - (GB - GT) + 6);
+    buddyScroll = Math.max(0, Math.min(maxS, buddyScroll));
+    c.save(); c.beginPath(); c.rect(0, GT, 360, GB - GT); c.clip();
     list.forEach((bd, i) => {
-      const x = 8 + (i % 4) * 88, y = 238 + Math.floor(i / 4) * 86, l = sv.buddies[bd.id] || 0;
+      const x = 8 + (i % 4) * 88, y = GT + 2 + Math.floor(i / 4) * PITCH - buddyScroll, l = sv.buddies[bd.id] || 0;
+      if (y + 78 < GT || y > GB) return;
       buddyCard(ui, x, y, 80, 78, bd, l, { selected: buddySel === bd.id, party: sv.party.includes(bd.id), t });
-      reg(x, y, 80, 78, () => { buddySel = bd.id; ui.SFX.play('pick'); });
+      const vy0 = Math.max(y, GT), vy1 = Math.min(y + 78, GB);
+      reg(x, vy0, 80, vy1 - vy0, () => { buddySel = bd.id; ui.SFX.play('pick'); });
     });
+    c.restore();
+    if (maxS > 0) {
+      const th = (GB - GT) * (GB - GT) / (rows * PITCH), ty = GT + (GB - GT - th) * buddyScroll / maxS;
+      c.fillStyle = 'rgba(255,255,255,.28)'; ui.rr(354, ty, 4, th, 2); c.fill();
+      if (buddyScroll < maxS - 4) ui.text('▼', 180, GB - 4, 11, 'rgba(255,255,255,.6)', 'center', true);
+    }
     ui.text('なかま ' + Object.keys(sv.buddies).length + ' / ' + D.buddies.length, 180, 626, 11, '#8e98c8', 'center', true);
   }
 
@@ -557,5 +600,21 @@ BB.menu = (function () {
     return false;
   }
 
-  return { draw, click, enter };
+  // メニュー画面の入力。ステージ選択はドラッグ・ホイールでスクロール、それ以外はタップ
+  function down(x, y) { pdrag = { x, y, sy: stageScroll, by: buddyScroll, moved: false }; }
+  function move(screen, x, y) {
+    if (!pdrag) return;
+    if (Math.abs(y - pdrag.y) > 8) pdrag.moved = true;
+    if (screen === 'stages' && pdrag.moved) stageScroll = pdrag.sy - (y - pdrag.y);
+    if (screen === 'buddies' && pdrag.moved && pdrag.y > 230) buddyScroll = pdrag.by - (y - pdrag.y);
+  }
+  function up(ui, screen, x, y) {
+    const d = pdrag; pdrag = null;
+    if (!d || (d.moved && (screen === 'stages' || (screen === 'buddies' && d.y > 230)))) return;
+    click(ui, screen, x, y);
+  }
+  function wheel(screen, dy) { if (screen === 'stages') stageScroll += dy * .5; if (screen === 'buddies') buddyScroll += dy * .5; }
+  function cancel() { pdrag = null; }
+
+  return { draw, click, enter, down, move, up, wheel, cancel };
 })();

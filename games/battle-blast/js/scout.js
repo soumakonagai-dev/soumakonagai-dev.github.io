@@ -7,7 +7,8 @@ BB.scout = (function () {
   const SKILL_NAME = {
     recolor: 'いろがえ', paintRow: 'ぬりぬり', bomb: 'ばくはつ', laser: 'ラインカット', recolorAll: 'にじいろ',
     strike: 'いちげき', heal: 'いやし', rebirth: 'ふっかつ', shield: 'まもり', stun: 'あしどめ',
-    poison: 'どくばり', charge: 'ちからため', purify: 'おきよめ', reroll: 'てふだチェンジ'
+    poison: 'どくばり', charge: 'ちからため', purify: 'おきよめ', reroll: 'てふだチェンジ',
+    paintCol: 'たてぬり', laserV: 'たてカット', combo: 'コンボアップ', burst: 'もえるまい', fortify: 'ガードりょく', bloom: 'めぐみ'
   };
   const skillName = id => SKILL_NAME[D.buddyMap[id].skill.type];
 
@@ -29,6 +30,12 @@ BB.scout = (function () {
       case 'charge': return '必殺ゲージ +' + i.charge + '%';
       case 'purify': return '石・氷・封印をすべて消す';
       case 'reroll': return '手札を引き直す';
+      case 'paintCol': return '縦' + (i.rows === 2 ? '2列' : '1列') + 'を好きな色に変える';
+      case 'laserV': return (i.cross ? '縦と横の十字' : '縦1列') + 'を消して能力を発動';
+      case 'combo': return 'コンボを +' + i.combo + ' する';
+      case 'burst': return '攻撃マス 1 つにつき ' + i.per + ' ダメージ';
+      case 'fortify': return 'ガードマス 1 つにつきシールド +' + i.per;
+      case 'bloom': return '回復マス 1 つにつき HP +' + i.per;
     }
   }
 
@@ -45,22 +52,35 @@ BB.scout = (function () {
     };
   }
 
+  // 進行度（クリア済みステージ数）に応じたレア度の確率。表示にも使う
+  const tierRates = tier => S.ratesByTier[Math.min(tier, S.ratesByTier.length - 1)];
+  const ratesFor = save => tierRates(clearedCount(save));
+  function clearedCount(save) { return D.stages.filter(s => (save.stages[s.id] || {}).cleared).length; }
+
   function pickRarity(rng, tier) {
-    const r = Object.assign({}, S.rates);
-    r.N = Math.max(10, r.N - tier * 8); r.SR += tier * 3; r.SSR += tier * 2;
-    const total = ORDER.reduce((a, k) => a + r[k], 0);
+    const r = tierRates(tier), total = ORDER.reduce((a, k) => a + r[k], 0);
     let x = rng() * total;
     for (const k of ORDER) { x -= r[k]; if (x < 0) return k; }
     return 'N';
   }
 
-  // スカウト場に並ぶ候補（重複なし）
+  // スカウト場に並ぶ候補（重複なし）。進行度ごとに「最低 1 匹はこのレア度以上」を保証する
   function rollCandidates(save, rng) {
     rng = rng || Math.random;
-    const tier = tierOf(save), picked = [];
-    for (let guard = 0; picked.length < S.candidates && guard < 100; guard++) {
-      const pool = D.buddies.filter(b => b.rarity === pickRarity(rng, tier) && !picked.includes(b.id));
+    const tier = clearedCount(save), picked = [];
+    for (let guard = 0; picked.length < S.candidates && guard < 200; guard++) {
+      const rarity = pickRarity(rng, tier);   // レア度は 1 回だけ決める
+      const pool = D.buddies.filter(b => b.rarity === rarity && !picked.includes(b.id));
       if (pool.length) picked.push(pool[Math.floor(rng() * pool.length)].id);
+    }
+    const need = ORDER.indexOf(S.minRarity[Math.min(tier, S.minRarity.length - 1)]);
+    if (!picked.some(id => ORDER.indexOf(D.buddyMap[id].rarity) >= need)) {
+      // 最低保証ぶんは、条件を満たすレア度の中でふだんの比率どおりに選ぶ
+      const r = tierRates(tier), allowed = ORDER.filter((k, i) => i >= need && r[k] > 0), total = allowed.reduce((t, k) => t + r[k], 0);
+      let x = rng() * total, rar = allowed[allowed.length - 1];
+      for (const k of allowed) { x -= r[k]; if (x < 0) { rar = k; break; } }
+      const good = D.buddies.filter(b => b.rarity === rar && !picked.includes(b.id));
+      if (good.length) picked[Math.floor(rng() * picked.length)] = good[Math.floor(rng() * good.length)].id;
     }
     return picked;
   }
@@ -103,5 +123,5 @@ BB.scout = (function () {
     return true;
   }
 
-  return { skillName, desc, tierOf, spec, rollCandidates, finish, recruit, partyList, toggleParty };
+  return { ratesFor, skillName, desc, tierOf, spec, rollCandidates, finish, recruit, partyList, toggleParty };
 })();

@@ -34,6 +34,7 @@ BB.equip = (function () {
       });
     });
     m.reduce = Math.min(.6, m.reduce);
+    m.count = Math.min(3, m.count);
     return m;
   }
 

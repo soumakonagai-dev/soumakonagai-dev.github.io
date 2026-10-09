@@ -14,7 +14,7 @@
   const RARC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d' };
   const SPECIAL = { x: 244, y: 211, w: 96, h: 26 };
   const ART_POS = { x: 180, y: 96, scale: 0.5 };
-  const ART_SCALE = { slime: 1, goblin: 0.95, dragon: 0.78, skeleton: 0.88, ghost: 0.88, golem: 0.84, knight: 0.74, imp: 0.88, demon: 0.7 };   // 敵ごとの大きさ補正（カード内に収める）
+  const ART_SCALE = { slime: 1, goblin: 0.95, dragon: 0.78, skeleton: 0.88, ghost: 0.88, golem: 0.84, knight: 0.74, imp: 0.88, demon: 0.7, yeti: 0.78, wizard: 0.78 };   // 敵ごとの大きさ補正（カード内に収める）
   const MUTE = { x: 330, y: 24, r: 13 };
   const QUIT = { x: 298, y: 24, r: 13 };
   const LIFT = 64;                 // ドラッグ中、指で隠れないようピースを上にずらす量
@@ -280,6 +280,7 @@
           tp += 350; break;
         }
         case 'reroll': { after(tp, () => SFX.play('pick')); tp += 200; break; }
+        case 'comboUp': { const t = tp, v = e.value; after(t, () => { banner('COMBO +' + v, '#ffb02e', 366, { dur: 900 }); SFX.play('combo', Math.min(10, game.combo)); }); tp += 350; break; }
         case 'enemyDown': {
           const t = Math.max(tp, flightEnd, te || 0) + 120;
           after(t, () => {
@@ -453,14 +454,15 @@
     }
     ctx.globalAlpha = p.alpha;
     ctx.scale(base * p.sc, base * p.sc);
+    if (def.tint) ctx.filter = def.tint;   // 色違いの敵（非対応のブラウザでは元の色のまま）
     ctx.drawImage(spr, -100, -100, 200, 200);
     ctx.restore();
   }
 
   function drawEnemyCard(p) {
-    const s = game, e = s.enemy, def = e.def, th = A.theme(def.art);
+    const s = game, e = s.enemy, def = e.def, th = A.theme(def.theme || def.art);
     card(EN.x, EN.y, EN.w, EN.h, th.sky[0], th.sky[1], 16);
-    A.sceneBg(ctx, EN.x, EN.y, EN.w, EN.h, def.art, now / 1000);
+    A.sceneBg(ctx, EN.x, EN.y, EN.w, EN.h, def.theme || def.art, now / 1000);
     if (!p.front) drawEnemyArt(p);
 
     // 名前・ステージ
@@ -1011,7 +1013,8 @@
     }
     if (screen !== 'battle') {
       if (screen === 'home' && Math.hypot(x - MUTE.x, y - MUTE.y) < 18) { toggleSound(); return; }
-      MENU.click(ui, screen, x, y);
+      MENU.down(x, y);
+      canvas.setPointerCapture(e.pointerId);
       return;
     }
     if (quitAsk) {
@@ -1095,11 +1098,17 @@
     }
   }
 
+  canvas.addEventListener('wheel', e => { if (screen !== 'battle' && screen !== 'title') { e.preventDefault(); MENU.wheel(screen, e.deltaY); } }, { passive: false });
   canvas.addEventListener('pointermove', e => {
+    if (screen !== 'battle' && screen !== 'title') { const [mx, my] = toLogical(e); MENU.move(screen, mx, my); return; }
     if (drag) [drag.x, drag.y] = toLogical(e);
     if (bt && bt.drag) { const [x, y] = toLogical(e); bt.cell = cellAt(x, y); }
   });
   function release(e, cancel) {
+    if (screen !== 'battle') {
+      if (screen !== 'title') { const [mx, my] = toLogical(e); if (cancel) MENU.cancel(); else MENU.up(ui, screen, mx, my); }
+      return;
+    }
     if (bt && bt.drag) {
       bt.drag = false;
       if (!cancel && bt.cell && !doBuddy(bt.slot, { x: bt.cell.x, y: bt.cell.y, color: bt.color }) && bt) bt.cell = null;
@@ -1115,11 +1124,12 @@
   canvas.addEventListener('pointercancel', e => release(e, true));
 
   // メニュー画面（menu.js）が使う描画ヘルパー
-  function drawArt(key, cx, cy, sc, mood, t, dim) {
+  function drawArt(key, cx, cy, sc, mood, t, dim, tint) {
     sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 360, 360);
     sctx.setTransform(1.8, 0, 0, 1.8, 180, 180);
     A.enemyArt(sctx, key, t || now / 1000, mood || 'idle');
     ctx.save(); ctx.translate(cx, cy); if (dim) ctx.globalAlpha = .35; ctx.scale(sc, sc);
+    if (tint) ctx.filter = tint;
     ctx.drawImage(spr, -100, -100, 200, 200); ctx.restore();
   }
   const ui = { ctx, text, textO, lin, rr, card, button, disabledButton, speaker, SFX, A, drawArt, bg: drawBackground, go, startStage, startScout };

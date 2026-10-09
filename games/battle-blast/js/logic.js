@@ -319,11 +319,15 @@
       case 'poison': p.poison = Math.round(v * f); break;
       case 'charge': p.charge = Math.round(v * f); break;
       case 'recolor': case 'bomb': p.radius = lv >= 5 ? 2 : 1; break;
-      case 'paintRow': p.rows = lv >= 4 ? 2 : 1; break;
-      case 'laser': p.cross = lv >= 4; break;
+      case 'paintRow': case 'paintCol': p.rows = lv >= 4 ? 2 : 1; break;
+      case 'laser': case 'laserV': p.cross = lv >= 4; break;
+      case 'combo': p.combo = v + (lv >= 3 ? 1 : 0); break;
+      case 'burst': p.per = Math.round(v * f); break;     // 攻撃マス 1 つあたりのダメージ
+      case 'fortify': p.per = Math.round(v * f); break;   // ガードマス 1 つあたりのシールド
+      case 'bloom': p.per = Math.round(v * f); break;     // 回復マス 1 つあたりの回復量
       case 'rebirth': p.healPct = Math.round(v * f); p.dmg = Math.round(50 * f); break;
     }
-    p.need = { recolor: 'colorCell', paintRow: 'colorCell', bomb: 'cell', laser: 'cell', recolorAll: 'color' }[t] || 'none';
+    p.need = { recolor: 'colorCell', paintRow: 'colorCell', paintCol: 'colorCell', bomb: 'cell', laser: 'cell', laserV: 'cell', recolorAll: 'color' }[t] || 'none';
     return p;
   }
 
@@ -339,6 +343,11 @@
         for (let dy = -info.radius; dy <= info.radius; dy++) for (let dx = -info.radius; dx <= info.radius; dx++) add(x + dx, y + dy);
         break;
       case 'paintRow': for (let r = 0; r < info.rows; r++) for (let cx = 0; cx < N; cx++) add(cx, y + r); break;
+      case 'paintCol': for (let r = 0; r < info.rows; r++) for (let cy = 0; cy < N; cy++) add(x + r, cy); break;
+      case 'laserV':
+        for (let cy = 0; cy < N; cy++) add(x, cy);
+        if (info.cross) for (let cx = 0; cx < N; cx++) if (cx !== x) add(cx, y);
+        break;
       case 'laser':
         for (let cx = 0; cx < N; cx++) add(cx, y);
         if (info.cross) for (let cy = 0; cy < N; cy++) if (cy !== y) add(x, cy);
@@ -362,7 +371,7 @@
     }
     const healBy = pct => { const v = Math.round(p.maxHp * pct / 100); p.hp = Math.min(p.maxHp, p.hp + v); ev.push({ type: 'heal', ability: 'heal', value: v }); };
     switch (info.type) {
-      case 'recolor': case 'paintRow': case 'recolorAll': {
+      case 'recolor': case 'paintRow': case 'paintCol': case 'recolorAll': {
         let cells = area;
         if (info.type === 'recolorAll') { cells = []; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (s.board[y][x]) cells.push({ x, y }); }
         cells = cells.filter(c => s.board[c.y][c.x].obstacle !== 'stone');
@@ -371,7 +380,7 @@
         ev.push({ type: 'recolor', cells, color: t.color });
         break;
       }
-      case 'bomb': case 'laser': {
+      case 'bomb': case 'laser': case 'laserV': {
         if (!area.length) return null;
         const list = area.map(c => ({ x: c.x, y: c.y, cell: s.board[c.y][c.x] }));
         list.forEach(c => { s.board[c.y][c.x] = null; });
@@ -380,6 +389,21 @@
         break;
       }
       case 'strike': hitEnemy(s, info.dmg, true, ev, 'magic'); break;
+      case 'combo': {   // コンボを積む（次の消去から倍率が上がる）
+        s.combo += info.combo; s.maxCombo = Math.max(s.maxCombo, s.combo);
+        ev.push({ type: 'comboUp', value: info.combo });
+        break;
+      }
+      case 'burst': case 'fortify': case 'bloom': {   // 盤面にある色のマスの数に応じて効果が決まる
+        const want = info.type === 'burst' ? 'attack' : info.type === 'fortify' ? 'guard' : 'heal';
+        let n = 0;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const c = s.board[y][x]; if (c && c.ability === want && !c.obstacle) n++; }
+        if (!n) return null;
+        if (want === 'attack') hitEnemy(s, Math.min(150, info.per * n), false, ev, 'attack');
+        else if (want === 'guard') { const v = info.per * n; p.shield = Math.min(C.shieldCap + s.mods.shield, p.shield + v); ev.push({ type: 'guard', ability: 'guard', value: v }); }
+        else { const v = info.per * n; p.hp = Math.min(p.maxHp, p.hp + v); ev.push({ type: 'heal', ability: 'heal', value: v }); }
+        break;
+      }
       case 'heal': healBy(info.healPct); break;
       case 'rebirth': healBy(info.healPct); hitEnemy(s, info.dmg, true, ev, 'magic'); break;
       case 'shield': { const v = Math.min(C.shieldCap + s.mods.shield - p.shield, info.shield); p.shield += Math.max(0, v); ev.push({ type: 'guard', ability: 'guard', value: info.shield }); break; }
