@@ -1,7 +1,12 @@
 // 効果音（WebAudio で合成。音声ファイルは使わない）
 BB.sfx = (function () {
-  let ac = null, muted = false;
-  try { muted = localStorage.getItem('bb-muted') === '1'; } catch (e) { /* 保存できなくても動く */ }
+  // mode: 0 = BGM も効果音も鳴らす / 1 = 効果音だけ / 2 = ぜんぶ消す
+  let ac = null, mode = 0;
+  try {
+    const v = localStorage.getItem('bb-sound');
+    if (v !== null) mode = Math.min(2, Math.max(0, +v || 0));
+    else if (localStorage.getItem('bb-muted') === '1') mode = 2;
+  } catch (e) { /* 保存できなくても動く */ }
 
   function init() {
     if (!ac) {
@@ -11,7 +16,7 @@ BB.sfx = (function () {
   }
 
   function tone(freq, dur, o) {
-    if (!ac || muted) return;
+    if (!ac || mode === 2) return;
     o = o || {};
     const t0 = ac.currentTime + (o.delay || 0);
     const osc = ac.createOscillator(), g = ac.createGain();
@@ -26,7 +31,7 @@ BB.sfx = (function () {
     osc.start(t0); osc.stop(t0 + dur + .02);
   }
   function noise(dur, o) {
-    if (!ac || muted) return;
+    if (!ac || mode === 2) return;
     o = o || {};
     const t0 = ac.currentTime + (o.delay || 0), n = Math.floor(ac.sampleRate * dur);
     const buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
@@ -68,16 +73,27 @@ BB.sfx = (function () {
     lose:    () => arp([392, 349, 311, 262], .22, { type: 'sawtooth', vol: .1 })
   };
 
+  // タブを切り替えた・アプリを離れたときは、音をぜんぶ止める（戻ってきたら再開）
+  function pauseWhenHidden() {
+    if (!ac) return;
+    if (document.hidden) ac.suspend(); else ac.resume();
+  }
+  document.addEventListener('visibilitychange', pauseWhenHidden);
+  window.addEventListener('pagehide', () => { if (ac) ac.suspend(); });
+  window.addEventListener('pageshow', pauseWhenHidden);
+
   return {
     init,
     play(name, arg) { if (SOUNDS[name]) SOUNDS[name](arg); },
-    get muted() { return muted; },
+    get muted() { return mode === 2; },
+    get bgmMuted() { return mode >= 1; },
+    get mode() { return mode; },
     get ctx() { return ac; },
     toggle() {
-      muted = !muted;
-      try { localStorage.setItem('bb-muted', muted ? '1' : '0'); } catch (e) { /* ignore */ }
-      init(); if (BB.music) BB.music.setMuted(muted);
-      if (!muted) SOUNDS.ui();
+      mode = (mode + 1) % 3;
+      try { localStorage.setItem('bb-sound', String(mode)); } catch (e) { /* ignore */ }
+      init(); if (BB.music) BB.music.setMuted(mode >= 1);
+      if (mode < 2) SOUNDS.ui();
     }
   };
 })();

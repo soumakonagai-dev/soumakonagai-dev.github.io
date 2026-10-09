@@ -362,7 +362,8 @@
     ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.lineWidth = 1; rr(x + .5, y + .5, w - 1, h - 1, h * .38); ctx.stroke();
     text(label, x + w / 2, y + h / 2 + 1, size || h * .45, '#6b7391', 'center', true);
   }
-  function speaker(cx, cy, muted) {
+  function speaker(cx, cy, mode) {
+    const muted = mode === 2;
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(cx, cy, MUTE.r, 0, 7); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.stroke();
@@ -370,6 +371,11 @@
     ctx.beginPath(); ctx.moveTo(cx - 6, cy - 2.5); ctx.lineTo(cx - 3, cy - 2.5); ctx.lineTo(cx + 1, cy - 6); ctx.lineTo(cx + 1, cy + 6); ctx.lineTo(cx - 3, cy + 2.5); ctx.lineTo(cx - 6, cy + 2.5); ctx.closePath(); ctx.fill();
     if (muted) { ctx.beginPath(); ctx.moveTo(cx + 4, cy - 3.5); ctx.lineTo(cx + 9, cy + 3.5); ctx.moveTo(cx + 9, cy - 3.5); ctx.lineTo(cx + 4, cy + 3.5); ctx.stroke(); }
     else { ctx.beginPath(); ctx.arc(cx + 1, cy, 5, -.8, .8); ctx.stroke(); ctx.beginPath(); ctx.arc(cx + 1, cy, 8, -.8, .8); ctx.stroke(); }
+    if (mode === 1) {   // 効果音のみ: ♪ に斜線
+      ctx.fillStyle = '#ff6b8b'; ctx.beginPath(); ctx.arc(cx + 9, cy + 9, 6, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 7px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BGM', cx + 9, cy + 9.5);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(cx + 5, cy + 13); ctx.lineTo(cx + 13, cy + 5); ctx.stroke();
+    }
     ctx.restore();
   }
   function star4(x, y, r, color, a) {
@@ -464,7 +470,7 @@
       ctx.fillStyle = i < s.enemyIndex ? '#ffd24a' : i === s.enemyIndex ? '#fff' : 'rgba(255,255,255,.25)';
       ctx.beginPath(); ctx.arc(226 + i * 16, 24, 4.5, 0, 7); ctx.fill();
     }
-    speaker(MUTE.x, MUTE.y, SFX.muted);
+    speaker(MUTE.x, MUTE.y, SFX.mode);
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(QUIT.x, QUIT.y, QUIT.r, 0, 7); ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.stroke();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
@@ -908,15 +914,15 @@
     text('ピースを丸ごと消す・同時消し・コンボで効果アップ', 180, 360, 12, '#cfd6ee', 'center');
     text('敵の予告を見て、攻めるか守るかを選ぼう', 180, 380, 12, '#9aa3c4', 'center');
     button(80, 440, 200, 56, 'スタート', '#2fbf71', true, 22);
-    speaker(MUTE.x, 600, SFX.muted);
+    speaker(MUTE.x, 600, SFX.mode);
     if (!MUSIC.ready) text(MUSIC.progress > 0 ? '♪ 音源を読み込み中… ' + Math.round(MUSIC.progress * 100) + '%' : '♪ タップで音が出ます', 180, 600, 11, '#8e98c8', 'center');
   }
 
   // ---------- 全体 ----------
   function draw(dt) {
     ctx.setTransform(S, 0, 0, S, 0, 0);
-    if (screen === 'title') { drawTitle(dt); return; }
-    if (screen !== 'battle') { MENU.draw(ui, screen, now); return; }
+    if (screen === 'title') { drawTitle(dt); drawSoundLabel(); return; }
+    if (screen !== 'battle') { MENU.draw(ui, screen, now); drawSoundLabel(); return; }
     drawBackground();
     ctx.save();
     if (shake > .3) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
@@ -937,6 +943,7 @@
     drawBanners();
     drawOverlay();
     if (quitAsk) drawQuitAsk();
+    drawSoundLabel();
   }
 
   const approach = (v, t, dt, k) => { const d = t - v; return Math.abs(d) < .15 ? t : v + d * (1 - Math.exp(-k * dt)); };
@@ -969,6 +976,19 @@
   }
 
   // ---------- 入力 ----------
+  const SOUND_LABEL = ['BGM・効果音 ON', '効果音のみ（BGM OFF）', '音ぜんぶ OFF'];
+  let soundLabel = null;
+  function toggleSound() { SFX.toggle(); soundLabel = { text: SOUND_LABEL[SFX.mode], t0: performance.now() }; }
+  function drawSoundLabel() {
+    if (!soundLabel) return;
+    const u = (now - soundLabel.t0) / 1600;
+    if (u >= 1) { soundLabel = null; return; }
+    ctx.save(); ctx.globalAlpha = 1 - Math.max(0, (u - .7) / .3);
+    ctx.font = 'bold 13px ' + FONT; const w = ctx.measureText(soundLabel.text).width + 32;
+    ctx.fillStyle = 'rgba(8,12,28,.92)'; rr(180 - w / 2, 56, w, 30, 15); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1; rr(180 - w / 2 + .5, 56.5, w - 1, 29, 14.5); ctx.stroke();
+    text(soundLabel.text, 180, 71.5, 13, '#fff', 'center', true); ctx.restore();
+  }
   const hit = (px, py, x, y, w, h) => px >= x && px <= x + w && py >= y && py <= y + h;
   function toLogical(e) {
     const r = canvas.getBoundingClientRect();
@@ -985,12 +1005,12 @@
     SFX.init(); MUSIC.init(SFX.ctx);
     const [x, y] = toLogical(e);
     if (screen === 'title') {
-      if (Math.hypot(x - MUTE.x, y - 600) < 18) { SFX.toggle(); return; }
+      if (Math.hypot(x - MUTE.x, y - 600) < 18) { toggleSound(); return; }
       if (hit(x, y, 80, 440, 200, 56)) { SFX.play('ui'); go('home'); }
       return;
     }
     if (screen !== 'battle') {
-      if (screen === 'home' && Math.hypot(x - MUTE.x, y - MUTE.y) < 18) { SFX.toggle(); return; }
+      if (screen === 'home' && Math.hypot(x - MUTE.x, y - MUTE.y) < 18) { toggleSound(); return; }
       MENU.click(ui, screen, x, y);
       return;
     }
@@ -1002,7 +1022,7 @@
       }
       return;
     }
-    if (Math.hypot(x - MUTE.x, y - MUTE.y) < 18) { SFX.toggle(); return; }
+    if (Math.hypot(x - MUTE.x, y - MUTE.y) < 18) { toggleSound(); return; }
     if (game.phase === 'battle' && now >= busyUntil && Math.hypot(x - QUIT.x, y - QUIT.y) < 18) { SFX.play('ui'); quitAsk = true; return; }
     if (game.phase !== 'battle') {
       if (!overlayReady()) return;

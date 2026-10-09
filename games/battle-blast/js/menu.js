@@ -81,7 +81,7 @@ BB.menu = (function () {
   function drawHome(ui, t) {
     ui.bg();
     coinChip(ui, 14, 12, 110);
-    ui.speaker(330, 24, ui.SFX.muted);
+    ui.speaker(330, 24, ui.SFX.mode);
     ui.drawArt('slime', 180, 172, .62, 'idle', t / 1000);
     ui.ctx.save(); ui.ctx.translate(180, 62);
     ui.ctx.shadowColor = 'rgba(160,110,255,.8)'; ui.ctx.shadowBlur = 16;

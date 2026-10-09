@@ -146,7 +146,7 @@ BB.music = (function () {
   function init(ctx) {
     if (!ctx || ac) return;
     ac = ctx;
-    out = ac.createGain(); out.gain.value = BB.sfx.muted ? 0 : .34; out.connect(ac.destination);
+    out = ac.createGain(); out.gain.value = BB.sfx.bgmMuted ? 0 : .34; out.connect(ac.destination);
     const n = ac.sampleRate, nb = ac.createBuffer(1, n, ac.sampleRate), d = nb.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     noiseBuf = nb;
