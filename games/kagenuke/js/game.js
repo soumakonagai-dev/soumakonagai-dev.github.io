@@ -21,6 +21,14 @@ let cleared = {};
 try { cleared = JSON.parse(localStorage.getItem('kagenuke.cleared2') || '{}'); } catch (e) {}
 function saveCleared() { try { localStorage.setItem('kagenuke.cleared2', JSON.stringify(cleared)); } catch (e) {} }
 let prevPressed = [];
+let touchMode = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+let SC = 1;   // 描画の縮小率（スマホでは軽くする）
+function setTouchMode() {
+  if (touchMode && SC !== 1) return;
+  touchMode = true;
+  if (SC === 1) { SC = 0.8; cv.width = 1280; cv.height = 720; }
+}
+if (touchMode) setTimeout(setTouchMode, 0);
 
 // ---------- 入力 ----------
 const down = new Set(), pressed = new Set();
@@ -35,12 +43,66 @@ addEventListener('blur', () => { down.clear(); if (screen === 'play' && world &&
 const held = (...c) => c.some(k => down.has(k));
 const hit = (...c) => c.some(k => pressed.has(k));
 
+// ---------- 画面上のボタン（スマホ用） ----------
+const BTN_CODE = { left: 'ArrowLeft', right: 'ArrowRight', jump: 'Space', light: 'KeyL', kage: 'KeyC', tab: 'Tab', x: 'KeyX', pause: 'KeyP', zin: 'KeyQ', zout: 'KeyE', done: 'KeyL', lsel: 'Tab' };
+function btnList() {
+  if (!touchMode || screen !== 'play' || !world || paused || world.won || world.dead) return [];
+  const w = world;
+  if (w.control) {
+    const list = [
+      { id: 'zin', x: 1250, y: 830, r: 58, label: 'ちかく', sub: 'Q' },
+      { id: 'zout', x: 1250, y: 700, r: 58, label: 'とおく', sub: 'E' },
+      { id: 'done', x: 1480, y: 770, r: 92, label: 'おわる', sub: 'L' }
+    ];
+    if (K.controllable(w).length > 1) list.push({ id: 'lsel', x: 840, y: 830, r: 52, label: 'つぎの', sub: 'Tab' });
+    return list;
+  }
+  const list = [
+    { id: 'left', x: 120, y: 790, r: 72, label: '◀' },
+    { id: 'right', x: 280, y: 790, r: 72, label: '▶' },
+    { id: 'jump', x: 1480, y: 770, r: 92, label: 'ジャンプ' },
+    { id: 'light', x: 1300, y: 690, r: 58, label: 'ひかり', sub: 'L' },
+    { id: 'pause', x: 1200, y: 62, r: 34, label: 'Ⅱ' }
+  ];
+  if (w.def.kages > 0) {
+    list.push({ id: 'kage', x: 1290, y: 830, r: 58, label: '影', sub: 'C' });
+    list.push({ id: 'tab', x: 840, y: 830, r: 52, label: 'きりかえ', sub: 'Tab' });
+    list.push({ id: 'x', x: 980, y: 840, r: 42, label: 'けす', sub: 'X' });
+  }
+  return list;
+}
+const tHeld = new Map();   // pointerId -> ボタン
+function btnAt(x, y) {
+  let best = null, bd = 1e9;
+  for (const b of btnList()) { const d = Math.hypot(x - b.x, y - b.y); if (d <= b.r + 12 && d < bd) { best = b; bd = d; } }
+  return best;
+}
+function btnRelease(pid) {
+  const b = tHeld.get(pid);
+  if (!b) return;
+  tHeld.delete(pid);
+  const code = BTN_CODE[b.id];
+  if (![...tHeld.values()].some(o => BTN_CODE[o.id] === code)) down.delete(code);
+}
+function btnPress(pid, b) {
+  btnRelease(pid);
+  tHeld.set(pid, b);
+  const code = BTN_CODE[b.id];
+  if (!down.has(code)) pressed.add(code);
+  down.add(code);
+}
+
 function toWorld(e) {
   const r = cv.getBoundingClientRect();
   return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
 }
+let dragPid = -1, lastCX = 0, lastCY = 0;
 cv.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse') setTouchMode();
   const [x, y] = toWorld(e);
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  const tb = btnAt(x, y);
+  if (tb) { btnPress(e.pointerId, tb); e.preventDefault(); return; }
   if (screen === 'title') {
     const i = stageAt(x, y);
     if (i >= 0) { cursor = i; startStage(i); }
@@ -48,15 +110,23 @@ cv.addEventListener('pointerdown', e => {
     const i = pauseAt(x, y);
     if (i >= 0) { pauseCur = i; pauseDo(i); }
   } else if (screen === 'play' && world && world.control) {
-    dragging = true; cv.setPointerCapture(e.pointerId);
+    dragging = true; dragPid = e.pointerId; lastCX = e.clientX; lastCY = e.clientY;
   } else if (screen === 'clear') { if (timer > 0.6) nextStage(); }
 });
 cv.addEventListener('pointermove', e => {
-  if (!dragging) return;
+  if (tHeld.has(e.pointerId)) {
+    const [x, y] = toWorld(e), cur = tHeld.get(e.pointerId), nb = btnAt(x, y);
+    if (nb && nb !== cur && (nb.id === 'left' || nb.id === 'right') && (cur.id === 'left' || cur.id === 'right')) btnPress(e.pointerId, nb);
+    return;
+  }
+  if (!dragging || e.pointerId !== dragPid) return;
   const r = cv.getBoundingClientRect();
-  dragDX += e.movementX * W / r.width; dragDY += e.movementY * H / r.height;
+  dragDX += (e.clientX - lastCX) * W / r.width; dragDY += (e.clientY - lastCY) * H / r.height;
+  lastCX = e.clientX; lastCY = e.clientY;
 });
-addEventListener('pointerup', () => { dragging = false; });
+const pend = e => { btnRelease(e.pointerId); if (e.pointerId === dragPid) dragging = false; };
+addEventListener('pointerup', pend);
+addEventListener('pointercancel', pend);
 cv.addEventListener('wheel', e => { wheelZ += Math.sign(e.deltaY) * 30; e.preventDefault(); }, { passive: false });
 
 // ---------- 画面遷移 ----------
@@ -206,7 +276,7 @@ function drawWall(w, th) {
   lctx.fillStyle = rgb(DEEP, 1);
   for (const r of w.ink) lctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.save();
-  ctx.filter = 'blur(1.2px)';
+  if (!touchMode) ctx.filter = 'blur(1.2px)';
   ctx.drawImage(lc, 0, 0);
   ctx.restore();
   // 壁紙（かけ算）
@@ -303,15 +373,17 @@ function drawHUD(w) {
     ? '↑↓←→ / ドラッグ：ひかりを動かす　　Q / E / ホイール：奥行き　　Tab：ひかりを選ぶ　　L / Space：やめる'
     : '←→：歩く　　Space：ジャンプ　　L：ひかりを動かす　　C：影をつくる　　Tab：実体↔影　　X：影を消す　　R：やりなおし　　Esc：ポーズ';
   ctx.font = `16px ${FONT}`;
-  const hw = ctx.measureText(help).width + 40;
-  ctx.fillStyle = 'rgba(24,14,48,.72)'; rr(ctx, W / 2 - hw / 2, H - 52, hw, 34, 17); ctx.fill();
-  ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.fillText(help, W / 2, H - 29);
+  if (!touchMode) {
+    const hw = ctx.measureText(help).width + 40;
+    ctx.fillStyle = 'rgba(24,14,48,.72)'; rr(ctx, W / 2 - hw / 2, H - 52, hw, 34, 17); ctx.fill();
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.fillText(help, W / 2, H - 29);
+  }
   if (msgT > 0 && msg) {
     ctx.globalAlpha = Math.min(1, msgT);
     ctx.font = `bold 24px ${FONT}`;
     const mw = ctx.measureText(msg).width + 56;
-    ctx.fillStyle = 'rgba(24,14,48,.85)'; rr(ctx, W / 2 - mw / 2, H - 120, mw, 48, 24); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText(msg, W / 2, H - 87);
+    ctx.fillStyle = 'rgba(24,14,48,.85)'; rr(ctx, W / 2 - mw / 2, touchMode ? 154 : H - 120, mw, 48, 24); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(msg, W / 2, touchMode ? 190 : H - 87);
   }
   ctx.restore();
 }
@@ -333,7 +405,23 @@ function drawScene(w) {
   // あかりのちらつき
   const fl = A.flicker(clock);
   if (fl < 0.98) { ctx.fillStyle = `rgba(0,0,0,${(1 - fl) * 0.55})`; ctx.fillRect(0, 0, W, H); }
-  A.drawGrain(ctx, W, H);
+  if (!touchMode) A.drawGrain(ctx, W, H);
+}
+
+function drawTouch() {
+  const held = new Set([...tHeld.values()].map(b => b.id));
+  ctx.save(); ctx.textAlign = 'center';
+  for (const b of btnList()) {
+    const on = held.has(b.id);
+    ctx.fillStyle = on ? 'rgba(255,230,170,.42)' : 'rgba(255,255,255,.14)';
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = on ? 'rgba(255,230,170,.95)' : 'rgba(255,255,255,.5)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.font = `bold ${b.r > 80 ? 28 : b.r > 60 ? 30 : b.r > 50 ? 22 : 24}px ${FONT}`;
+    ctx.fillText(b.label, b.x, b.y + (b.sub ? 4 : 9));
+    if (b.sub) { ctx.font = `14px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillText(b.sub, b.x, b.y + 26); }
+  }
+  ctx.restore();
 }
 
 function drawPlay() {
@@ -341,6 +429,7 @@ function drawPlay() {
   drawScene(w);
   drawMini(w);
   drawHUD(w);
+  drawTouch();
   if (w.control) {
     ctx.fillStyle = 'rgba(255,214,90,.95)'; ctx.font = `bold 26px ${FONT}`; ctx.textAlign = 'center';
     ctx.fillText('— ひかりを動かしている（時間はとまっている）—', W / 2, H - 140);
@@ -374,7 +463,7 @@ function drawPause() {
     ctx.fillText(t, r.x + r.w / 2, r.y + 45);
   });
   ctx.fillStyle = 'rgba(245,230,196,.55)'; ctx.font = `18px ${FONT}`;
-  ctx.fillText('↑↓で選んで Enter　　Esc / P：さいかい', W / 2 + 120, 700);
+  ctx.fillText(touchMode ? 'タップで えらぶ' : '↑↓で選んで Enter　　Esc / P：さいかい', W / 2 + 120, 700);
 }
 
 // ----- タイトル -----
@@ -392,9 +481,9 @@ function chapters() {
 const chapOf = (i) => { const ch = chapters(); for (let c = 0; c < ch.length; c++) if (i >= ch[c].start && i < ch[c].start + ch[c].count) return c; return 0; };
 function stageRect(i) {
   const ch = chapters()[chapOf(i)], k = i - ch.start;
-  return { x: 240 + k * 280, y: 430, w: 250, h: 170 };
+  return { x: 240 + k * 280, y: 438, w: 250, h: 170 };
 }
-function tabRect(c) { return { x: 200 + c * 240, y: 340, w: 224, h: 58 }; }
+function tabRect(c) { return { x: 200 + (c % 5) * 240, y: 312 + Math.floor(c / 5) * 54, w: 224, h: 46 }; }
 function stageAt(x, y) {
   const ch = chapters(), cc = chapOf(cursor);
   for (let c = 0; c < ch.length; c++) {
@@ -473,7 +562,7 @@ function drawTitle() {
     ctx.fillStyle = sel ? 'rgba(232,216,186,.96)' : 'rgba(30,20,40,.78)'; rr(ctx, r.x, r.y, r.w, r.h, 14); ctx.fill();
     ctx.strokeStyle = sel ? '#b8613f' : 'rgba(236,223,196,.2)'; ctx.lineWidth = sel ? 3 : 1.5; rr(ctx, r.x, r.y, r.w, r.h, 14); ctx.stroke();
     ctx.textAlign = 'center'; ctx.fillStyle = sel ? '#2a1a38' : '#ecdfc4'; ctx.font = `bold 20px ${FONT}`;
-    ctx.fillText(`第${c.n}章  ${(A.THEMES[c.n] || {}).name || ''}`, r.x + r.w / 2, r.y + 36);
+    ctx.fillText(`第${c.n}章  ${(A.THEMES[c.n] || {}).name || ''}`, r.x + r.w / 2, r.y + 30);
   });
   // カード（いまの章）
   for (let i = chs[cur].start; i < chs[cur].start + chs[cur].count; i++) {
@@ -491,13 +580,13 @@ function drawTitle() {
     ctx.restore();
   }
   ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(236,223,196,.7)'; ctx.font = `20px ${FONT}`;
-  ctx.fillText('←→：ステージ　　↑↓：章　　Enter：はじめる　　またはクリック', W / 2, 700);
+  ctx.fillText(touchMode ? 'ステージを タップして はじめよう（上の章タブで 章をえらぶ）' : '←→：ステージ　　↑↓：章　　Enter：はじめる　　またはクリック', W / 2, 706);
   A.drawParticles(ctx);
   A.drawMotes(ctx, W, H, t);
   drawVignette(th);
   const fl = A.flicker(t);
   if (fl < 0.98) { ctx.fillStyle = `rgba(0,0,0,${(1 - fl) * 0.55})`; ctx.fillRect(0, 0, W, H); }
-  A.drawGrain(ctx, W, H);
+  if (!touchMode) A.drawGrain(ctx, W, H);
 }
 
 // 草原（クリア画面の背景）
@@ -588,6 +677,7 @@ function frame(now) {
     if (world.won && Math.random() < 0.6) A.burst(world.def.exit.x + world.def.exit.w / 2, world.def.exit.y + 30, 2, { speed: 140, up: -60, g: 120, life: 1, size: 3, color: '#fff3b0', type: 'spark' });
   }
   A.updateParticles(rdt);
+  ctx.setTransform(SC, 0, 0, SC, 0, 0);
   ctx.clearRect(0, 0, W, H);
   if (screen === 'title') drawTitle();
   else if (screen === 'clear') drawClear();
@@ -597,5 +687,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // 検証用
-window.__kg = { get world() { return world; }, get paused() { return paused; }, get screen() { return screen; }, startStage, K, STAGES };
+window.__kg = { setTouchMode, get touchMode() { return touchMode; }, get world() { return world; }, get paused() { return paused; }, get screen() { return screen; }, startStage, K, STAGES };
 })();
