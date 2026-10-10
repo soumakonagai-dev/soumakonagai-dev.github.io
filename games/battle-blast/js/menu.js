@@ -4,7 +4,7 @@ BB.menu = (function () {
   const D = BB.data, E = BB.equip, G = D.gacha, A = BB.art;
   const RC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d', UR: '#ff5ac8' };
   const SLOT_ORDER = ['weapon', 'armor', 'acc'];
-  const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky' };
+  const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky', mush: 'mush', sea: 'sea', desert: 'desert', factory: 'factory', void: 'void', crystal: 'crystal', storm: 'storm', candy: 'candy', space: 'space', throne: 'throne', carnival: 'carnival', pirate: 'pirate', sakura: 'sakura', jurassic: 'jurassic', chaos: 'chaos' };
   const LIST_TOP = 58, LIST_BOTTOM = 572, CARD_PITCH = 112;   // ステージ一覧の表示範囲（これをはみ出す分はスクロール）
   let stageScroll = 0, equipTab = 'weapon', pdrag = null, buddyScroll = 0;
 
@@ -104,6 +104,11 @@ BB.menu = (function () {
     ui.bg();
     coinChip(ui, 14, 12, 110);
     ui.speaker(330, 24, ui.SFX.mode);
+    if (BB.debugOn) {   // ?debug=1 で開いたときだけ出る
+      ui.ctx.fillStyle = 'rgba(255,60,90,.85)'; ui.rr(14, 44, 64, 22, 11); ui.ctx.fill();
+      ui.text('DEBUG', 46, 55.5, 11, '#fff', 'center', true);
+      reg(14, 44, 64, 22, () => { ui.SFX.play('ui'); ui.go('debug'); });
+    }
     ui.drawArt('slime', 180, 152, .5, 'idle', t / 1000);
     ui.ctx.save(); ui.ctx.translate(180, 62);
     ui.ctx.shadowColor = 'rgba(160,110,255,.8)'; ui.ctx.shadowBlur = 16;
@@ -118,14 +123,15 @@ BB.menu = (function () {
       ui.ctx.fillStyle = '#ff4d6d'; ui.ctx.beginPath(); ui.ctx.arc(0, 0, 11, 0, 7); ui.ctx.fill();
       ui.text('!', 0, 1, 14, '#fff', 'center', true); ui.ctx.restore();
     };
-    const B = (y, label, color, pulse, to) => { ui.button(60, y, 240, 46, label, color, pulse, 18); reg(60, y, 240, 46, () => { ui.SFX.play('ui'); ui.go(to); }); };
-    B(214, '冒険に出る', '#2fbf71', true, 'stages');
-    B(268, 'スカウト', '#e08a2a', false, 'scout');
-    badge(292, 272, !!save().scout);
-    B(322, 'チャレンジ', '#e0484a', false, 'challenge');
-    B(376, 'ガチャ', '#8b5cf6', false, 'gacha');
-    badge(292, 380, save().coins >= G.kinds.normal.cost);
-    B(430, 'そうび', '#2f7bff', false, 'equip');
+    const B = (y, label, color, pulse, to) => { ui.button(60, y, 240, 42, label, color, pulse, 17); reg(60, y, 240, 42, () => { ui.SFX.play('ui'); ui.go(to); }); };
+    B(200, '冒険に出る', '#2fbf71', true, 'stages');
+    B(247, 'スカウト', '#e08a2a', false, 'scout');
+    badge(292, 251, !!save().scout);
+    B(294, 'チャレンジ', '#e0484a', false, 'challenge');
+    B(341, 'エンドレス', '#0e9aa7', false, 'endless');
+    B(388, 'ガチャ', '#8b5cf6', false, 'gacha');
+    badge(292, 392, save().coins >= G.kinds.normal.cost);
+    B(435, 'そうび', '#2f7bff', false, 'equip');
 
     // そうび中・バディ
     ui.text('そうび', 105, 500, 11, '#8e98c8', 'center', true);
@@ -234,7 +240,7 @@ BB.menu = (function () {
   }
 
   function startPull(ui, t, n) {
-    const res = E.pull(save(), n, null, gKind, Date.now());
+    const res = E.pull(save(), n, null, gKind, E.now());
     if (!res) { showToast(t, 'コインが足りません'); ui.SFX.play('pick'); return; }
     const order = E.RARITY_ORDER;
     const best = res.reduce((b, r) => order.indexOf(r.item.rarity) > order.indexOf(b) ? r.item.rarity : b, 'N');
@@ -334,7 +340,7 @@ BB.menu = (function () {
   const fmtRate = r => (r >= 10 ? r.toFixed(1) : r >= 1 ? r.toFixed(2) : r.toFixed(3)) + '%';
   // ガチャ画面の下: いまのピックアップと、入れ替わるまでの時間
   function drawPickupStrip(ui, t) {
-    const c = ui.ctx, now = Date.now(), pk = E.pickups(gKind, now);
+    const c = ui.ctx, now = E.now(), pk = E.pickups(gKind, now);
     ui.card(12, 556, 336, 66, 'rgba(60,50,110,.8)', 'rgba(24,20,60,.85)', 12);
     ui.text('PICK UP', 22, 572, 11.5, '#ffd24a', 'left', true);
     ui.text('あと ' + fmtTime(E.nextPickupAt(now) - now), 22, 592, 12, '#fff', 'left', true);
@@ -353,7 +359,7 @@ BB.menu = (function () {
   function drawRates(ui, t) {
     ui.bg();
     header(ui, 'ガチャ確率表', 'gacha');
-    const c = ui.ctx, now = Date.now(), K = G.kinds[gKind], rt = E.ratesOf(gKind);
+    const c = ui.ctx, now = E.now(), K = G.kinds[gKind], rt = E.ratesOf(gKind);
     const KC = { normal: '#2f7bff', rare: '#e0a020', ultra: '#d946a8' };
     [['normal', 'ノーマル', 14], ['rare', 'レア', 128], ['ultra', 'ウルトラ', 242]].forEach(([k, label, x]) => {
       const on = gKind === k;
@@ -592,7 +598,7 @@ BB.menu = (function () {
       reg(60, 512, 240, 52, () => {
         if (!scoutSel) return;
         const res = SC.recruit(sv, scoutSel);
-        if (res) { recruitRes = Object.assign({ t0: t }, res); ui.SFX.play(D.buddyMap[res.id].rarity === 'SSR' ? 'special' : D.buddyMap[res.id].rarity === 'SR' ? 'perfect' : 'heal'); scoutSel = null; }
+        if (res) { recruitRes = Object.assign({ t0: t }, res); ui.SFX.play(D.buddyMap[res.id].rarity === 'SSR' || D.buddyMap[res.id].rarity === 'UR' ? 'special' : D.buddyMap[res.id].rarity === 'SR' ? 'perfect' : 'heal'); scoutSel = null; }
       });
       ui.text('ほかのバディは、またスカウト開始で会える', 180, 590, 10.5, '#8e98c8', 'center');
       return;
@@ -611,7 +617,7 @@ BB.menu = (function () {
     ui.button(60, 478, 240, 44, 'バディ図鑑・へんせい', '#2f7bff', false, 14);
     reg(60, 478, 240, 44, () => { ui.SFX.play('ui'); ui.go('buddies'); });
     const rt = SC.ratesFor(sv);
-    ui.text('いまの出現率   N ' + rt.N + '%   R ' + rt.R + '%   SR ' + rt.SR + '%   SSR ' + rt.SSR + '%', 180, 544, 11, '#ffe08a', 'center', true);
+    ui.text('いまの出現率   N ' + rt.N + '%   R ' + rt.R + '%   SR ' + rt.SR + '%   SSR ' + rt.SSR + '%' + (rt.UR ? '   UR ' + rt.UR + '%' : ''), 180, 544, rt.UR ? 10.5 : 11, '#ffe08a', 'center', true);
     ui.text('ステージを進めるほど、レアなバディが出やすくなる', 180, 562, 10.5, '#8e98c8', 'center');
     ui.text('同じバディをスカウトすると Lv アップ（最大 Lv' + BB.data.scout.maxLevel + '）', 180, 580, 10.5, '#8e98c8', 'center');
   }
@@ -638,7 +644,7 @@ BB.menu = (function () {
       });
     } else ui.text(b ? 'まだ仲間にしていない' : 'バディを選んでください', 180, 180, 13, '#8e98c8', 'center', true);
     // 一覧
-    const order = ['SSR', 'SR', 'R', 'N'];
+    const order = ['UR', 'SSR', 'SR', 'R', 'N'];
     const list = D.buddies.slice().sort((x, y) => order.indexOf(x.rarity) - order.indexOf(y.rarity));
     // 一覧（数が多いのでスクロール）
     const GT = 236, GB = 610, PITCH = 82, rows = Math.ceil(list.length / 4);
@@ -721,10 +727,76 @@ BB.menu = (function () {
     ui.text('負けても、倒した敵のぶんのコインは入るよ', 180, 618, 10.5, '#8e98c8', 'center');
   }
 
+  // ---------- エンドレス ----------
+  function drawEndless(ui, t) {
+    ui.bg();
+    header(ui, 'エンドレス', 'home');
+    const c = ui.ctx, en = save().endless || { ranking: [] }, rk = en.ranking || [], En = D.endless;
+    ui.card(12, 66, 336, 92, 'rgba(14,154,167,.55)', 'rgba(10,40,70,.9)', 14);
+    ui.text('全ステージの敵が、弱い順につぎつぎ登場！', 180, 88, 12.5, '#fff', 'center', true);
+    ui.text('そのあとも、敵はどんどん強くなっていく。', 180, 108, 12, '#cfe9f0', 'center');
+    ui.text('倒した敵ぶんのコインがもらえて、記録はランキングへ', 180, 128, 11, '#9fd4dc', 'center');
+    ui.text(rk.length ? 'ベスト  WAVE ' + rk[0].waves + ' クリア' : 'まだ記録がありません', 180, 147, 12, '#ffe08a', 'center', true);
+    ui.button(60, 168, 240, 46, 'スタート', '#e0484a', true, 19);
+    reg(60, 168, 240, 46, () => { ui.SFX.play('ui'); ui.startEndless(); });
+    ui.textO('ランキング（この端末）', 180, 236, 15, '#ffe08a', 'center');
+    const MEDAL = ['#ffd24a', '#cfd6e6', '#d8935a'];
+    for (let i = 0; i < En.rankSize; i++) {
+      const y = 252 + i * 31, r = rk[i];
+      c.fillStyle = r ? (i < 3 ? 'rgba(255,210,74,.12)' : 'rgba(255,255,255,.07)') : 'rgba(255,255,255,.03)'; ui.rr(14, y, 332, 28, 9); c.fill();
+      if (i < 3 && r) { c.strokeStyle = MEDAL[i]; c.lineWidth = 1.2; ui.rr(14.5, y + .5, 331, 27, 9); c.stroke(); }
+      ui.text(String(i + 1), 34, y + 15, 14, r && i < 3 ? MEDAL[i] : '#8e98c8', 'center', true);
+      if (!r) { ui.text('---', 180, y + 15, 12, '#4d5578', 'center'); continue; }
+      ui.text('WAVE ' + r.waves + ' クリア', 62, y + 15, 14, '#fff', 'left', true);
+      ui.text(r.dmg + ' ダメージ', 214, y + 15, 10.5, '#aab3d4', 'right');
+      const d = new Date(r.at);
+      ui.text((d.getMonth() + 1) + '/' + d.getDate(), 334, y + 15, 10.5, '#8e98c8', 'right');
+    }
+  }
+
+  // ---------- デバッグ ----------
+  let dbgConfirm = 0;   // セーブ削除の確認（2 回押し）
+  function drawDebug(ui, t) {
+    ui.bg();
+    header(ui, 'DEBUG', 'home');
+    const sv = save(), c = ui.ctx;
+    const row = (y, label, btns) => {
+      ui.text(label, 16, y, 11, '#ffb0c0', 'left', true);
+      const w = (336 - (btns.length - 1) * 6) / btns.length;
+      btns.forEach(([text, fn, color], i) => {
+        const x = 12 + i * (w + 6);
+        c.fillStyle = color || 'rgba(60,70,130,.9)'; ui.rr(x, y + 8, w, 30, 9); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 1; ui.rr(x + .5, y + 8.5, w - 1, 29, 8.5); c.stroke();
+        ui.text(text, x + w / 2, y + 23.5, w < 90 ? 10.5 : 11.5, '#fff', 'center', true);
+        reg(x, y + 8, w, 30, () => { ui.SFX.play('pick'); fn(); BB.save.commit(); });
+      });
+    };
+    const say = msg => showToast(t, msg);
+    const grantAll = () => D.equipment.forEach(e => { if (!(e.id in sv.owned)) sv.owned[e.id] = 0; });
+    row(64, 'コイン', [['+1,000', () => { sv.coins += 1000; say('+1,000'); }], ['+10,000', () => { sv.coins += 10000; say('+10,000'); }], ['+100,000', () => { sv.coins += 100000; say('+100,000'); }], ['0にする', () => { sv.coins = 0; say('コイン 0'); }, 'rgba(120,40,60,.9)']]);
+    row(112, 'ステージ', [['全開放', () => { D.stages.forEach(st => { if (!sv.stages[st.id]) sv.stages[st.id] = { cleared: false, stars: 0 }; }); say('全ステージを開放'); }], ['全クリア(★3)', () => { D.stages.forEach(st => { sv.stages[st.id] = { cleared: true, stars: 3 }; }); say('全ステージ クリア済み'); }], ['進行をリセット', () => { sv.stages = {}; sv.challenge = {}; say('進行をリセット'); }, 'rgba(120,40,60,.9)']]);
+    row(160, 'チャレンジ', [['最高 Lv20 にする', () => { D.stages.forEach(st => { sv.challenge[st.id] = D.challenge.maxLevel; }); say('全ステージ Lv20 クリア扱い'); }], ['記録を消す', () => { sv.challenge = {}; say('チャレンジ記録を消した'); }, 'rgba(120,40,60,.9)']]);
+    row(208, 'そうび', [['全部入手', () => { grantAll(); say('全装備を入手'); }], ['全部 +20', () => { grantAll(); Object.keys(sv.owned).forEach(id => { sv.owned[id] = G.maxPlus; }); say('全装備 +20'); }], ['素材 +5', () => { Object.keys(sv.owned).forEach(id => { sv.spare[id] = (sv.spare[id] || 0) + 5; }); say('素材を各 +5'); }]]);
+    row(256, 'バディ', [['全員なかまに(Lv5)', () => { D.buddies.forEach(b => { sv.buddies[b.id] = D.scout.maxLevel; }); if (!sv.party.length) sv.party = D.buddies.slice(0, 2).map(b => b.id); say('全バディ Lv5'); }], ['スカウト候補を出す', () => { sv.scout = { candidates: BB.scout.rollCandidates(sv) }; say('スカウト場に候補を出した'); }]]);
+    row(304, 'ピックアップの時刻', [['+1時間', () => { say('時刻 +' + E.shiftPickup(1) + ' 時間'); }], ['+12時間', () => { say('時刻 +' + E.shiftPickup(12) + ' 時間'); }], ['元に戻す', () => { E.shiftPickup(0); say('時刻を戻した'); }]]);
+    row(352, 'ガチャを回すコインの目安', [['ノーマル10連', () => { sv.coins += D.gacha.kinds.normal.cost10; say('+' + D.gacha.kinds.normal.cost10); }], ['レア10連', () => { sv.coins += D.gacha.kinds.rare.cost10; say('+' + D.gacha.kinds.rare.cost10); }], ['ウルトラ10連', () => { sv.coins += D.gacha.kinds.ultra.cost10; say('+' + D.gacha.kinds.ultra.cost10); }]]);
+    // セーブデータの削除（2 回押す）
+    const armed = t - dbgConfirm < 4000;
+    row(400, 'セーブデータ', [[armed ? 'もう一度おすと ぜんぶ消える!' : 'すべて初期化', () => { if (armed) { BB.save.reset(); dbgConfirm = 0; say('セーブデータを初期化した'); } else dbgConfirm = t; }, armed ? 'rgba(200,30,50,.95)' : 'rgba(120,40,60,.9)']]);
+    // いまの状態
+    ui.card(12, 456, 336, 118, 'rgba(30,40,90,.9)', 'rgba(16,22,56,.95)', 12);
+    const own = Object.keys(sv.owned).length, cl = D.stages.filter(st => (sv.stages[st.id] || {}).cleared).length;
+    [['コイン', sv.coins], ['装備', own + ' / ' + D.equipment.length], ['バディ', Object.keys(sv.buddies).length + ' / ' + D.buddies.length], ['クリア', cl + ' / ' + D.stages.length + ' ステージ'], ['ピックアップ時刻', E.shiftPickup(0) === 0 ? 'ふつう' : 'ずらし中']].forEach(([k, v], i) => {
+      ui.text(k, 24, 474 + i * 20, 11, '#9aa3c4', 'left', true); ui.text(String(v), 336, 474 + i * 20, 12, '#fff', 'right', true);
+    });
+    ui.text('戦闘中は、敵カードの DBG ボタンで、敵をたおす・無敵などが使えます', 180, 596, 10, '#ffb0c0', 'center');
+    ui.text('?debug=0 をつけて開くと、このメニューは消えます', 180, 614, 10, '#8e98c8', 'center');
+  }
+
   // ---------- 入口 ----------
   function draw(ui, screen, t) {
     hits = [];
-    ({ home: drawHome, stages: drawStages, gacha: drawGacha, equip: drawEquip, fuse: drawFuse, scout: drawScout, buddies: drawBuddies, challenge: drawChallenge, rates: drawRates })[screen](ui, t);
+    ({ home: drawHome, stages: drawStages, gacha: drawGacha, equip: drawEquip, fuse: drawFuse, scout: drawScout, buddies: drawBuddies, challenge: drawChallenge, rates: drawRates, debug: drawDebug, endless: drawEndless })[screen](ui, t);
     if (toast) {
       const u = (t - toast.t0) / 1400;
       if (u >= 1) toast = null;

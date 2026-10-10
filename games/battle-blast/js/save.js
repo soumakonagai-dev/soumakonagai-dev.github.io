@@ -2,7 +2,7 @@
 BB.save = (function () {
   const KEY = 'battle-blast-save-v1';
   // owned[id] = その装備の +値(0〜20) / spare[id] = 合体の素材にできるダブりの数
-  const fresh = () => ({ ver: 2, coins: 0, owned: {}, spare: {}, buddies: {}, party: [], scout: null, challenge: {}, equipped: { weapon: null, armor: null, acc: null }, stages: {}, pulls: 0 });
+  const fresh = () => ({ ver: 2, coins: 0, owned: {}, spare: {}, buddies: {}, party: [], scout: null, challenge: {}, endless: { ranking: [] }, equipped: { weapon: null, armor: null, acc: null }, stages: {}, pulls: 0 });
   let data = fresh();
 
   try {

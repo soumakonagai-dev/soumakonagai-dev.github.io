@@ -72,7 +72,9 @@ BB.equip = (function () {
 
   // ---------- ピックアップ（1 時間ごとに入れ替わる） ----------
   const HOUR = 3600 * 1000, PICK_FROM = RARITY_ORDER.indexOf('SR');
-  const hourIndex = now => Math.floor((now === undefined ? Date.now() : now) / (HOUR * G.pickHours));
+  let shiftHours = 0;   // デバッグ用: ピックアップの時刻をずらす
+  const nowMs = () => Date.now() + shiftHours * HOUR;
+  const hourIndex = now => Math.floor((now === undefined ? nowMs() : now) / (HOUR * G.pickHours));
   const hash = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const poolOf = rarity => D.equipment.filter(e => e.rarity === rarity);
   // その時間の、(ガチャの種類, レア度) のピックアップ。
@@ -210,8 +212,29 @@ BB.equip = (function () {
     return rw;
   }
 
+  // エンドレス: 倒した敵ぶんのコインと、ランキング（この端末の上位 rankSize 件。ウェーブ数 → 総ダメージの順）
+  function endlessResult(save, game) {
+    const En = D.endless, waves = game.enemyIndex;
+    let base = 0;
+    for (let i = 0; i < waves; i++) base += game.enemies[i].coin;
+    const bonus = Math.round(base * (game.mods ? game.mods.coin : 0)), total = base + bonus;
+    save.coins += total;
+    const en = save.endless = save.endless || { ranking: [] };
+    const prevBest = en.ranking.length ? en.ranking[0].waves : 0;
+    let rank = 0;
+    if (waves > 0) {
+      const entry = { waves, dmg: game.totalDamage, combo: game.maxCombo, at: Date.now() };
+      en.ranking.push(entry);
+      en.ranking.sort((a, b) => b.waves - a.waves || b.dmg - a.dmg || a.at - b.at);
+      en.ranking = en.ranking.slice(0, En.rankSize);
+      rank = en.ranking.indexOf(entry) + 1;
+    }
+    BB.save.commit();
+    return { total, base, bonus, waves, rank, newBest: waves > prevBest, endless: true };
+  }
+
   // 前のステージをクリア済みか、このステージの記録があれば解放（ステージを後から追加しても、進行が消えない）
   const isUnlocked = (save, stageIdx) => stageIdx === 0 || !!(save.stages[D.stages[stageIdx - 1].id] || {}).cleared || !!save.stages[D.stages[stageIdx].id];
 
-  return { byId, RARITY_ORDER, ratesOf, costOf, pickups, nextPickupAt, itemRates, spareList, fuse, fuseAll, computeMods, describe, scaledEffects, pull, equip, stageReward, applyResult, isUnlocked };
+  return { byId, now: nowMs, shiftPickup(h) { shiftHours = h === 0 ? 0 : shiftHours + h; return shiftHours; }, RARITY_ORDER, ratesOf, costOf, pickups, nextPickupAt, itemRates, spareList, fuse, fuseAll, computeMods, describe, scaledEffects, pull, equip, stageReward, applyResult, endlessResult, isUnlocked };
 })();

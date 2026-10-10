@@ -46,8 +46,8 @@ BB.data = {
     { id: 'T',    cells: [[0,0],[1,0],[2,0],[1,1]], ability: 'heal', base: 3, weight: 15 },
     { id: 'O',    cells: [[0,0],[1,0],[0,1],[1,1]], ability: 'guard', base: 3, weight: 12 },
     { id: 'B3',   cells: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]], ability: 'guard', base: 4, weight: 3 },
-    { id: 'L',    cells: [[0,0],[0,1],[0,2],[1,2]], ability: 'magic', base: 2, weight: 5 },
-    { id: 'J',    cells: [[1,0],[1,1],[1,2],[0,2]], ability: 'magic', base: 2, weight: 5 },
+    { id: 'L',    cells: [[0,0],[0,1],[0,2],[1,2]], ability: 'magic', base: 3, weight: 7 },
+    { id: 'J',    cells: [[1,0],[1,1],[1,2],[0,2]], ability: 'magic', base: 3, weight: 7 },
     { id: 'S',    cells: [[1,0],[2,0],[0,1],[1,1]], ability: 'poison', base: 1, weight: 5 },
     { id: 'Z',    cells: [[0,0],[1,0],[1,1],[2,1]], ability: 'poison', base: 1, weight: 5 },
     { id: 'bigL', cells: [[0,0],[0,1],[0,2],[1,2],[2,2]], ability: 'charge', base: 4, weight: 5 },   // 5 マスで 20%
@@ -99,7 +99,112 @@ BB.data = {
     holyknight: { name: 'てんくうの騎士', art: 'holyknight', theme: 'sky', hp: 140, atk: 19, count: 3,
       actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }] },
     overlord:   { name: '大魔王', art: 'overlord', theme: 'sky', hp: 400, atk: 31, count: 4, boss: true,
-      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }] }
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }] },
+    // ---- ステージ 8: きのこの森 ----
+    spore:        { name: 'マッシュン', art: 'spore', theme: 'mush', hp: 135, atk: 18, count: 3,
+      actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'heal' }] },
+    treant:       { name: 'トレント', art: 'treant', theme: 'mush', hp: 148, atk: 19, count: 3,
+      actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'stone' }, { type: 'attack' }] },
+    mothertree:   { name: 'マザーツリー', art: 'mothertree', theme: 'mush', hp: 400, atk: 29, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'seal', ability: 'heal' }, { type: 'stone' }, { type: 'freeze' }, { type: 'strong' }, { type: 'defend' }] },
+    // ---- ステージ 9: 海底神殿 ----
+    jelly:        { name: 'クラゲ', art: 'jelly', theme: 'sea', hp: 148, atk: 19, count: 3,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }] },
+    sahagin:      { name: 'サハギン', art: 'sahagin', theme: 'sea', hp: 156, atk: 20, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }, { type: 'defend' }] },
+    dagon:        { name: 'ダゴン', art: 'dagon', theme: 'sea', hp: 430, atk: 31, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }, { type: 'defend' }] },
+    // ---- ステージ 10: 砂漠の遺跡 ----
+    scorpion:     { name: 'サソリ', art: 'scorpion', theme: 'desert', hp: 158, atk: 20, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'stone' }, { type: 'attack' }, { type: 'strong' }] },
+    mummy:        { name: 'ミイラ', art: 'mummy', theme: 'desert', hp: 166, atk: 21, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'heal' }, { type: 'stone' }, { type: 'strong' }, { type: 'defend' }] },
+    pharaoh:      { name: 'ファラオ', art: 'pharaoh', theme: 'desert', hp: 460, atk: 32, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'freeze' }, { type: 'defend' }, { type: 'strong' }, { type: 'attack' }] },
+    // ---- ステージ 11: 機械工場 ----
+    drone:        { name: 'ドローン', art: 'drone', theme: 'factory', hp: 168, atk: 22, count: 3,
+      actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'stone' }] },
+    robo:         { name: 'ロボ兵', art: 'robo', theme: 'factory', hp: 176, atk: 23, count: 3,
+      actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }] },
+    deathmachine: { name: 'デスマシン', art: 'deathmachine', theme: 'factory', hp: 490, atk: 34, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'strong' }] },
+    // ---- ステージ 12: 時空の狭間 ----
+    voideye:      { name: 'ヴォイドアイ', art: 'voideye', theme: 'void', hp: 178, atk: 23, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'heal' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }] },
+    shadow:       { name: 'シャドウ', art: 'shadow', theme: 'void', hp: 186, atk: 24, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'freeze' }, { type: 'attack' }, { type: 'strong' }] },
+    timelord:     { name: 'タイムロード', art: 'timelord', theme: 'void', hp: 540, atk: 37, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }] },
+    // ---- ステージ 13: 水晶の洞窟 ----
+    crybat:       { name: 'クリスタルバット', art: 'crybat', theme: 'crystal', hp: 195, atk: 25, count: 3,
+      actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }] },
+    crygolem:     { name: 'クリスタルゴーレム', art: 'crygolem', theme: 'crystal', hp: 210, atk: 26, count: 3,
+      actions: [{ type: 'defend' }, { type: 'attack' }, { type: 'strong' }, { type: 'stone' }, { type: 'attack' }, { type: 'strong' }] },
+    crydragon:    { name: 'クリスタルドラゴン', art: 'crydragon', theme: 'crystal', hp: 580, atk: 39, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'defend' }, { type: 'stone' }, { type: 'strong' }, { type: 'freeze' }] },
+    // ---- ステージ 14: 雷鳴の山 ----
+    thunderbird:  { name: 'サンダーバード', art: 'thunderbird', theme: 'storm', hp: 205, atk: 27, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }, { type: 'strong' }] },
+    raijuu:       { name: 'ライジュウ', art: 'raijuu', theme: 'storm', hp: 218, atk: 28, count: 3,
+      actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'freeze' }, { type: 'strong' }] },
+    raijin:       { name: 'ライジン', art: 'raijin', theme: 'storm', hp: 600, atk: 40, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'heal' }, { type: 'stone' }, { type: 'strong' }, { type: 'defend' }] },
+    // ---- ステージ 15: おかしの国 ----
+    gummy:        { name: 'グミン', art: 'gummy', theme: 'candy', hp: 235, atk: 30, count: 3,
+      actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'attack' }, { type: 'defend' }] },
+    cookie:       { name: 'クッキーへい', art: 'cookie', theme: 'candy', hp: 245, atk: 31, count: 3,
+      actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }] },
+    cakequeen:    { name: 'ケーキクイーン', art: 'cakequeen', theme: 'candy', hp: 700, atk: 44, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'heal' }, { type: 'defend' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }] },
+    // ---- ステージ 16: 星の海 ----
+    alien:        { name: 'エイリアン', art: 'alien', theme: 'space', hp: 245, atk: 31, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }] },
+    ufo:          { name: 'UFO', art: 'ufo', theme: 'space', hp: 255, atk: 32, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'stone' }, { type: 'freeze' }, { type: 'strong' }, { type: 'defend' }] },
+    blackhole:    { name: 'ブラックホール', art: 'blackhole', theme: 'space', hp: 720, atk: 44, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }] },
+    // ---- ステージ 17: 竜王の城 ----
+    wyvern:       { name: 'ワイバーン', art: 'wyvern', theme: 'throne', hp: 275, atk: 34, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }] },
+    dragonknight: { name: 'ドラゴンナイト', art: 'dragonknight', theme: 'throne', hp: 290, atk: 35, count: 3,
+      actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'heal' }] },
+    ancientdragon:{ name: 'エンシェントドラゴン', art: 'ancientdragon', theme: 'throne', hp: 860, atk: 49, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'attack' }, { type: 'strong' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }] },
+    // ---- ステージ 18: ふしぎな遊園地 ----
+    clown:        { name: 'ピエロ', art: 'clown', theme: 'carnival', hp: 285, atk: 35, count: 3,
+      actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }] },
+    doll:         { name: 'にんぎょう', art: 'doll', theme: 'carnival', hp: 295, atk: 36, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'heal' }, { type: 'strong' }, { type: 'stone' }, { type: 'freeze' }, { type: 'strong' }] },
+    ringmaster:   { name: 'カーニバルマスター', art: 'ringmaster', theme: 'carnival', hp: 900, atk: 50, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }] },
+    // ---- ステージ 19: 嵐の海賊船 ----
+    pirate:       { name: 'かいぞく', art: 'pirate', theme: 'pirate', hp: 305, atk: 37, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'attack' }, { type: 'stone' }, { type: 'strong' }] },
+    parrot:       { name: 'パイレーツパロット', art: 'parrot', theme: 'pirate', hp: 315, atk: 38, count: 3,
+      actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }] },
+    kraken:       { name: 'クラーケン', art: 'kraken', theme: 'pirate', hp: 950, atk: 52, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }] },
+    // ---- ステージ 20: 桜の国 ----
+    ninja:        { name: 'にんじゃ', art: 'ninja', theme: 'sakura', hp: 325, atk: 39, count: 3,
+      actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }] },
+    oni:          { name: 'おに', art: 'oni', theme: 'sakura', hp: 335, atk: 40, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'defend' }, { type: 'strong' }, { type: 'stone' }, { type: 'attack' }, { type: 'strong' }] },
+    kyubi:        { name: 'きゅうびのキツネ', art: 'kyubi', theme: 'sakura', hp: 1000, atk: 54, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'heal' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }] },
+    // ---- ステージ 21: 恐竜の谷 ----
+    raptor:       { name: 'ラプトル', art: 'raptor', theme: 'jurassic', hp: 345, atk: 41, count: 3,
+      actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }] },
+    tricera:      { name: 'トリケラ', art: 'tricera', theme: 'jurassic', hp: 355, atk: 42, count: 3,
+      actions: [{ type: 'defend' }, { type: 'attack' }, { type: 'strong' }, { type: 'stone' }, { type: 'strong' }, { type: 'attack' }, { type: 'strong' }] },
+    trex:         { name: 'ティラノ', art: 'trex', theme: 'jurassic', hp: 1050, atk: 56, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'strong' }, { type: 'freeze' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'strong' }] },
+    // ---- ステージ 22: 終焉の世界 ----
+    fallenangel:  { name: '堕天使', art: 'fallenangel', theme: 'chaos', hp: 370, atk: 43, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'stone' }, { type: 'strong' }, { type: 'attack' }] },
+    cerberus:     { name: 'ケルベロス', art: 'cerberus', theme: 'chaos', hp: 385, atk: 44, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }, { type: 'strong' }, { type: 'stone' }] },
+    chaosgod:     { name: '混沌の神', art: 'chaosgod', theme: 'chaos', hp: 1150, atk: 59, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }, { type: 'strong' }, { type: 'strong' }] }
   },
   // reward: 敵を倒すごとに enemy[i] コイン、クリアで clear、初クリアで first、星 1 つにつき star
   // fixed: true のステージは、クリア時にコインがちょうど clear 枚（装備ボーナスなし）
@@ -118,7 +223,37 @@ BB.data = {
     { id: 5, name: '灼熱の火山', desc: '燃えさかる溶岩のなかへ', theme: 'volcano',
       enemies: ['magmaslime', 'flameimp', 'lavagolem'], reward: { enemy: [160, 200, 320], clear: 800, first: 650, star: 65 } },
     { id: 6, name: '天空の神殿', desc: '雲の上で最後の戦いが待つ', theme: 'sky',
-      enemies: ['wizard', 'holyknight', 'overlord'], reward: { enemy: [210, 260, 400], clear: 1000, first: 850, star: 80 } }
+      enemies: ['wizard', 'holyknight', 'overlord'], reward: { enemy: [210, 260, 400], clear: 1000, first: 850, star: 80 } },
+    { id: 7, name: 'きのこの森', desc: '胞子がただよう不思議な森', theme: 'mush',
+      enemies: ['spore', 'treant', 'mothertree'], reward: { enemy: [250, 300, 480], clear: 1200, first: 1000, star: 95 } },
+    { id: 8, name: '海底神殿', desc: '深い海の底に沈んだ古い神殿', theme: 'sea',
+      enemies: ['jelly', 'sahagin', 'dagon'], reward: { enemy: [290, 350, 560], clear: 1400, first: 1150, star: 110 } },
+    { id: 9, name: '砂漠の遺跡', desc: '砂に埋もれた王の墓', theme: 'desert',
+      enemies: ['scorpion', 'mummy', 'pharaoh'], reward: { enemy: [330, 400, 640], clear: 1600, first: 1300, star: 125 } },
+    { id: 10, name: '機械工場', desc: '止まらない機械たちの工場', theme: 'factory',
+      enemies: ['drone', 'robo', 'deathmachine'], reward: { enemy: [370, 450, 720], clear: 1800, first: 1450, star: 140 } },
+    { id: 11, name: '時空の狭間', desc: '時間がゆがむ、世界のはて', theme: 'void',
+      enemies: ['voideye', 'shadow', 'timelord'], reward: { enemy: [420, 500, 800], clear: 2000, first: 1600, star: 160 } },
+    { id: 12, name: '水晶の洞窟', desc: 'きらめく結晶が眠る地底の洞窟', theme: 'crystal',
+      enemies: ['crybat', 'crygolem', 'crydragon'], reward: { enemy: [470, 560, 880], clear: 2200, first: 1750, star: 175 } },
+    { id: 13, name: '雷鳴の山', desc: '稲妻が走る、嵐のいただき', theme: 'storm',
+      enemies: ['thunderbird', 'raijuu', 'raijin'], reward: { enemy: [520, 620, 960], clear: 2400, first: 1900, star: 190 } },
+    { id: 14, name: 'おかしの国', desc: 'あまくて あぶない お菓子の国', theme: 'candy',
+      enemies: ['gummy', 'cookie', 'cakequeen'], reward: { enemy: [570, 680, 1040], clear: 2600, first: 2050, star: 205 } },
+    { id: 15, name: '星の海', desc: '星々がうずまく、宇宙のはて', theme: 'space',
+      enemies: ['alien', 'ufo', 'blackhole'], reward: { enemy: [620, 740, 1120], clear: 2800, first: 2200, star: 220 } },
+    { id: 16, name: '竜王の城', desc: 'すべての竜をしたがえる王の城', theme: 'throne',
+      enemies: ['wyvern', 'dragonknight', 'ancientdragon'], reward: { enemy: [680, 800, 1250], clear: 3200, first: 2600, star: 250 } },
+    { id: 17, name: 'ふしぎな遊園地', desc: '夜だけひらく、あやしい遊園地', theme: 'carnival',
+      enemies: ['clown', 'doll', 'ringmaster'], reward: { enemy: [730, 860, 1350], clear: 3400, first: 2750, star: 265 } },
+    { id: 18, name: '嵐の海賊船', desc: 'あらしの海にうかぶ、ゆうれい船', theme: 'pirate',
+      enemies: ['pirate', 'parrot', 'kraken'], reward: { enemy: [780, 920, 1450], clear: 3600, first: 2900, star: 280 } },
+    { id: 19, name: '桜の国', desc: 'はなびらが舞う、ふしぎな和の国', theme: 'sakura',
+      enemies: ['ninja', 'oni', 'kyubi'], reward: { enemy: [830, 980, 1550], clear: 3800, first: 3050, star: 295 } },
+    { id: 20, name: '恐竜の谷', desc: '太古の生きものが暮らす谷', theme: 'jurassic',
+      enemies: ['raptor', 'tricera', 'trex'], reward: { enemy: [880, 1040, 1650], clear: 4000, first: 3200, star: 310 } },
+    { id: 21, name: '終焉の世界', desc: 'すべてが終わる場所に、神が待つ', theme: 'chaos',
+      enemies: ['fallenangel', 'cerberus', 'chaosgod'], reward: { enemy: [940, 1100, 1800], clear: 4800, first: 3800, star: 350 } }
   ],
   // ガチャは 3 種類。どれも 1 回と 10 回が引ける。min10 は「10 回のうち最低 1 つはこのレア度以上」の保証。
   //   ノーマル: SSR・UR は出ない / レア: R 以上確定で SSR が出る / ウルトラ: SR 以上確定で最高レア UR が出る
@@ -140,6 +275,10 @@ BB.data = {
   //   敵 HP ×(1 + hp×(Lv-1)) / 敵の攻撃力 ×(1 + atk×(Lv-1)) / コイン ×(1 + coin×(Lv-1))
   //   countDrop: [Lv, 減る手数]。敵が行動するまでの手数が減る（最低 2 手）
   challenge: { maxLevel: 20, hp: 0.12, atk: 0.08, coin: 0.26, countDrop: [[8, 1], [15, 2]] },
+  // エンドレスモード: 全ステージの敵を弱い順に 1 体ずつ戦い、そのあとも敵が強くなり続ける
+  //   最後の敵のあとは、1 ウェーブごとに HP ×overHp / 攻撃力 ×overAtk ずつ強くなり、countEvery ウェーブごとに手数が 1 減る
+  //   coinRate: 倒した敵 1 体のコイン（その敵のステージの報酬 × coinRate）
+  endless: { overHp: 0.08, overAtk: 0.05, countEvery: 10, coinRate: 0.6, rankSize: 10 },
   slots: { weapon: '武器', armor: '防具', acc: 'アクセ' },
   // effects: mul.<能力> 能力の効果量 / combo コンボ倍率 / comboCap コンボ上限 / line 同時消し倍率 / whole 丸ごと消し倍率
   //          maxHp / shield 盾の上限 / startShield 開始シールド / gauge 開始必殺ゲージ / count 敵の行動までの手数
@@ -204,10 +343,68 @@ BB.data = {
     { id: 'a16', slot: 'armor',  rarity: 'UR',  name: '絶対守護の鎧',   icon: '🔰', effects: { reduce: .30, maxHp: 50, mul: { guard: 1.0 }, startShield: 25, shield: 30 } },
     { id: 'a17', slot: 'armor',  rarity: 'UR',  name: '創世の法衣',     icon: '🪽', effects: { mul: { heal: 1.5 }, healBetween: 40, maxHp: 30, reduce: .15 } },
     { id: 'c20', slot: 'acc',    rarity: 'UR',  name: '王者の王冠',     icon: '🏵️', effects: { combo: .20, comboCap: 10, line: .30, whole: .40 } },
-    { id: 'c21', slot: 'acc',    rarity: 'UR',  name: '運命の歯車',     icon: '⚙️', effects: { count: 2, combo: .10, mul: { stun: 1.2 }, gauge: 60, coin: 1.0 } }
+    { id: 'c21', slot: 'acc',    rarity: 'UR',  name: '運命の歯車',     icon: '⚙️', effects: { count: 2, combo: .10, mul: { stun: 1.2 }, gauge: 60, coin: 1.0 } },
+    // ---- 追加の装備（魔法系を中心に） ----
+    { id: 'w19', slot: 'weapon', rarity: 'N',   name: 'スライムの杖',   icon: '🟢', effects: { mul: { magic: .30 } } },
+    { id: 'w20', slot: 'weapon', rarity: 'N',   name: '石の斧',         icon: '🪨', effects: { mul: { attack: .20 } } },
+    { id: 'w21', slot: 'weapon', rarity: 'N',   name: '草刈りの鎌',     icon: '🌾', effects: { mul: { attack: .12, poison: .20 } } },
+    { id: 'w22', slot: 'weapon', rarity: 'N',   name: '木のこん棒',     icon: '🏏', effects: { mul: { attack: .17, stun: .10 } } },
+    { id: 'w23', slot: 'weapon', rarity: 'R',   name: '炎の魔導書',     icon: '📕', effects: { mul: { magic: .55, poison: .20 } } },
+    { id: 'w24', slot: 'weapon', rarity: 'R',   name: '氷の魔導書',     icon: '📘', effects: { mul: { magic: .50, stun: .30 } } },
+    { id: 'w25', slot: 'weapon', rarity: 'R',   name: '雷の魔導書',     icon: '📙', effects: { mul: { magic: .50, charge: .40 } } },
+    { id: 'w26', slot: 'weapon', rarity: 'R',   name: '双剣',           icon: '🤺', effects: { mul: { attack: .32 }, combo: .03 } },
+    { id: 'w27', slot: 'weapon', rarity: 'R',   name: '連弩',           icon: '🎯', effects: { mul: { attack: .30 }, line: .10 } },
+    { id: 'w28', slot: 'weapon', rarity: 'SR',  name: '大魔導の杖',     icon: '🧙', effects: { mul: { magic: 1.0 }, line: .08 } },
+    { id: 'w29', slot: 'weapon', rarity: 'SR',  name: '月光の杖',       icon: '🌛', effects: { mul: { magic: .90, heal: .35 } } },
+    { id: 'w30', slot: 'weapon', rarity: 'SR',  name: '毒薬の杖',       icon: '🧪', effects: { mul: { magic: .80, poison: .80 } } },
+    { id: 'w31', slot: 'weapon', rarity: 'SR',  name: '破邪の剣',       icon: '🔆', effects: { mul: { attack: .55 }, whole: .20 } },
+    { id: 'w32', slot: 'weapon', rarity: 'SR',  name: '疾風の双剣',     icon: '💨', effects: { mul: { attack: .45 }, combo: .06, comboCap: 2 } },
+    { id: 'w33', slot: 'weapon', rarity: 'SSR', name: '星詠みの杖',     icon: '🔭', effects: { mul: { magic: 1.5 }, line: .14 } },
+    { id: 'w34', slot: 'weapon', rarity: 'SSR', name: '魔王の杖',       icon: '👿', effects: { mul: { magic: 1.7, poison: .50 }, whole: .20 } },
+    { id: 'w35', slot: 'weapon', rarity: 'SSR', name: '賢者の書',       icon: '📜', effects: { mul: { magic: 1.4, stun: .50 }, gauge: 30 } },
+    { id: 'w36', slot: 'weapon', rarity: 'SSR', name: '炎竜の大剣',     icon: '♨️', effects: { mul: { attack: 1.0 }, line: .15 } },
+    { id: 'w37', slot: 'weapon', rarity: 'SSR', name: '雷神の槌',       icon: '🌩️', effects: { mul: { attack: .80, stun: .60, charge: .60 } } },
+    { id: 'w38', slot: 'weapon', rarity: 'UR',  name: '天空の大杖',     icon: '🌌', effects: { mul: { magic: 2.3 }, line: .25, whole: .30 } },
+    { id: 'w39', slot: 'weapon', rarity: 'UR',  name: '魔神の書',       icon: '📚', effects: { mul: { magic: 2.1, poison: 1.2, stun: .80 }, gauge: 40 } },
+    { id: 'w40', slot: 'weapon', rarity: 'UR',  name: '破壊神の剣',     icon: '💥', effects: { mul: { attack: 1.6 }, line: .30, whole: .50 } },
+    { id: 'a18', slot: 'armor',  rarity: 'N',   name: '旅人の服',       icon: '🧣', effects: { maxHp: 14 } },
+    { id: 'a19', slot: 'armor',  rarity: 'N',   name: '見習いの帽子',   icon: '🎓', effects: { mul: { magic: .22 }, maxHp: 6 } },
+    { id: 'a20', slot: 'armor',  rarity: 'N',   name: '小さな盾',       icon: '🥏', effects: { mul: { guard: .28 } } },
+    { id: 'a21', slot: 'armor',  rarity: 'R',   name: '魔導士のローブ', icon: '🧙', effects: { mul: { magic: .45 }, maxHp: 12 } },
+    { id: 'a22', slot: 'armor',  rarity: 'R',   name: '重騎士の鎧',     icon: '🦾', effects: { maxHp: 22, reduce: .08 } },
+    { id: 'a23', slot: 'armor',  rarity: 'R',   name: '賢者の帽子',     icon: '👒', effects: { mul: { magic: .38, heal: .25 } } },
+    { id: 'a24', slot: 'armor',  rarity: 'R',   name: '防壁の盾',       icon: '🧱', effects: { mul: { guard: .55 }, shield: 10 } },
+    { id: 'a25', slot: 'armor',  rarity: 'SR',  name: '大魔導のマント', icon: '🦇', effects: { mul: { magic: .80 }, reduce: .08, startShield: 8 } },
+    { id: 'a26', slot: 'armor',  rarity: 'SR',  name: '氷結の鎧',       icon: '❄️', effects: { mul: { guard: .60 }, reduce: .10 } },
+    { id: 'a27', slot: 'armor',  rarity: 'SR',  name: '星のローブ',     icon: '💫', effects: { mul: { magic: .70, heal: .50 }, maxHp: 12 } },
+    { id: 'a28', slot: 'armor',  rarity: 'SR',  name: '勇者の鎧',       icon: '🥇', effects: { maxHp: 28, reduce: .12, mul: { guard: .30 } } },
+    { id: 'a29', slot: 'armor',  rarity: 'SSR', name: '魔王のマント',   icon: '🧛', effects: { mul: { magic: 1.3 }, reduce: .18, maxHp: 20 } },
+    { id: 'a30', slot: 'armor',  rarity: 'SSR', name: '聖女のドレス',   icon: '👗', effects: { mul: { heal: .90, magic: .70 }, healBetween: 25, maxHp: 20 } },
+    { id: 'a31', slot: 'armor',  rarity: 'SSR', name: '不滅の鎧',       icon: '⚓', effects: { reduce: .28, maxHp: 40, mul: { guard: .50 } } },
+    { id: 'a32', slot: 'armor',  rarity: 'UR',  name: '星海のローブ',   icon: '🌃', effects: { mul: { magic: 2.0 }, reduce: .20, maxHp: 40, startShield: 20 } },
+    { id: 'a33', slot: 'armor',  rarity: 'UR',  name: '神竜の鎧',       icon: '🏯', effects: { reduce: .35, maxHp: 60, mul: { guard: 1.2 }, shield: 35, startShield: 25 } },
+    { id: 'a34', slot: 'armor',  rarity: 'UR',  name: '輪廻の衣',       icon: '♾️', effects: { mul: { heal: 1.6, magic: 1.0 }, healBetween: 45, maxHp: 40 } },
+    { id: 'c22', slot: 'acc',    rarity: 'N',   name: '見習いの指輪',   icon: '🔹', effects: { mul: { magic: .22 } } },
+    { id: 'c23', slot: 'acc',    rarity: 'N',   name: '赤いリボン',     icon: '🎀', effects: { mul: { attack: .12 }, coin: .10 } },
+    { id: 'c24', slot: 'acc',    rarity: 'N',   name: '鉄の腕輪',       icon: '🔘', effects: { mul: { guard: .20 }, maxHp: 6 } },
+    { id: 'c25', slot: 'acc',    rarity: 'N',   name: '勇気のバッジ',   icon: '🎗️', effects: { mul: { attack: .14 }, maxHp: 6 } },
+    { id: 'c26', slot: 'acc',    rarity: 'R',   name: '魔力の指輪',     icon: '🟣', effects: { mul: { magic: .45 }, gauge: 15 } },
+    { id: 'c27', slot: 'acc',    rarity: 'R',   name: '賢者のイヤリング', icon: '🔶', effects: { mul: { magic: .38, poison: .30 } } },
+    { id: 'c28', slot: 'acc',    rarity: 'R',   name: '星のペンダント', icon: '⭐', effects: { mul: { magic: .40 }, combo: .04 } },
+    { id: 'c29', slot: 'acc',    rarity: 'R',   name: '友情のブレスレット', icon: '🤝', effects: { combo: .06, comboCap: 1, maxHp: 8 } },
+    { id: 'c30', slot: 'acc',    rarity: 'SR',  name: '魔導の首飾り',   icon: '🔷', effects: { mul: { magic: .85 }, line: .10 } },
+    { id: 'c31', slot: 'acc',    rarity: 'SR',  name: '紫水晶のお守り', icon: '🟪', effects: { mul: { magic: .70, stun: .50 }, gauge: 20 } },
+    { id: 'c32', slot: 'acc',    rarity: 'SR',  name: '充電池',         icon: '🔋', effects: { mul: { charge: .90, attack: .20 }, gauge: 40 } },
+    { id: 'c33', slot: 'acc',    rarity: 'SR',  name: '騎士の紋章',     icon: '🎖️', effects: { mul: { attack: .35, guard: .35 }, maxHp: 10 } },
+    { id: 'c34', slot: 'acc',    rarity: 'SSR', name: '魔女の水晶',     icon: '🥽', effects: { mul: { magic: 1.4, poison: .60 }, combo: .08, comboCap: 3 } },
+    { id: 'c35', slot: 'acc',    rarity: 'SSR', name: '大賢者の指輪',   icon: '💠', effects: { mul: { magic: 1.3 }, line: .18, whole: .20, combo: .06 } },
+    { id: 'c36', slot: 'acc',    rarity: 'SSR', name: '黄金の砂時計',   icon: '🕰️', effects: { count: 1, mul: { stun: .80 }, combo: .10, comboCap: 4, gauge: 30 } },
+    { id: 'c37', slot: 'acc',    rarity: 'UR',  name: '魔導王の証',     icon: '🎇', effects: { mul: { magic: 2.2 }, combo: .18, comboCap: 10, line: .25, whole: .30 } },
+    { id: 'c38', slot: 'acc',    rarity: 'UR',  name: '星々の加護',     icon: '🪐', effects: { mul: { magic: 1.2, attack: .80, heal: .60, guard: .60 }, count: 1 } },
+    { id: 'c39', slot: 'acc',    rarity: 'UR',  name: '黄金の聖杯',     icon: '🏆', effects: { coin: 1.5, combo: .15, comboCap: 8, gauge: 70, count: 1 } }
   ],
   // いろがえしたマスの基礎値
-  buddyBase: { attack: 3, magic: 2, heal: 3, guard: 3, poison: 1, charge: 4, stun: 0.2 },
+  buddyBase: { attack: 3, magic: 3, heal: 3, guard: 3, poison: 1, charge: 4, stun: 0.2 },
   // バディ: 戦闘ごとに 1 回だけ使えるスキル持ちの仲間。skill.v は Lv1 のときの数値
   buddies: [
     { id: 'cat',     name: 'ぬりネコ',         emoji: '🐱', rarity: 'N',   skill: { type: 'paintRow' } },
@@ -223,7 +420,7 @@ BB.data = {
     { id: 'fairy',   name: 'ようせい',         emoji: '🧚', rarity: 'SR',  skill: { type: 'purify' } },
     { id: 'monkey',  name: 'サムライザル',     emoji: '🐒', rarity: 'SR',  skill: { type: 'laser' } },
     { id: 'phoenix', name: 'フェニックス',     emoji: '🦅', rarity: 'SSR', skill: { type: 'rebirth', v: 60 } },
-    { id: 'rainbow', name: 'にじいろリュウ',   emoji: '🦕', rarity: 'SSR', skill: { type: 'recolorAll' } },
+    { id: 'rainbow', name: 'にじいろリュウ',   emoji: '🦕', rarity: 'UR',  skill: { type: 'recolorAll' } },
     // ---- N ----
     { id: 'penguin', name: 'ペンペン',         emoji: '🐧', rarity: 'N',   skill: { type: 'shield', v: 40 } },
     { id: 'hamster', name: 'ハムスター',       emoji: '🐹', rarity: 'N',   skill: { type: 'charge', v: 40 } },
@@ -243,22 +440,51 @@ BB.data = {
     // ---- SSR ----
     { id: 'lion',    name: 'ライオン',         emoji: '🦁', rarity: 'SSR', skill: { type: 'combo', v: 6 } },
     { id: 'ryuou',   name: 'りゅうおう',       emoji: '🐉', rarity: 'SSR', skill: { type: 'strike', v: 90 } },
-    { id: 'kraken',  name: 'クラーケン',       emoji: '🦑', rarity: 'SSR', skill: { type: 'burst', v: 8 } }
+    { id: 'kraken',  name: 'クラーケン',       emoji: '🦑', rarity: 'SSR', skill: { type: 'burst', v: 8 } },
+    // ---- 追加（N） ----
+    { id: 'dog',     name: 'ポチ',             emoji: '🐶', rarity: 'N',   skill: { type: 'shield', v: 30 } },
+    { id: 'pig',     name: 'ブタさん',         emoji: '🐷', rarity: 'N',   skill: { type: 'heal', v: 30 } },
+    { id: 'cow',     name: 'ウシさん',         emoji: '🐄', rarity: 'N',   skill: { type: 'charge', v: 45 } },
+    { id: 'worm',    name: 'ケムシ',           emoji: '🐛', rarity: 'N',   skill: { type: 'poison', v: 7 } },
+    // ---- 追加（R） ----
+    { id: 'hedgehog', name: 'ハリネズミ',      emoji: '🦔', rarity: 'R',   skill: { type: 'fortify', v: 6 } },
+    { id: 'squirrel', name: 'リス',            emoji: '🐿️', rarity: 'R',   skill: { type: 'combo', v: 3 } },
+    { id: 'duck',    name: 'アヒル',           emoji: '🦆', rarity: 'R',   skill: { type: 'stun', v: 2 } },
+    { id: 'croc',    name: 'ワニ',             emoji: '🐊', rarity: 'R',   skill: { type: 'strike', v: 32 } },
+    { id: 'bat',     name: 'コウモリ',         emoji: '🦇', rarity: 'R',   skill: { type: 'recolor' } },
+    // ---- 追加（SR） ----
+    { id: 'peacock', name: 'クジャク',         emoji: '🦚', rarity: 'SR',  skill: { type: 'bloom', v: 7 } },
+    { id: 'elephant', name: 'ゾウ',            emoji: '🐘', rarity: 'SR',  skill: { type: 'strike', v: 55 } },
+    { id: 'shark',   name: 'サメ',             emoji: '🦈', rarity: 'SR',  skill: { type: 'burst', v: 6 } },
+    { id: 'deer',    name: 'シカ',             emoji: '🦌', rarity: 'SR',  skill: { type: 'fortify', v: 8 } },
+    // ---- 追加（SSR） ----
+    { id: 'trex',    name: 'ティラノ',         emoji: '🦖', rarity: 'SSR', skill: { type: 'strike', v: 100 } },
+    { id: 'swan',    name: 'ハクチョウ',       emoji: '🦢', rarity: 'SSR', skill: { type: 'rebirth', v: 80 } },
+    { id: 'bison',   name: 'バイソン',         emoji: '🦬', rarity: 'SSR', skill: { type: 'burst', v: 10 } },
+    // ---- 追加（UR: にじいろリュウも UR） ----
+    { id: 'galaxy',  name: 'ぎんがクジラ',     emoji: '🐳', rarity: 'UR',  skill: { type: 'overdrive', v: 2 } },   // このターンの攻撃・魔法が ×2（Lv で上がる）
+    { id: 'genie',   name: 'ブロックのまじん', emoji: '🧞', rarity: 'UR',  skill: { type: 'summon' } },             // 好きな色の 3×3 ブロックをつくる
+    { id: 'angel',   name: 'てんしさま',       emoji: '👼', rarity: 'UR',  skill: { type: 'blessing', v: 120 } }   // HP・シールド全回復 + 状態異常を消す + 足止め + ダメージ
   ],
-  // スカウト場に並ぶバディのレア度。クリアしたステージ数（0〜6）が進むほど、いいバディが出やすくなる
+  // スカウト場に並ぶバディのレア度。クリアしたステージ数（0〜11）が進むほど、いいバディが出やすくなる
   // minRarity: その進行度で、3 匹のうち少なくとも 1 匹はこのレア度以上にする
   scout: {
     maxLevel: 5, dupCoins: 75, candidates: 3,
     ratesByTier: [
-      { N: 70, R: 26, SR: 4,  SSR: 0 },    // 0: まだ 1 つもクリアしていない
-      { N: 58, R: 31, SR: 10, SSR: 1 },    // 1
-      { N: 46, R: 35, SR: 16, SSR: 3 },    // 2
-      { N: 36, R: 37, SR: 22, SSR: 5 },    // 3
-      { N: 26, R: 38, SR: 28, SSR: 8 },    // 4
-      { N: 16, R: 38, SR: 34, SSR: 12 },   // 5
-      { N: 8,  R: 34, SR: 38, SSR: 20 }    // 6: ほぼクリア
+      { N: 70, R: 26, SR: 4,  SSR: 0,  UR: 0 },    // 0: まだ 1 つもクリアしていない
+      { N: 58, R: 31, SR: 10, SSR: 1,  UR: 0 },    // 1
+      { N: 46, R: 35, SR: 16, SSR: 3,  UR: 0 },    // 2
+      { N: 36, R: 37, SR: 22, SSR: 5,  UR: 0 },    // 3
+      { N: 26, R: 38, SR: 28, SSR: 8,  UR: 0 },    // 4
+      { N: 16, R: 38, SR: 34, SSR: 12, UR: 0 },    // 5
+      { N: 10, R: 34, SR: 37, SSR: 18, UR: 1 },    // 6
+      { N: 8,  R: 30, SR: 40, SSR: 20, UR: 2 },    // 7
+      { N: 6,  R: 28, SR: 42, SSR: 21, UR: 3 },    // 8
+      { N: 4,  R: 26, SR: 43, SSR: 23, UR: 4 },    // 9
+      { N: 3,  R: 24, SR: 44, SSR: 24, UR: 5 },    // 10
+      { N: 2,  R: 22, SR: 44, SSR: 26, UR: 6 }     // 11: 終盤
     ],
-    minRarity: ['N', 'R', 'R', 'SR', 'SR', 'SR', 'SR']
+    minRarity: ['N', 'R', 'R', 'SR', 'SR', 'SR', 'SR', 'SR', 'SR', 'SR', 'SR', 'SR']
   }
 };
 
@@ -267,6 +493,7 @@ BB.data.buddies.forEach(b => { BB.data.buddyMap[b.id] = b; });
 
 // 装備の全体強化: 効果の数値を一律に引き上げる（手数 count はそのまま）
 (function buffEquipment() {
+  const MAGIC_BUFF = 4.2;
   const up = (v, k) => Math.round(v * k * 100) / 100;
   BB.data.equipment.forEach(e => {
     const f = e.effects;
@@ -275,6 +502,7 @@ BB.data.buddies.forEach(b => { BB.data.buddyMap[b.id] = b; });
     if (f.reduce) f.reduce = up(f.reduce, 1.2);
     ['maxHp', 'shield', 'startShield', 'gauge', 'healBetween'].forEach(k => { if (f[k]) f[k] = Math.round(f[k] * 1.3); });
     if (f.comboCap) f.comboCap = Math.round(f.comboCap * 1.25);
+    if (f.mul && f.mul.magic) f.mul.magic = up(f.mul.magic, MAGIC_BUFF);   // 魔法系は特にさらに強化
   });
 })();
 

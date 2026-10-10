@@ -11,7 +11,7 @@
   const SLOT = { y: 568, w: 104, h: 66, gap: 8, x0: 16 };
   const BUD = [{ x: 126, y: 246, w: 108, h: 28 }, { x: 240, y: 246, w: 108, h: 28 }];   // バディのボタン
   const PALETTE = ['attack', 'magic', 'heal', 'guard', 'poison', 'charge', 'stun'];
-  const RARC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d' };
+  const RARC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d', UR: '#ff5ac8' };
   const SPECIAL = { x: 244, y: 211, w: 96, h: 26 };
   const ART_POS = { x: 180, y: 96, scale: 0.5 };
   const ART_SCALE = A.fit;   // 敵ごとの大きさ補正（カード内に収める）
@@ -32,6 +32,14 @@
     defend: { dur: 1000, impact: 520, color: '#5aa8ff', label: '防御姿勢' },
     seal:   { dur: 1200, impact: 600, color: '#b06bff', label: '能力封じ' }
   };
+
+  // デバッグ機能: URL に ?debug=1 をつけて開くと有効（このブラウザに覚えさせる）。?debug=0 で無効
+  try {
+    const q = new URLSearchParams(location.search).get('debug');
+    if (q === '1') localStorage.setItem('bb-debug', '1'); else if (q === '0') localStorage.removeItem('bb-debug');
+    BB.debugOn = localStorage.getItem('bb-debug') === '1';
+  } catch (e) { BB.debugOn = false; }
+  let dbgOpen = false;
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -83,15 +91,18 @@
   // i: ステージ番号。スカウト遠征のときは BB.scout.spec() のオブジェクト
   function startStage(i, level) {
     stageIdx = i; stageLevel = level || 0;
-    game = L.newGame(null, i, EQ.computeMods(SV.data), SCOUT.partyList(SV.data), { level: stageLevel });
+    game = L.newGame(null, i, EQ.computeMods(SV.data), SCOUT.partyList(SV.data), { level: stageLevel, endless: !!(i && i.endless) });
     screen = 'battle'; drag = null; phaseAt = 0; busyUntil = 0; resultSfx = false; resultInfo = null; quitAsk = false; bt = null;
     resetFx(); resetEnemyVis();
     MUSIC.play(game.enemy.def.boss ? 'boss' : 'battle');
     if (stageLevel) banner('CHALLENGE  Lv' + stageLevel, '#ff6b6b', 296, { small: true, sub: game.stage.name + '   コイン ×' + L.challengeInfo(stageLevel).coin.toFixed(2), dur: 1600 });
+    else if (game.endless) banner('ENDLESS', '#ff9a3c', 296, { sub: 'どこまで勝ち進める？', dur: 1500 });
     else if (game.stage.scout) banner('スカウト遠征', '#7dffb0', 296, { sub: '2回勝つとスカウト場へ', dur: 1500 });
     else banner('STAGE ' + (game.stageIndex + 1), '#5aa8ff', 296, { sub: game.stage.name, dur: 1500 });
   }
   const startScout = () => startStage(SCOUT.spec(SV.data));
+  const startEndless = () => startStage({ id: 'endless', name: 'エンドレス', endless: true, enemies: [] });
+  const backScreen = () => game.endless ? 'endless' : game.stage.scout ? 'scout' : game.level ? 'challenge' : 'stages';
   const start = () => startStage(stageIdx, stageLevel);   // もう一度
   function go(name) {
     screen = name; drag = null; quitAsk = false; bt = null;
@@ -267,6 +278,19 @@
         case 'buddy': {
           const d = D.buddyMap[e.id], t = tp;
           after(t, () => { banner(d.name, '#7dffb0', 296, { small: true, sub: SCOUT.skillName(e.id), dur: 1000 }); SFX.play('perfect'); });
+          tp += 450; break;
+        }
+        case 'boost': {
+          const t = tp, v = e.mult;
+          after(t, () => { banner('ダメージ ×' + v, '#ffb02e', 330, { sub: 'このターンだけ', dur: 1100 }); flashScreen('#ffb02e', .3); SFX.play('special'); });
+          tp += 500; break;
+        }
+        case 'summon': {
+          const t = tp, col = D.abilities[e.color].color;
+          after(t, () => { SFX.play('place'); e.cells.forEach(c => {
+            cellFx[c.y * N + c.x] = { kind: 'pop', at: now };
+            const [cx, cy] = cellCenter(c.x, c.y); burst(cx, cy, col, 10, 160, 4); ring(cx, cy, col, 6, 38, 420, 3);
+          }); });
           tp += 450; break;
         }
         case 'recolor': {
@@ -495,7 +519,8 @@
     // 名前・ステージ
     textO(def.name, 22, 24, 17, '#fff', 'left');
     if (def.boss) { ctx.fillStyle = '#ff4d6d'; rr(22 + ctx.measureText(def.name).width + 8, 15, 42, 16, 8); ctx.fill(); text('BOSS', 22 + ctx.measureText(def.name).width + 29, 23.5, 10, '#fff', 'center', true); }
-    for (let i = 0; i < s.enemies.length; i++) {
+    if (s.endless) text('WAVE ' + s.wave, 226, 24, 12, '#ffd24a', 'left', true);
+    else for (let i = 0; i < s.enemies.length; i++) {
       ctx.fillStyle = i < s.enemyIndex ? '#ffd24a' : i === s.enemyIndex ? '#fff' : 'rgba(255,255,255,.25)';
       ctx.beginPath(); ctx.arc(226 + i * 16, 24, 4.5, 0, 7); ctx.fill();
     }
@@ -517,7 +542,9 @@
     };
     if (e.shield > 0) chip('🛡 ガード ' + e.shield, '#7cc4ff');
     if (e.poison) chip('☠ 毒 ' + e.poison.amount + '×' + e.poison.turns, '#b6d84a');
+    if (game.boost > 1) chip('⚡ ダメージ ×' + game.boost, '#ffb02e');
     if (game.seal) chip('🔇 ' + D.abilities[game.seal.ability].name + '封印 ' + game.seal.turns, '#c58bff');
+    if (BB.debugOn) { ctx.fillStyle = 'rgba(255,60,90,.85)'; rr(296, 58, 50, 17, 8.5); ctx.fill(); text('DBG', 321, 66.8, 10.5, '#fff', 'center', true); }
 
     // 次の行動
     const holding = now < hold.intent && snap;
@@ -843,8 +870,43 @@
     if (resultInfo) return;
     const cleared = game.phase === 'clear', defeated = cleared ? game.enemies.length : game.enemyIndex;
     const stars = cleared ? L.stars(game) : 0;
+    if (game.endless) { resultInfo = EQ.endlessResult(SV.data, game); return; }
     if (game.stage.scout) { resultInfo = SCOUT.finish(SV.data, game, cleared, defeated); return; }
     resultInfo = EQ.applyResult(SV.data, game.stageIndex, defeated, cleared, stars, game.mods, game.level);
+  }
+  // 戦闘中のデバッグパネル
+  const DBG_BTNS = [
+    ['敵をたおす', () => { afterAction(L.debugTools.kill(game), { intent: L.intentInfo(game) }); dbgOpen = false; }],
+    ['HP・シールド全回復', () => L.debugTools.heal(game)],
+    ['必殺ゲージ MAX', () => L.debugTools.gauge(game)],
+    ['手札を引き直す', () => L.debugTools.reroll(game)],
+    ['バディのスキル回復', () => L.debugTools.buddies(game)],
+    ['無敵', 'god'], ['一撃必殺', 'oneshot'], ['敵の行動をとめる', 'freeze']
+  ];
+  const dbgRect = i => ({ x: 28 + (i % 2) * 154, y: 196 + Math.floor(i / 2) * 44, w: 148, h: 36 });
+  function drawDebugPanel() {
+    ctx.fillStyle = 'rgba(6,9,22,.78)'; ctx.fillRect(0, 0, W, H);
+    card(16, 150, 328, 296, '#4a2a5a', '#1c1030', 18);
+    textO('DEBUG', 180, 176, 18, '#ff8aa0', 'center');
+    const f = L.debugTools.flags(game);
+    DBG_BTNS.forEach(([label, act], i) => {
+      const r = dbgRect(i), on = typeof act === 'string' && f[act];
+      ctx.fillStyle = on ? 'rgba(220,50,80,.95)' : 'rgba(60,70,130,.95)'; rr(r.x, r.y, r.w, r.h, 10); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1; rr(r.x + .5, r.y + .5, r.w - 1, r.h - 1, 9.5); ctx.stroke();
+      text(typeof act === 'string' ? label + (on ? '  ON' : '  OFF') : label, r.x + r.w / 2, r.y + r.h / 2 + 1, 12, '#fff', 'center', true);
+    });
+    button(110, 396, 140, 38, 'とじる', '#2f7bff', false, 14);
+  }
+  function dbgDown(x, y) {
+    for (let i = 0; i < DBG_BTNS.length; i++) {
+      const r = dbgRect(i);
+      if (hit(x, y, r.x, r.y, r.w, r.h)) {
+        const act = DBG_BTNS[i][1]; SFX.play('pick');
+        if (typeof act === 'string') { const f = L.debugTools.flags(game); f[act] = !f[act]; } else act();
+        return;
+      }
+    }
+    if (hit(x, y, 110, 396, 140, 38) || !hit(x, y, 16, 150, 328, 296)) dbgOpen = false;
   }
   function drawQuitAsk() {
     ctx.fillStyle = 'rgba(6,9,22,.8)'; ctx.fillRect(0, 0, W, H);
@@ -863,16 +925,17 @@
     ctx.save(); ctx.globalAlpha = k; ctx.translate(0, (1 - k) * 30);
     if (ph === 'next') {
       card(30, 190, 300, 270, '#31407f', '#1a2250', 22);
-      textO('撃破!', 180, 245, 44, '#ffd24a', 'center');
+      textO(game.endless ? 'WAVE ' + game.wave + ' クリア!' : '撃破!', 180, 245, game.endless ? 34 : 44, '#ffd24a', 'center');
       text(game.enemy.def.name + ' を倒した', 180, 295, 16, '#fff', 'center', true);
       text('HP が ' + (C.healBetween + game.mods.healBetween) + ' 回復して次の敵へ', 180, 325, 13, '#9aa3c4', 'center');
-      text('次の相手：' + game.enemies[game.enemyIndex + 1].name, 180, 355, 13, '#cfd6ee', 'center', true);
+      const nx = game.endless ? L.endlessEnemy(game.wave + 1) : game.enemies[game.enemyIndex + 1];
+      text((game.endless ? 'WAVE ' + (game.wave + 1) + '：' : '次の相手：') + nx.name + (nx.boss ? '（BOSS）' : ''), 180, 355, 13, nx.boss ? '#ff9aa8' : '#cfd6ee', 'center', true);
       button(80, 390, 200, 50, '次の敵へ', '#2fbf71', true);
     } else {
       const win = ph === 'clear';
       card(24, 100, 312, 460, win ? '#3a4a8a' : '#4a2a4a', win ? '#1a2250' : '#201030', 22);
       const sc = game.stage.scout;
-      textO(sc ? (win ? 'スカウト成功!' : 'スカウト失敗…') : game.level ? (win ? 'チャレンジ成功!' : 'チャレンジ失敗…') : (win ? 'ステージクリア!' : 'やられた…'), 180, 150, sc || game.level ? 32 : 36, win ? '#ffd24a' : '#ff7a8a', 'center');
+      textO(game.endless ? 'エンドレス終了' : sc ? (win ? 'スカウト成功!' : 'スカウト失敗…') : game.level ? (win ? 'チャレンジ成功!' : 'チャレンジ失敗…') : (win ? 'ステージクリア!' : 'やられた…'), 180, 150, sc || game.level ? 32 : 36, win ? '#ffd24a' : '#ff7a8a', 'center');
       if (win && !sc) {
         const n = L.stars(game);
         for (let i = 0; i < 3; i++) {
@@ -882,7 +945,7 @@
           star5(0, 0, 30, on ? '#ffd24a' : 'rgba(255,255,255,.15)'); ctx.restore();
         }
       }
-      const rows = [['与えた総ダメージ', game.totalDamage], ['最大コンボ', game.maxCombo], ['残り HP', game.player.hp + ' / ' + game.player.maxHp], ['配置数', game.placements], ['到達', (game.enemyIndex + 1) + ' / ' + game.enemies.length + ' 体目']];
+      const rows = game.endless ? [['クリアした WAVE', game.enemyIndex], ['やられた相手', game.enemy.def.name], ['与えた総ダメージ', game.totalDamage], ['最大コンボ', game.maxCombo], ['配置数', game.placements]] : [['与えた総ダメージ', game.totalDamage], ['最大コンボ', game.maxCombo], ['残り HP', game.player.hp + ' / ' + game.player.maxHp], ['配置数', game.placements], ['到達', (game.enemyIndex + 1) + ' / ' + game.enemies.length + ' 体目']];
       rows.forEach(([kk, v], i) => {
         const y = 280 + i * 30;
         ctx.fillStyle = 'rgba(255,255,255,.06)'; rr(50, y - 13, 260, 26, 8); ctx.fill();
@@ -895,6 +958,7 @@
       text('獲得コイン', 56, 452, 13, '#e6d9a8', 'left', true);
       textO('🪙 +' + Math.round(ri.total * cu), 304, 452, 22, '#ffe08a', 'right');
       const notes = [];
+      if (ri.endless) { notes.push(ri.rank ? '🏆 ランキング ' + ri.rank + ' 位!' : 'ランキング圏外'); if (ri.newBest) notes.push('自己ベスト更新!'); }
       if (ri.level) notes.push('難易度 Lv' + ri.level + ' ×' + ri.mult.toFixed(2));
       if (ri.first) notes.push('初クリアボーナス込み');
       if (ri.bonus) notes.push('装備ボーナス +' + ri.bonus);
@@ -903,7 +967,7 @@
       if (sc && win) button(80, 500, 200, 46, 'スカウト場へ', '#2fbf71', true, 16);
       else {
         button(36, 500, 138, 46, 'もう一度', '#2fbf71', false, 15);
-        button(186, 500, 138, 46, sc ? 'スカウトへ' : game.level ? 'チャレンジへ' : 'ステージ選択', '#2f7bff', true, 15);
+        button(186, 500, 138, 46, game.endless ? 'ランキング' : sc ? 'スカウトへ' : game.level ? 'チャレンジへ' : 'ステージ選択', '#2f7bff', true, 15);
       }
     }
     ctx.restore();
@@ -953,15 +1017,15 @@
   // 動作確認用: 全ての敵を一覧で描く（BB.debug.sheet = true）
   function drawSheet() {
     ctx.fillStyle = '#1a2040'; ctx.fillRect(0, 0, W, H);
-    Object.keys(D.enemies).forEach((id, i) => {
-      const def = D.enemies[id], x = (i % 4) * 90 + 45, y = Math.floor(i / 4) * 104 + 54;
+    Object.keys(D.enemies).slice(sheetPage * 20, sheetPage * 20 + 20).forEach((id, i) => {
+      const def = D.enemies[id], x = (i % 4) * 90 + 45, y = Math.floor(i / 4) * 122 + 62;
       sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 440, 440); sctx.setTransform(1.8, 0, 0, 1.8, 220, 220);
       A.enemyArt(sctx, def.art, now / 1000, sheetMood); polishSprite();
       ctx.save(); ctx.translate(x, y); ctx.scale(.44 * A.fit[def.art], .44 * A.fit[def.art]); ctx.drawImage(spr2, -122, -122, 244, 244); ctx.restore();
-      text(def.name, x, y + 52, 9.5, '#fff', 'center', true);
+      text(def.name, x, y + 56, 9.5, '#fff', 'center', true);
     });
   }
-  let sheetOn = false, sheetMood = 'idle';
+  let sheetOn = false, sheetMood = 'idle', sheetPage = 0;
 
   function draw(dt) {
     ctx.setTransform(S, 0, 0, S, 0, 0);
@@ -988,6 +1052,7 @@
     drawBanners();
     drawOverlay();
     if (quitAsk) drawQuitAsk();
+    if (dbgOpen) drawDebugPanel();
     drawSoundLabel();
   }
 
@@ -1060,11 +1125,13 @@
       canvas.setPointerCapture(e.pointerId);
       return;
     }
+    if (dbgOpen) { dbgDown(x, y); return; }
+    if (BB.debugOn && game.phase === 'battle' && hit(x, y, 296, 58, 50, 17)) { SFX.play('ui'); dbgOpen = true; return; }
     if (quitAsk) {
       if (hit(x, y, 56, 336, 110, 44)) { SFX.play('ui'); quitAsk = false; }
       else if (hit(x, y, 194, 336, 110, 44)) {
         SFX.play('ui'); resultInfo = null; if (game.phase === 'battle') game.phase = 'lose';
-        finalizeResult(); go(game.stage.scout ? 'scout' : game.level ? 'challenge' : 'stages');
+        finalizeResult(); go(backScreen());
       }
       return;
     }
@@ -1080,7 +1147,7 @@
         const sc = game.stage.scout;
         if (sc && game.phase === 'clear') { if (hit(x, y, 80, 500, 200, 46)) { SFX.play('ui'); go('scout'); } }
         else if (hit(x, y, 36, 500, 138, 46)) { SFX.play('ui'); start(); }
-        else if (hit(x, y, 186, 500, 138, 46)) { SFX.play('ui'); go(sc ? 'scout' : game.level ? 'challenge' : 'stages'); }
+        else if (hit(x, y, 186, 500, 138, 46)) { SFX.play('ui'); go(backScreen()); }
       }
       return;
     }
@@ -1175,7 +1242,7 @@
     if (tint) ctx.filter = tint;
     ctx.drawImage(spr, -122, -122, 244, 244); ctx.restore();
   }
-  const ui = { ctx, text, textO, lin, rr, card, button, disabledButton, speaker, SFX, A, drawArt, bg: drawBackground, go, startStage, startScout };
+  const ui = { ctx, text, textO, lin, rr, card, button, disabledButton, speaker, SFX, A, drawArt, bg: drawBackground, go, startStage, startScout, startEndless };
 
   // タブを閉じる・バックグラウンドに回る直前にもセーブしておく（普段は変更のたびに保存済み）
   window.addEventListener('pagehide', () => SV.commit());
@@ -1186,5 +1253,5 @@
   requestAnimationFrame(loop);
 
   // 動作確認・デバッグ用
-  BB.debug = { get level() { return stageLevel; }, sheet(on, mood) { sheetOn = on; sheetMood = mood || 'idle'; }, get game() { return game; }, get bt() { return bt; }, startScout, buddyDown, tapBuddy, doBuddy, get screen() { return screen; }, start, startStage, go, doPlace, get busyUntil() { return busyUntil; } };
+  BB.debug = { startEndless, get level() { return stageLevel; }, sheet(on, mood, page) { sheetOn = on; sheetMood = mood || 'idle'; sheetPage = page || 0; }, get game() { return game; }, get bt() { return bt; }, startScout, buddyDown, tapBuddy, doBuddy, get screen() { return screen; }, start, startStage, go, doPlace, get busyUntil() { return busyUntil; } };
 })();

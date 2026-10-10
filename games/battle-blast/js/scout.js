@@ -2,13 +2,14 @@
 // 流れ: スカウト開始 → 2 回の戦闘に勝つ → スカウト場に候補が現れる → 1 匹だけスカウト
 BB.scout = (function () {
   const D = BB.data, S = D.scout, L = BB.logic;
-  const ORDER = ['N', 'R', 'SR', 'SSR'];
+  const ORDER = ['N', 'R', 'SR', 'SSR', 'UR'];
 
   const SKILL_NAME = {
     recolor: 'いろがえ', paintRow: 'ぬりぬり', bomb: 'ばくはつ', laser: 'ラインカット', recolorAll: 'にじいろ',
     strike: 'いちげき', heal: 'いやし', rebirth: 'ふっかつ', shield: 'まもり', stun: 'あしどめ',
     poison: 'どくばり', charge: 'ちからため', purify: 'おきよめ', reroll: 'てふだチェンジ',
-    paintCol: 'たてぬり', laserV: 'たてカット', combo: 'コンボアップ', burst: 'もえるまい', fortify: 'ガードりょく', bloom: 'めぐみ'
+    paintCol: 'たてぬり', laserV: 'たてカット', combo: 'コンボアップ', burst: 'もえるまい', fortify: 'ガードりょく', bloom: 'めぐみ',
+    blessing: 'てんしのいのり', overdrive: 'ばいがえし', summon: 'ブロックそうぞう'
   };
   const skillName = id => SKILL_NAME[D.buddyMap[id].skill.type];
 
@@ -21,6 +22,9 @@ BB.scout = (function () {
       case 'bomb': return sz + 'のマスを消して能力を発動';
       case 'laser': return (i.cross ? '縦と横の十字' : '横1列') + 'を消して能力を発動';
       case 'recolorAll': return 'すべてのマスを好きな色に変える';
+      case 'blessing': return 'HP・シールド全回復＋状態異常をすべて消す＋敵の行動まで +' + i.stun + '手＋' + i.dmg + ' ダメージ';
+      case 'overdrive': return 'このターンの攻撃・魔法のダメージが ×' + i.mult;
+      case 'summon': return '好きな色の ' + sz + ' ブロックを作る（そろえば消える）';
       case 'strike': return '敵に ' + i.dmg + ' ダメージ（ガード貫通）';
       case 'heal': return '最大HPの ' + i.healPct + '% を回復';
       case 'rebirth': return 'HP ' + i.healPct + '% 回復 + 敵に ' + i.dmg + ' ダメージ';
@@ -58,9 +62,9 @@ BB.scout = (function () {
   function clearedCount(save) { return D.stages.filter(s => (save.stages[s.id] || {}).cleared).length; }
 
   function pickRarity(rng, tier) {
-    const r = tierRates(tier), total = ORDER.reduce((a, k) => a + r[k], 0);
+    const r = tierRates(tier), total = ORDER.reduce((a, k) => a + (r[k] || 0), 0);
     let x = rng() * total;
-    for (const k of ORDER) { x -= r[k]; if (x < 0) return k; }
+    for (const k of ORDER) { x -= r[k] || 0; if (x < 0) return k; }
     return 'N';
   }
 

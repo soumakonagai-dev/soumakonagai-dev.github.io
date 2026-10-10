@@ -95,7 +95,8 @@
     const s = {
       rng: rng || Math.random, uid: 0, placements: 0, totalDamage: 0, maxCombo: 0,
       mods: m, stage, stageIndex: custom ? -1 : (stageIndex || 0), level: (opts && opts.level) || 0,
-      enemies: stage.enemies.map(k => scaleEnemy(D.enemies[k], opts && opts.level)),
+      endless: !!(opts && opts.endless), wave: 1,
+      enemies: opts && opts.endless ? [endlessEnemy(1)] : stage.enemies.map(k => scaleEnemy(D.enemies[k], opts && opts.level)),
       buddies: (buddies || []).slice(0, 2).map(b => ({ id: b.id, lv: b.lv || 1, used: false })),
       player: { hp: maxHp, maxHp, shield: Math.min(C.shieldCap + m.shield, m.startShield), gauge: Math.min(100, m.gauge) }
     };
@@ -104,7 +105,23 @@
     return s;
   }
 
+  // エンドレス: wave 番目の敵。全ステージの敵を順番に（弱い順）、最後まで行ったら最後の 3 体をくり返しつつ強くする
+  let flatEnemies = null;
+  function endlessEnemy(wave) {
+    const En = D.endless;
+    if (!flatEnemies) flatEnemies = D.stages.flatMap((st, si) => st.enemies.map((k, pos) => ({ k, si, pos })));
+    const total = flatEnemies.length, over = Math.max(0, wave - total);
+    const i = wave <= total ? wave - 1 : total - 3 + ((wave - total - 1) % 3);
+    const f = flatEnemies[i], def = D.enemies[f.k];
+    return Object.assign({}, def, {
+      hp: Math.round(def.hp * (1 + En.overHp * over)), atk: Math.round(def.atk * (1 + En.overAtk * over)),
+      count: Math.max(2, def.count - Math.floor(over / En.countEvery)),
+      coin: Math.round(D.stages[f.si].reward.enemy[f.pos] * En.coinRate), wave
+    });
+  }
+
   function nextEnemy(s) {
+    if (s.endless) { s.wave++; s.enemies.push(endlessEnemy(s.wave)); }
     s.player.hp = Math.min(s.player.maxHp, s.player.hp + C.healBetween + s.mods.healBetween);
     startEnemy(s, s.enemyIndex + 1);
     if (!s.hand.some(Boolean)) drawHand(s);
@@ -124,6 +141,7 @@
   }
 
   function hitPlayer(s, dmg, ev) {
+    if (s.debug && s.debug.god) dmg = 0;   // デバッグ: 無敵
     if (s.mods.reduce > 0) dmg = Math.max(1, Math.round(dmg * (1 - s.mods.reduce)));
     const p = s.player, absorbed = Math.min(p.shield, dmg);
     p.shield -= absorbed;
@@ -132,6 +150,7 @@
   }
   function hitEnemy(s, dmg, pierce, ev, ability) {
     const e = s.enemy;
+    if (s.debug && s.debug.oneshot) { dmg = e.hp + e.shield + 1; pierce = true; }   // デバッグ: 一撃必殺
     let absorbed = 0;
     if (!pierce) { absorbed = Math.min(e.shield, dmg); e.shield -= absorbed; }
     const real = dmg - absorbed;
@@ -142,7 +161,7 @@
 
   function checkEnemyDead(s, ev) {
     if (s.enemy.hp > 0) return false;
-    s.phase = s.enemyIndex + 1 >= s.enemies.length ? 'clear' : 'next';
+    s.phase = !s.endless && s.enemyIndex + 1 >= s.enemies.length ? 'clear' : 'next';   // エンドレスは終わりがない
     ev.push({ type: 'enemyDown' });
     return true;
   }
@@ -188,7 +207,8 @@
     });
     for (const ab of D.order) {
       if (sums[ab] === undefined) continue;
-      const value = Math.floor(sums[ab] * lineMult * comboMult * (1 + (s.mods.mul[ab] || 0)));
+      const boost = (ab === 'attack' || ab === 'magic') && s.boost > 1 ? s.boost : 1;   // バディ「オーバードライブ」: このターンだけ攻撃が増える
+      const value = Math.floor(sums[ab] * lineMult * comboMult * (1 + (s.mods.mul[ab] || 0)) * boost);
       if (s.seal && s.seal.ability === ab) { ev.push({ type: 'sealed', ability: ab }); continue; }
       if (value <= 0) continue;
       const p = s.player, e = s.enemy;
@@ -255,7 +275,7 @@
 
   // 手札をどこにも置けないとき：最大 HP の割合ダメージを受け、盤面を半分クリア
   function boardCollapse(s, ev) {
-    const dmg = Math.floor(s.player.maxHp * C.collapseRatio);
+    const dmg = s.debug && s.debug.god ? 0 : Math.floor(s.player.maxHp * C.collapseRatio);
     s.player.hp = Math.max(0, s.player.hp - dmg);
     ev.push({ type: 'collapse', value: dmg });
     if (checkPlayerDead(s)) return;
@@ -288,10 +308,11 @@
     } else {
       s.combo = 0;
     }
+    s.boost = 0;   // 倍率はこのターン（この 1 手）だけ
     if (s.seal && --s.seal.turns <= 0) s.seal = null;
     if (checkEnemyDead(s, ev)) return ev;
 
-    if (--s.enemy.countdown <= 0) {
+    if (!(s.debug && s.debug.freeze) && --s.enemy.countdown <= 0) {   // デバッグ: 敵の行動停止
       enemyAct(s, ev);
       if (s.phase !== 'battle') return ev;
     }
@@ -314,7 +335,8 @@
       }
     }
     s.player.gauge = 0;
-    const value = Math.floor(sum * comboMultiplier(s) * (1 + (s.mods.mul.attack || 0)));
+    const value = Math.floor(sum * comboMultiplier(s) * (1 + (s.mods.mul.attack || 0)) * (s.boost > 1 ? s.boost : 1));
+    s.boost = 0;
     ev.push({ type: 'special' }, { type: 'cleared', cells: gone, lines: 0 });
     if (value > 0) hitEnemy(s, value, false, ev, 'attack');
     checkEnemyDead(s, ev);
@@ -340,8 +362,11 @@
       case 'fortify': p.per = Math.round(v * f); break;   // ガードマス 1 つあたりのシールド
       case 'bloom': p.per = Math.round(v * f); break;     // 回復マス 1 つあたりの回復量
       case 'rebirth': p.healPct = Math.round(v * f); p.dmg = Math.round(50 * f); break;
+      case 'blessing': p.dmg = Math.round(v * f); p.stun = 2 + (lv >= 3 ? 1 : 0) + (lv >= 5 ? 1 : 0); break;
+      case 'overdrive': p.mult = Math.round((v + .25 * (lv - 1)) * 100) / 100; break;   // このターンのダメージ倍率
+      case 'summon': p.radius = lv >= 5 ? 2 : 1; break;                                  // 3×3 → Lv5 で 5×5
     }
-    p.need = { recolor: 'colorCell', paintRow: 'colorCell', paintCol: 'colorCell', bomb: 'cell', laser: 'cell', laserV: 'cell', recolorAll: 'color' }[t] || 'none';
+    p.need = { recolor: 'colorCell', paintRow: 'colorCell', paintCol: 'colorCell', bomb: 'cell', laser: 'cell', laserV: 'cell', recolorAll: 'color', summon: 'colorCell' }[t] || 'none';
     return p;
   }
 
@@ -353,6 +378,11 @@
     const b = s.buddies[slot], info = buddyInfo(b.id, b.lv), out = [];
     const add = (cx, cy) => { if (cx >= 0 && cy >= 0 && cx < N && cy < N) out.push({ x: cx, y: cy }); };
     switch (info.type) {
+      case 'summon': {   // 盤面からはみ出さないように、四角をずらして収める
+        const cl = v => Math.max(info.radius, Math.min(N - 1 - info.radius, v)), cx = cl(x), cy = cl(y);
+        for (let dy = -info.radius; dy <= info.radius; dy++) for (let dx = -info.radius; dx <= info.radius; dx++) add(cx + dx, cy + dy);
+        break;
+      }
       case 'recolor': case 'bomb':
         for (let dy = -info.radius; dy <= info.radius; dy++) for (let dx = -info.radius; dx <= info.radius; dx++) add(x + dx, y + dy);
         break;
@@ -381,7 +411,8 @@
     let area = [];
     if (nd.cell) {
       if (!(t.x >= 0 && t.x < N && t.y >= 0 && t.y < N)) return null;
-      area = buddyArea(s, slot, t.x, t.y).filter(c => s.board[c.y][c.x]);
+      area = buddyArea(s, slot, t.x, t.y);
+      if (info.type !== 'summon') area = area.filter(c => s.board[c.y][c.x]);   // ブロックをつくるスキルだけは、空きマスも対象
     }
     const healBy = pct => { const v = Math.round(p.maxHp * pct / 100); p.hp = Math.min(p.maxHp, p.hp + v); ev.push({ type: 'heal', ability: 'heal', value: v }); };
     switch (info.type) {
@@ -438,6 +469,37 @@
         break;
       }
       case 'reroll': drawHand(s); ev.push({ type: 'reroll' }); break;
+      case 'blessing': {   // 全回復 + 状態異常を消す + 足止め + ダメージ
+        healBy(100);
+        const cap = C.shieldCap + s.mods.shield;
+        if (p.shield < cap) { ev.push({ type: 'guard', ability: 'guard', value: cap - p.shield }); p.shield = cap; }
+        const cells = [];
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const c = s.board[y][x];
+          if (!c) continue;
+          if (c.obstacle === 'stone') { s.board[y][x] = null; cells.push({ x, y }); }
+          else if (c.obstacle === 'ice') { c.obstacle = null; cells.push({ x, y }); }
+        }
+        s.seal = null;
+        if (cells.length) ev.push({ type: 'purify', cells });
+        e.countdown += info.stun; ev.push({ type: 'stun', ability: 'stun', value: info.stun });
+        hitEnemy(s, info.dmg, true, ev, 'magic');
+        break;
+      }
+      case 'overdrive': s.boost = info.mult; ev.push({ type: 'boost', mult: info.mult }); break;
+      case 'summon': {   // 好きな色の四角いブロックを 1 つのピースとしてつくる。そろったラインはそのまま消える
+        const uid = ++s.uid, cells = area.map(c => ({ x: c.x, y: c.y }));
+        cells.forEach(c => { s.board[c.y][c.x] = { ability: t.color, base: D.buddyBase[t.color], uid, size: cells.length, obstacle: null }; });
+        ev.push({ type: 'summon', cells, color: t.color });
+        const cleared = clearLines(s);
+        if (cleared.lines > 0) {
+          s.combo++; s.maxCombo = Math.max(s.maxCombo, s.combo);
+          ev.push({ type: 'cleared', cells: cleared.cells.map(c => ({ x: c.x, y: c.y, ability: c.cell.ability, obstacle: c.cell.obstacle })), rows: cleared.rows, cols: cleared.cols, lines: cleared.lines });
+          ev.push({ type: 'combo', value: s.combo });
+          resolveClear(s, cleared, ev);
+        }
+        break;
+      }
     }
     bd.used = true;
     ev.unshift({ type: 'buddy', slot, id: bd.id });
@@ -445,10 +507,20 @@
     return ev;
   }
 
+  // ---------- デバッグ（BB.debugOn のときだけ画面から使える） ----------
+  const debugTools = {
+    flags: s => (s.debug = s.debug || { god: false, oneshot: false, freeze: false }),
+    kill(s) { const ev = []; s.enemy.hp = 0; checkEnemyDead(s, ev); return ev; },
+    heal(s) { s.player.hp = s.player.maxHp; s.player.shield = C.shieldCap + s.mods.shield; },
+    gauge(s) { s.player.gauge = 100; },
+    reroll(s) { drawHand(s); },
+    buddies(s) { (s.buddies || []).forEach(b => { b.used = false; }); }
+  };
+
   function stars(s) {
     const r = s.player.hp / s.player.maxHp;
     return r >= 0.7 ? 3 : r >= 0.35 ? 2 : 1;
   }
 
-  BB.logic = { newGame, challengeInfo, defaultMods, buddyNeeds, buddyInfo, buddyArea, useBuddy, nextEnemy, placePiece, useSpecial, canPlace, canPlaceAnywhere, previewLines, intentInfo, stars, pieceW, pieceH };
+  BB.logic = { newGame, endlessEnemy, debugTools, challengeInfo, defaultMods, buddyNeeds, buddyInfo, buddyArea, useBuddy, nextEnemy, placePiece, useSpecial, canPlace, canPlaceAnywhere, previewLines, intentInfo, stars, pieceW, pieceH };
 })();
