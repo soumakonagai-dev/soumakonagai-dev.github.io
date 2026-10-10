@@ -71,17 +71,31 @@
     e.step++;
   }
 
+  const scaleEnemy = (def, level) => {
+    if (!level) return def;
+    const ci = challengeInfo(level);
+    return Object.assign({}, def, { hp: Math.round(def.hp * ci.hp), atk: Math.round(def.atk * ci.atk), count: Math.max(2, def.count - ci.countMinus) });
+  };
   const defaultMods = () => ({ mul: {}, combo: 0, comboCap: 0, line: 0, whole: 0, maxHp: 0, shield: 0, startShield: 0, gauge: 0, count: 0, reduce: 0, coin: 0, healBetween: 0 });
 
   // stageIndex: D.stages の番号 / mods: 装備の合計効果（BB.equip.computeMods）
-  function newGame(rng, stageIndex, mods, buddies) {
+  // チャレンジの難易度 level（1〜20）に応じた倍率
+  function challengeInfo(level) {
+    const Ch = D.challenge, n = Math.max(0, level - 1);
+    const drop = Ch.countDrop.reduce((m, [lv, d]) => level >= lv ? Math.max(m, d) : m, 0);
+    return { hp: 1 + Ch.hp * n, atk: 1 + Ch.atk * n, countMinus: drop, coin: Math.round((1 + Ch.coin * n) * 100) / 100 };
+  }
+
+  // opts.level を渡すとチャレンジ（その難易度の敵）
+  function newGame(rng, stageIndex, mods, buddies, opts) {
     const m = Object.assign(defaultMods(), mods || {});
     const custom = stageIndex && typeof stageIndex === 'object';
     const stage = custom ? stageIndex : D.stages[stageIndex || 0];
     const maxHp = C.maxHp + m.maxHp;
     const s = {
       rng: rng || Math.random, uid: 0, placements: 0, totalDamage: 0, maxCombo: 0,
-      mods: m, stage, stageIndex: custom ? -1 : (stageIndex || 0), enemies: stage.enemies.map(k => D.enemies[k]),
+      mods: m, stage, stageIndex: custom ? -1 : (stageIndex || 0), level: (opts && opts.level) || 0,
+      enemies: stage.enemies.map(k => scaleEnemy(D.enemies[k], opts && opts.level)),
       buddies: (buddies || []).slice(0, 2).map(b => ({ id: b.id, lv: b.lv || 1, used: false })),
       player: { hp: maxHp, maxHp, shield: Math.min(C.shieldCap + m.shield, m.startShield), gauge: Math.min(100, m.gauge) }
     };
@@ -436,5 +450,5 @@
     return r >= 0.7 ? 3 : r >= 0.35 ? 2 : 1;
   }
 
-  BB.logic = { newGame, defaultMods, buddyNeeds, buddyInfo, buddyArea, useBuddy, nextEnemy, placePiece, useSpecial, canPlace, canPlaceAnywhere, previewLines, intentInfo, stars, pieceW, pieceH };
+  BB.logic = { newGame, challengeInfo, defaultMods, buddyNeeds, buddyInfo, buddyArea, useBuddy, nextEnemy, placePiece, useSpecial, canPlace, canPlaceAnywhere, previewLines, intentInfo, stars, pieceW, pieceH };
 })();

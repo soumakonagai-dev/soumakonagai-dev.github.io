@@ -14,7 +14,7 @@
   const RARC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d' };
   const SPECIAL = { x: 244, y: 211, w: 96, h: 26 };
   const ART_POS = { x: 180, y: 96, scale: 0.5 };
-  const ART_SCALE = { slime: 1, goblin: 0.95, dragon: 0.78, skeleton: 0.88, ghost: 0.88, golem: 0.84, knight: 0.74, imp: 0.88, demon: 0.7, yeti: 0.78, wizard: 0.78 };   // 敵ごとの大きさ補正（カード内に収める）
+  const ART_SCALE = A.fit;   // 敵ごとの大きさ補正（カード内に収める）
   const MUTE = { x: 330, y: 24, r: 13 };
   const QUIT = { x: 298, y: 24, r: 13 };
   const LIFT = 64;                 // ドラッグ中、指で隠れないようピースを上にずらす量
@@ -49,12 +49,15 @@
 
   // 敵スプライト用のオフスクリーン
   const spr = document.createElement('canvas');
-  spr.width = spr.height = 360;
+  spr.width = spr.height = 440;   // ±122 単位ぶん（角や炎がはみ出す敵のため少し広め）
   const sctx = spr.getContext('2d');
+  const spr2 = document.createElement('canvas');   // 輪郭線をつけた仕上がり用
+  spr2.width = spr2.height = 440;
+  const sctx2 = spr2.getContext('2d');
 
   // ---------- 状態 ----------
   let screen = 'title', game = null, drag = null;
-  let stageIdx = 0, resultInfo = null, quitAsk = false;
+  let stageIdx = 0, stageLevel = 0, resultInfo = null, quitAsk = false;
   let bt = null;   // バディのスキルを使っている途中 { slot, need, color, cell, drag }
   let now = performance.now();
   let phaseAt = 0, busyUntil = 0, resultSfx = false;
@@ -78,17 +81,18 @@
     ea = { kind: null, t0: 0, dur: 0, impact: 0, hitAt: -1e9, deadAt: null, introAt: now };
   }
   // i: ステージ番号。スカウト遠征のときは BB.scout.spec() のオブジェクト
-  function startStage(i) {
-    stageIdx = i;
-    game = L.newGame(null, i, EQ.computeMods(SV.data), SCOUT.partyList(SV.data));
+  function startStage(i, level) {
+    stageIdx = i; stageLevel = level || 0;
+    game = L.newGame(null, i, EQ.computeMods(SV.data), SCOUT.partyList(SV.data), { level: stageLevel });
     screen = 'battle'; drag = null; phaseAt = 0; busyUntil = 0; resultSfx = false; resultInfo = null; quitAsk = false; bt = null;
     resetFx(); resetEnemyVis();
     MUSIC.play(game.enemy.def.boss ? 'boss' : 'battle');
-    if (game.stage.scout) banner('スカウト遠征', '#7dffb0', 296, { sub: '2回勝つとスカウト場へ', dur: 1500 });
+    if (stageLevel) banner('CHALLENGE  Lv' + stageLevel, '#ff6b6b', 296, { small: true, sub: game.stage.name + '   コイン ×' + L.challengeInfo(stageLevel).coin.toFixed(2), dur: 1600 });
+    else if (game.stage.scout) banner('スカウト遠征', '#7dffb0', 296, { sub: '2回勝つとスカウト場へ', dur: 1500 });
     else banner('STAGE ' + (game.stageIndex + 1), '#5aa8ff', 296, { sub: game.stage.name, dur: 1500 });
   }
   const startScout = () => startStage(SCOUT.spec(SV.data));
-  const start = () => startStage(stageIdx);   // もう一度
+  const start = () => startStage(stageIdx, stageLevel);   // もう一度
   function go(name) {
     screen = name; drag = null; quitAsk = false; bt = null;
     MENU.enter(name);
@@ -428,16 +432,40 @@
     return p;
   }
 
+  // spr に描いた敵に、上から光・下に影の陰影と、濃い輪郭線をつけて spr2 に仕上げる（全員の見た目がそろう）
+  function polishSprite() {
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.globalCompositeOperation = 'source-atop';
+    const g = sctx.createLinearGradient(0, 0, 0, 440);
+    g.addColorStop(0, 'rgba(255,255,255,.14)'); g.addColorStop(.55, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(10,6,40,.26)');
+    sctx.fillStyle = g; sctx.fillRect(0, 0, 440, 440);
+    const rim = sctx.createRadialGradient(140, 110, 10, 140, 110, 240);
+    rim.addColorStop(0, 'rgba(255,255,255,.14)'); rim.addColorStop(1, 'rgba(255,255,255,0)');
+    sctx.fillStyle = rim; sctx.fillRect(0, 0, 440, 440);
+    sctx.globalCompositeOperation = 'source-over';
+    sctx2.setTransform(1, 0, 0, 1, 0, 0);
+    sctx2.clearRect(0, 0, 440, 440);
+    for (let i = 0; i < 12; i++) {                 // 1 周ぶん少しずらして重ねる → 輪郭のもと
+      const a = i / 12 * Math.PI * 2;
+      sctx2.drawImage(spr, Math.cos(a) * 3.4, Math.sin(a) * 3.4);
+    }
+    sctx2.globalCompositeOperation = 'source-in';
+    sctx2.fillStyle = 'rgba(14,10,32,.92)'; sctx2.fillRect(0, 0, 440, 440);
+    sctx2.globalCompositeOperation = 'source-over';
+    sctx2.drawImage(spr, 0, 0);
+  }
+
   function drawEnemyArt(p) {
     if (p.alpha <= .01) return;
     const def = game.enemy.def, base = ART_POS.scale * ART_SCALE[def.art] * (def.size || 1);
-    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 360, 360);
-    sctx.setTransform(1.8, 0, 0, 1.8, 180, 180);
+    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 440, 440);
+    sctx.setTransform(1.8, 0, 0, 1.8, 220, 220);
     A.enemyArt(sctx, def.art, now / 1000, p.mood);
+    polishSprite();
     if (p.flash > 0) {
-      sctx.globalCompositeOperation = 'source-atop';
-      sctx.fillStyle = 'rgba(255,255,255,' + p.flash * .9 + ')'; sctx.fillRect(-100, -100, 200, 200);
-      sctx.globalCompositeOperation = 'source-over';
+      sctx2.globalCompositeOperation = 'source-atop';
+      sctx2.fillStyle = 'rgba(255,255,255,' + p.flash * .9 + ')'; sctx2.fillRect(0, 0, 440, 440);
+      sctx2.globalCompositeOperation = 'source-over';
     }
     ctx.save();
     ctx.translate(ART_POS.x + p.ox, ART_POS.y + p.oy);
@@ -454,8 +482,7 @@
     }
     ctx.globalAlpha = p.alpha;
     ctx.scale(base * p.sc, base * p.sc);
-    if (def.tint) ctx.filter = def.tint;   // 色違いの敵（非対応のブラウザでは元の色のまま）
-    ctx.drawImage(spr, -100, -100, 200, 200);
+    ctx.drawImage(spr2, -122, -122, 244, 244);
     ctx.restore();
   }
 
@@ -652,7 +679,7 @@
       const k = 1 + .06 * Math.sin(now / 120);
       ctx.save(); ctx.translate(16, 259); ctx.scale(k, k);
       textO('COMBO ×' + g.combo, 0, 0, 14, '#ffd24a', 'left', 'rgba(60,30,0,.9)', 3); ctx.restore();
-    }
+    } else if (g.level) text('CHALLENGE Lv' + g.level, 16, 259, 10.5, '#ff9a9a', 'left', true);
     for (let i = 0; i < 2; i++) {
       const R = BUD[i], b = g.buddies[i];
       if (!b) {
@@ -817,7 +844,7 @@
     const cleared = game.phase === 'clear', defeated = cleared ? game.enemies.length : game.enemyIndex;
     const stars = cleared ? L.stars(game) : 0;
     if (game.stage.scout) { resultInfo = SCOUT.finish(SV.data, game, cleared, defeated); return; }
-    resultInfo = EQ.applyResult(SV.data, game.stageIndex, defeated, cleared, stars, game.mods);
+    resultInfo = EQ.applyResult(SV.data, game.stageIndex, defeated, cleared, stars, game.mods, game.level);
   }
   function drawQuitAsk() {
     ctx.fillStyle = 'rgba(6,9,22,.8)'; ctx.fillRect(0, 0, W, H);
@@ -845,7 +872,7 @@
       const win = ph === 'clear';
       card(24, 100, 312, 460, win ? '#3a4a8a' : '#4a2a4a', win ? '#1a2250' : '#201030', 22);
       const sc = game.stage.scout;
-      textO(sc ? (win ? 'スカウト成功!' : 'スカウト失敗…') : (win ? 'ステージクリア!' : 'やられた…'), 180, 150, sc ? 32 : 36, win ? '#ffd24a' : '#ff7a8a', 'center');
+      textO(sc ? (win ? 'スカウト成功!' : 'スカウト失敗…') : game.level ? (win ? 'チャレンジ成功!' : 'チャレンジ失敗…') : (win ? 'ステージクリア!' : 'やられた…'), 180, 150, sc || game.level ? 32 : 36, win ? '#ffd24a' : '#ff7a8a', 'center');
       if (win && !sc) {
         const n = L.stars(game);
         for (let i = 0; i < 3; i++) {
@@ -868,6 +895,7 @@
       text('獲得コイン', 56, 452, 13, '#e6d9a8', 'left', true);
       textO('🪙 +' + Math.round(ri.total * cu), 304, 452, 22, '#ffe08a', 'right');
       const notes = [];
+      if (ri.level) notes.push('難易度 Lv' + ri.level + ' ×' + ri.mult.toFixed(2));
       if (ri.first) notes.push('初クリアボーナス込み');
       if (ri.bonus) notes.push('装備ボーナス +' + ri.bonus);
       if (sc && win) notes.push('スカウト場にバディが現れた！');
@@ -875,7 +903,7 @@
       if (sc && win) button(80, 500, 200, 46, 'スカウト場へ', '#2fbf71', true, 16);
       else {
         button(36, 500, 138, 46, 'もう一度', '#2fbf71', false, 15);
-        button(186, 500, 138, 46, sc ? 'スカウトへ' : 'ステージ選択', '#2f7bff', true, 15);
+        button(186, 500, 138, 46, sc ? 'スカウトへ' : game.level ? 'チャレンジへ' : 'ステージ選択', '#2f7bff', true, 15);
       }
     }
     ctx.restore();
@@ -922,8 +950,22 @@
   }
 
   // ---------- 全体 ----------
+  // 動作確認用: 全ての敵を一覧で描く（BB.debug.sheet = true）
+  function drawSheet() {
+    ctx.fillStyle = '#1a2040'; ctx.fillRect(0, 0, W, H);
+    Object.keys(D.enemies).forEach((id, i) => {
+      const def = D.enemies[id], x = (i % 4) * 90 + 45, y = Math.floor(i / 4) * 104 + 54;
+      sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 440, 440); sctx.setTransform(1.8, 0, 0, 1.8, 220, 220);
+      A.enemyArt(sctx, def.art, now / 1000, sheetMood); polishSprite();
+      ctx.save(); ctx.translate(x, y); ctx.scale(.44 * A.fit[def.art], .44 * A.fit[def.art]); ctx.drawImage(spr2, -122, -122, 244, 244); ctx.restore();
+      text(def.name, x, y + 52, 9.5, '#fff', 'center', true);
+    });
+  }
+  let sheetOn = false, sheetMood = 'idle';
+
   function draw(dt) {
     ctx.setTransform(S, 0, 0, S, 0, 0);
+    if (sheetOn) { drawSheet(); return; }
     if (screen === 'title') { drawTitle(dt); drawSoundLabel(); return; }
     if (screen !== 'battle') { MENU.draw(ui, screen, now); drawSoundLabel(); return; }
     drawBackground();
@@ -1022,7 +1064,7 @@
       if (hit(x, y, 56, 336, 110, 44)) { SFX.play('ui'); quitAsk = false; }
       else if (hit(x, y, 194, 336, 110, 44)) {
         SFX.play('ui'); resultInfo = null; if (game.phase === 'battle') game.phase = 'lose';
-        finalizeResult(); go(game.stage.scout ? 'scout' : 'stages');
+        finalizeResult(); go(game.stage.scout ? 'scout' : game.level ? 'challenge' : 'stages');
       }
       return;
     }
@@ -1038,7 +1080,7 @@
         const sc = game.stage.scout;
         if (sc && game.phase === 'clear') { if (hit(x, y, 80, 500, 200, 46)) { SFX.play('ui'); go('scout'); } }
         else if (hit(x, y, 36, 500, 138, 46)) { SFX.play('ui'); start(); }
-        else if (hit(x, y, 186, 500, 138, 46)) { SFX.play('ui'); go(sc ? 'scout' : 'stages'); }
+        else if (hit(x, y, 186, 500, 138, 46)) { SFX.play('ui'); go(sc ? 'scout' : game.level ? 'challenge' : 'stages'); }
       }
       return;
     }
@@ -1126,12 +1168,12 @@
 
   // メニュー画面（menu.js）が使う描画ヘルパー
   function drawArt(key, cx, cy, sc, mood, t, dim, tint) {
-    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 360, 360);
-    sctx.setTransform(1.8, 0, 0, 1.8, 180, 180);
+    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 440, 440);
+    sctx.setTransform(1.8, 0, 0, 1.8, 220, 220);
     A.enemyArt(sctx, key, t || now / 1000, mood || 'idle');
     ctx.save(); ctx.translate(cx, cy); if (dim) ctx.globalAlpha = .35; ctx.scale(sc, sc);
     if (tint) ctx.filter = tint;
-    ctx.drawImage(spr, -100, -100, 200, 200); ctx.restore();
+    ctx.drawImage(spr, -122, -122, 244, 244); ctx.restore();
   }
   const ui = { ctx, text, textO, lin, rr, card, button, disabledButton, speaker, SFX, A, drawArt, bg: drawBackground, go, startStage, startScout };
 
@@ -1144,5 +1186,5 @@
   requestAnimationFrame(loop);
 
   // 動作確認・デバッグ用
-  BB.debug = { get game() { return game; }, get bt() { return bt; }, startScout, buddyDown, tapBuddy, doBuddy, get screen() { return screen; }, start, startStage, go, doPlace, get busyUntil() { return busyUntil; } };
+  BB.debug = { get level() { return stageLevel; }, sheet(on, mood) { sheetOn = on; sheetMood = mood || 'idle'; }, get game() { return game; }, get bt() { return bt; }, startScout, buddyDown, tapBuddy, doBuddy, get screen() { return screen; }, start, startStage, go, doPlace, get busyUntil() { return busyUntil; } };
 })();

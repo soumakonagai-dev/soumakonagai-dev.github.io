@@ -558,6 +558,374 @@
     c.restore();
   };
 
+  // ================= 専用デザインの敵（色違いではなく、一体ずつ描き分ける） =================
+  const flameShape = (c, x, y, w, h, wob) => {   // ゆらめく炎 1 本（底の中心が x, y）
+    c.beginPath();
+    c.moveTo(x - w, y);
+    c.bezierCurveTo(x - w * 1.1, y - h * .45, x - w * .2 + wob, y - h * .6, x + wob * 1.5, y - h);
+    c.bezierCurveTo(x + w * .4 + wob, y - h * .55, x + w * 1.1, y - h * .4, x + w, y);
+    c.closePath();
+  };
+  const flame = (c, x, y, w, h, t, ph) => {      // 外側オレンジ＋内側きいろ
+    const wob = Math.sin(t * 9 + ph) * w * .3;
+    c.fillStyle = '#ff7a1a'; flameShape(c, x, y, w, h, wob); c.fill();
+    c.fillStyle = '#ffd24a'; flameShape(c, x, y, w * .55, h * .62, wob * .7); c.fill();
+  };
+  const star6 = (c, x, y, r, col, a) => {         // 雪の結晶
+    c.save(); c.translate(x, y); c.strokeStyle = col; c.globalAlpha *= a; c.lineWidth = 2.2; c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) { c.rotate(Math.PI / 3); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -r); c.moveTo(0, -r * .55); c.lineTo(r * .22, -r * .8); c.moveTo(0, -r * .55); c.lineTo(-r * .22, -r * .8); c.stroke(); }
+    c.restore();
+  };
+
+  // ちびスライム：まるくてキラキラ、頭に葉っぱ
+  ART.chibi = function (c, t, m) {
+    const ang = m === 'angry', b = Math.abs(Math.sin(t * 3.2));
+    c.fillStyle = 'rgba(0,0,0,.22)'; ellipse(c, 0, 78, 54 - b * 8, 8); c.fill();
+    c.save(); c.translate(0, 76 - b * 16); c.scale(1 + .07 * b, 1 - .07 * b); c.translate(0, -76);
+    c.beginPath(); c.moveTo(-62, 70); c.bezierCurveTo(-68, 8, -44, -28, 0, -28); c.bezierCurveTo(44, -28, 68, 8, 62, 70); c.bezierCurveTo(30, 84, -30, 84, -62, 70); c.closePath();
+    c.fillStyle = grad(c, 0, -28, 0, 84, [[0, '#e2ffa8'], [.5, '#92e870'], [1, '#4cbf5c']]); c.fill();
+    c.strokeStyle = 'rgba(40,110,50,.55)'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = 'rgba(255,255,255,.6)'; ellipse(c, -30, -2, 14, 8); c.fill(); ellipse(c, -12, -16, 5, 3); c.fill();
+    c.save(); c.translate(0, -26); c.rotate(Math.sin(t * 2.2) * .12);
+    c.strokeStyle = '#3f9a3f'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 6); c.quadraticCurveTo(2, -14, 10, -22); c.stroke();
+    c.fillStyle = '#58c850'; c.beginPath(); c.moveTo(10, -22); c.bezierCurveTo(14, -46, 42, -48, 46, -34); c.bezierCurveTo(42, -18, 22, -14, 10, -22); c.fill();
+    c.strokeStyle = 'rgba(20,90,30,.5)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(12, -23); c.lineTo(40, -35); c.stroke();
+    c.restore();
+    [-1, 1].forEach(sd => {
+      const ex = sd * 23, ey = 28;
+      c.fillStyle = '#1b2a3a'; ellipse(c, ex, ey, 14, 18); c.fill();
+      c.fillStyle = '#fff'; ellipse(c, ex - 4, ey - 6, 5.2, 6); c.fill(); ellipse(c, ex + 4, ey + 7, 2.4, 2.4); c.fill();
+      if (ang) { c.strokeStyle = '#1b2a3a'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(ex + sd * 15, ey - 25); c.lineTo(ex - sd * 12, ey - 17); c.stroke(); }
+    });
+    c.fillStyle = 'rgba(255,120,150,.5)'; ellipse(c, -44, 44, 8, 5); c.fill(); ellipse(c, 44, 44, 8, 5); c.fill();
+    c.strokeStyle = '#1b2a3a'; c.lineWidth = 3; c.lineCap = 'round';
+    if (ang) { c.beginPath(); c.arc(0, 60, 9, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
+    else { c.beginPath(); c.arc(-5, 50, 5, .1 * Math.PI, .9 * Math.PI); c.stroke(); c.beginPath(); c.arc(5, 50, 5, .1 * Math.PI, .9 * Math.PI); c.stroke(); }
+    c.restore();
+  };
+
+  // こゴブリン：ぶかぶかのフードと、大きな耳の子ども
+  ART.kogob = function (c, t, m) {
+    const ang = m === 'angry', bob = Math.abs(Math.sin(t * 3)) * 5;
+    c.fillStyle = 'rgba(0,0,0,.25)'; ellipse(c, 0, 90, 54, 8); c.fill();
+    c.save(); c.translate(0, -bob);
+    // しっぽのような腰ひも・足
+    [-1, 1].forEach(sd => { c.fillStyle = '#7fae3f'; ellipse(c, sd * 20, 90, 17, 9); c.fill(); });
+    // 体
+    c.fillStyle = grad(c, 0, 30, 0, 90, [[0, '#b4e060'], [1, '#79ac3a']]); ellipse(c, 0, 62, 34, 32); c.fill();
+    c.fillStyle = '#7a4a22'; A.rr(c, -34, 74, 68, 16, 7); c.fill();
+    c.fillStyle = '#d8b24a'; c.fillRect(-7, 75, 14, 13);
+    // 手と木のスプーン
+    c.save(); c.translate(-52, 52); c.rotate(-.5 + (ang ? -.4 : Math.sin(t * 3) * .1));
+    c.strokeStyle = '#9a6a36'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 30); c.lineTo(0, -26); c.stroke();
+    c.fillStyle = '#b07c42'; ellipse(c, 0, -34, 13, 17); c.fill();
+    c.restore();
+    c.fillStyle = '#b4e060'; ellipse(c, -46, 60, 9, 9); c.fill(); ellipse(c, 44, 66, 9, 9); c.fill();
+    // フード
+    c.fillStyle = grad(c, 0, -80, 0, 30, [[0, '#a8703a'], [1, '#6a4020']]);
+    c.beginPath(); c.moveTo(-60, 14); c.bezierCurveTo(-72, -50, -34, -84, 8, -86); c.bezierCurveTo(30, -112, 52, -96, 40, -76); c.bezierCurveTo(70, -56, 62, 0, 60, 14); c.bezierCurveTo(30, 36, -30, 36, -60, 14); c.closePath(); c.fill();
+    c.strokeStyle = '#4a2a12'; c.lineWidth = 3; c.stroke();
+    // 顔
+    c.fillStyle = grad(c, 0, -50, 0, 30, [[0, '#c4ec74'], [1, '#86b93f']]); ellipse(c, 0, -8, 40, 36); c.fill();
+    // 耳
+    c.fillStyle = '#9ccb4c';
+    [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(sd * 36, -16); c.lineTo(sd * 94, -34 + Math.sin(t * 4) * 2); c.lineTo(sd * 38, 8); c.closePath(); c.fill(); c.fillStyle = 'rgba(255,170,170,.55)'; c.beginPath(); c.moveTo(sd * 42, -12); c.lineTo(sd * 78, -28); c.lineTo(sd * 42, 2); c.closePath(); c.fill(); c.fillStyle = '#9ccb4c'; });
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#fff6b0'; ellipse(c, sd * 16, -14, 11, 12); c.fill();
+      c.fillStyle = '#1b2a10'; ellipse(c, sd * 16 + 1, -13, 5, 9); c.fill();
+      c.strokeStyle = '#3a4a14'; c.lineWidth = 3.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 28, -30); c.lineTo(sd * 6, -22 + (ang ? 3 : 0)); c.stroke();
+    });
+    c.fillStyle = '#6a9a30'; ellipse(c, 0, -2, 5, 6); c.fill();
+    c.fillStyle = '#2a1410'; c.beginPath(); c.moveTo(-18, 10); c.quadraticCurveTo(0, 28, 18, 10); c.quadraticCurveTo(0, 14, -18, 10); c.fill();
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(-6, 13); c.lineTo(-3, 20); c.lineTo(0, 14); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,120,120,.4)'; ellipse(c, -28, 2, 7, 4); c.fill(); ellipse(c, 28, 2, 7, 4); c.fill();
+    c.restore();
+  };
+
+  // ビッグスライム：王冠をのせた大きなゼリー
+  ART.bigslime = function (c, t, m) {
+    const ang = m === 'angry', sq = 1 + .045 * Math.sin(t * 2.4), w = 92 / Math.sqrt(sq), h = 86 * sq;
+    c.fillStyle = 'rgba(0,0,0,.28)'; ellipse(c, 0, 72, w * .9, 12); c.fill();
+    c.beginPath(); c.moveTo(-w, 58); c.bezierCurveTo(-w, -h * .1, -w * .5, -h + 10, 0, -h + 10); c.bezierCurveTo(w * .5, -h + 10, w, -h * .1, w, 58); c.bezierCurveTo(w * .6, 76, -w * .6, 76, -w, 58); c.closePath();
+    c.fillStyle = grad(c, 0, -h, 0, 76, [[0, '#b8fff0'], [.5, '#52d6b0'], [1, '#1f9e86']]); c.fill();
+    c.strokeStyle = 'rgba(10,90,80,.55)'; c.lineWidth = 3.5; c.stroke();
+    // 体の中のあわ
+    for (let i = 0; i < 6; i++) {
+      const px = -52 + i * 21 + Math.sin(i * 7) * 8, py = 50 - ((t * 14 + i * 23) % 90), r = 4 + (i % 3) * 2.5;
+      c.fillStyle = 'rgba(255,255,255,.28)'; c.beginPath(); c.arc(px, py, r, 0, 7); c.fill();
+    }
+    c.fillStyle = 'rgba(255,255,255,.5)'; ellipse(c, -w * .45, -h * .38, 17, 10); c.fill(); ellipse(c, -w * .18, -h * .6, 7, 4); c.fill();
+    // 王冠
+    c.save(); c.translate(10, -h + 12); c.rotate(.16 + Math.sin(t * 2.4) * .03);
+    c.fillStyle = grad(c, 0, -34, 0, 6, [[0, '#ffe680'], [1, '#e0a010']]);
+    c.beginPath(); c.moveTo(-34, 4); c.lineTo(-38, -30); c.lineTo(-18, -12); c.lineTo(0, -38); c.lineTo(18, -12); c.lineTo(38, -30); c.lineTo(34, 4); c.closePath(); c.fill();
+    c.strokeStyle = '#a06a00'; c.lineWidth = 2.5; c.stroke();
+    c.fillStyle = '#e0245e'; c.beginPath(); c.arc(0, -10, 6, 0, 7); c.fill(); c.fillStyle = '#4aa3ff'; c.beginPath(); c.arc(-20, -4, 4, 0, 7); c.fill(); c.beginPath(); c.arc(20, -4, 4, 0, 7); c.fill();
+    c.restore();
+    // 顔
+    [-1, 1].forEach(sd => {
+      const ex = sd * 32, ey = 2;
+      c.fillStyle = '#fff'; ellipse(c, ex, ey, 15, 18); c.fill();
+      c.fillStyle = '#12302a'; ellipse(c, ex + Math.sin(t) * 2, ey + 2, 8, 12); c.fill();
+      c.fillStyle = '#fff'; ellipse(c, ex - 2 + Math.sin(t) * 2, ey - 3, 3, 3.5); c.fill();
+      c.fillStyle = A.shade('#52d6b0', -.1); c.beginPath(); c.moveTo(ex - 18, ey - 20); c.lineTo(ex + 18, ey - 20); c.lineTo(ex + 18, ey - (ang ? 6 : 12)); c.lineTo(ex - 18, ey - 12); c.closePath(); c.fill();   // まぶた
+    });
+    c.fillStyle = '#12302a'; c.beginPath(); c.moveTo(-22, 30); c.quadraticCurveTo(0, ang ? 28 : 56, 22, 30); c.quadraticCurveTo(0, 36, -22, 30); c.fill();
+    c.fillStyle = '#ff7a9a'; ellipse(c, 0, 42, 10, 5); c.fill();
+    c.fillStyle = 'rgba(255,120,150,.4)'; ellipse(c, -58, 30, 9, 5); c.fill(); ellipse(c, 58, 30, 9, 5); c.fill();
+  };
+
+  // フロストスライム：とうめいな氷の体に、結晶のとげ
+  ART.frostslime = function (c, t, m) {
+    const ang = m === 'angry', sq = 1 + .04 * Math.sin(t * 2.6), w = 80 / Math.sqrt(sq), h = 74 * sq;
+    c.fillStyle = 'rgba(0,0,0,.2)'; ellipse(c, 0, 66, w * .85, 10); c.fill();
+    // 冷気
+    for (let i = 0; i < 4; i++) { c.fillStyle = 'rgba(220,245,255,' + (.16 + .05 * Math.sin(t * 2 + i)) + ')'; ellipse(c, -50 + i * 34, 66 + Math.sin(t * 1.5 + i) * 3, 26, 7); c.fill(); }
+    // 結晶のとげ（体の後ろ）
+    [[-52, -22, -78, -64], [-22, -48, -34, -98], [8, -56, 16, -108], [38, -42, 62, -92], [60, -10, 92, -46]].forEach(([x1, y1, x2, y2], i) => {
+      c.fillStyle = grad(c, x1, y1, x2, y2, [[0, 'rgba(120,200,255,.95)'], [1, 'rgba(240,252,255,.95)']]);
+      c.beginPath(); c.moveTo(x1 - 12, y1 + 14); c.lineTo(x2, y2); c.lineTo(x1 + 14, y1 + 10); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 1.5; c.stroke();
+    });
+    c.beginPath(); c.moveTo(-w, 52); c.bezierCurveTo(-w, -h * .2, -w * .55, -h + 8, 0, -h + 8); c.bezierCurveTo(w * .55, -h + 8, w, -h * .2, w, 52); c.bezierCurveTo(w * .6, 68, -w * .6, 68, -w, 52); c.closePath();
+    c.fillStyle = grad(c, 0, -h, 0, 68, [[0, 'rgba(236,252,255,.96)'], [.5, 'rgba(140,214,255,.93)'], [1, 'rgba(70,150,230,.95)']]); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 3; c.stroke();
+    star6(c, 0, 34, 20, 'rgba(255,255,255,.55)', 1);
+    c.fillStyle = 'rgba(255,255,255,.55)'; ellipse(c, -w * .4, -h * .45, 16, 8); c.fill();
+    // 舞い散る雪
+    for (let i = 0; i < 5; i++) { const sx = -70 + i * 35 + Math.sin(t + i * 2) * 8, sy = ((t * 24 + i * 40) % 160) - 90; c.fillStyle = 'rgba(255,255,255,.8)'; c.beginPath(); c.arc(sx, sy, 2, 0, 7); c.fill(); }
+    const look = Math.sin(t * .8) * .6;
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#fff'; ellipse(c, sd * 26, -2, 13, 17); c.fill();
+      c.fillStyle = '#16335c'; ellipse(c, sd * 26 + look * 4, 0, 7, 11); c.fill();
+      c.fillStyle = '#9be7ff'; ellipse(c, sd * 26 + look * 4 - 2, -4, 2.6, 3); c.fill();
+      if (ang) { c.strokeStyle = '#16335c'; c.lineWidth = 4.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 40, -24); c.lineTo(sd * 12, -16); c.stroke(); }
+    });
+    c.strokeStyle = '#16335c'; c.lineWidth = 3.5; c.lineCap = 'round'; c.beginPath(); if (ang) c.arc(0, 38, 12, Math.PI * 1.1, Math.PI * 1.9); else c.arc(0, 24, 12, .15 * Math.PI, .85 * Math.PI); c.stroke();
+  };
+
+  // マグマスライム：かたい岩のカラと、どろどろの溶岩
+  ART.magmaslime = function (c, t, m) {
+    const ang = m === 'angry', sq = 1 + .05 * Math.sin(t * 3.1), w = 82 / Math.sqrt(sq), h = 72 * sq, pulse = .7 + .3 * Math.sin(t * 4);
+    c.fillStyle = 'rgba(0,0,0,.3)'; ellipse(c, 0, 68, w * .9, 10); c.fill();
+    const gl = c.createRadialGradient(0, 20, 20, 0, 20, 130); gl.addColorStop(0, 'rgba(255,140,40,' + (.35 * pulse) + ')'); gl.addColorStop(1, 'rgba(255,140,40,0)');
+    c.fillStyle = gl; c.fillRect(-120, -100, 240, 220);
+    c.beginPath(); c.moveTo(-w, 54); c.bezierCurveTo(-w, -h * .2, -w * .55, -h + 8, 0, -h + 8); c.bezierCurveTo(w * .55, -h + 8, w, -h * .2, w, 54); c.bezierCurveTo(w * .6, 70, -w * .6, 70, -w, 54); c.closePath();
+    c.fillStyle = grad(c, 0, -h, 0, 70, [[0, '#ffd45a'], [.4, '#ff7a1a'], [1, '#b02a0a']]); c.fill();
+    c.strokeStyle = '#5a1604'; c.lineWidth = 3.5; c.stroke();
+    // 岩のカラ
+    c.fillStyle = '#2c2420';
+    [[-44, -34, 24, 16, -.5], [4, -58, 30, 18, .1], [46, -28, 22, 15, .6], [-8, -18, 14, 9, -.2]].forEach(([x, y, rx, ry, rot]) => { c.save(); c.translate(x, y); c.rotate(rot); c.beginPath(); c.moveTo(-rx, ry * .6); c.lineTo(-rx * .5, -ry); c.lineTo(rx * .6, -ry * .8); c.lineTo(rx, ry * .5); c.closePath(); c.fill(); c.strokeStyle = 'rgba(255,170,60,' + (.5 * pulse) + ')'; c.lineWidth = 2; c.stroke(); c.restore(); });
+    // 頭の炎
+    flame(c, -8, -h + 18, 15, 38, t, 0); flame(c, 14, -h + 20, 11, 28, t, 2); flame(c, -26, -h + 24, 9, 22, t, 4);
+    // とろけた溶岩
+    c.fillStyle = '#ff9a2a';
+    [[-w + 14, 52, 14 + Math.sin(t * 2) * 5], [-30, 62, 10 + Math.sin(t * 2.4 + 1) * 5], [34, 62, 12 + Math.sin(t * 2.2 + 2) * 5], [w - 12, 52, 15 + Math.sin(t * 1.8) * 5]].forEach(([x, y, l]) => { A.rr(c, x - 4, y, 8, l, 4); c.fill(); c.beginPath(); c.arc(x, y + l, 5, 0, 7); c.fill(); });
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#fff6b0'; ellipse(c, sd * 26, 0, 13, 14); c.fill();
+      c.fillStyle = '#1a0c06'; ellipse(c, sd * 26, 1, 4, 11); c.fill();
+      c.strokeStyle = '#2a0c04'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 42, -20); c.lineTo(sd * 10, -10 + (ang ? 4 : 0)); c.stroke();
+    });
+    c.fillStyle = '#2a0c04'; c.beginPath(); c.moveTo(-24, 28); c.lineTo(-14, 24); c.lineTo(-8, 34); c.lineTo(0, 24); c.lineTo(8, 34); c.lineTo(14, 24); c.lineTo(24, 28); c.quadraticCurveTo(0, 54, -24, 28); c.closePath(); c.fill();
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(-14, 32); c.quadraticCurveTo(0, 44, 14, 32); c.quadraticCurveTo(0, 36, -14, 32); c.fill();
+  };
+
+  // ほのおインプ：炎のかみの毛と、真っ赤な小悪魔
+  ART.flameimp = function (c, t, m) {
+    const fl = Math.sin(t * 3.2) * 7, flap = Math.sin(t * 10) * .32, ang = m === 'angry';
+    c.save(); c.translate(0, fl);
+    c.fillStyle = 'rgba(0,0,0,.2)'; ellipse(c, 0, 92 - fl, 34, 6); c.fill();
+    const gl = c.createRadialGradient(0, 0, 10, 0, 0, 120); gl.addColorStop(0, 'rgba(255,120,30,.28)'); gl.addColorStop(1, 'rgba(255,120,30,0)'); c.fillStyle = gl; c.fillRect(-130, -130, 260, 260);
+    [-1, 1].forEach(sd => {   // 翼
+      c.save(); c.scale(sd, 1); c.translate(28, -4); c.rotate(-.3 + flap);
+      c.fillStyle = grad(c, 0, -70, 80, 20, [[0, '#ff9a3a'], [1, '#9a1808']]);
+      c.beginPath(); c.moveTo(0, 6); c.lineTo(8, -74); c.lineTo(34, -38); c.lineTo(52, -66); c.lineTo(64, -16); c.lineTo(92, -22); c.lineTo(66, 26); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(60,8,0,.7)'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(0, 6); c.lineTo(34, -38); c.moveTo(0, 6); c.lineTo(64, -16); c.stroke();
+      c.restore();
+    });
+    // 尻尾（先が炎）
+    c.strokeStyle = '#b8200a'; c.lineWidth = 7; c.lineCap = 'round'; c.beginPath(); c.moveTo(18, 56); c.bezierCurveTo(60, 82, 74, 44, 56, 26); c.stroke();
+    flame(c, 56, 28, 10, 26, t, 1);
+    // 体・足
+    c.fillStyle = grad(c, 0, -10, 0, 84, [[0, '#ff7a4a'], [1, '#b0200a']]); ellipse(c, 0, 40, 34, 44); c.fill();
+    c.fillStyle = 'rgba(255,230,160,.5)'; ellipse(c, 0, 48, 18, 28); c.fill();
+    [-1, 1].forEach(sd => { c.fillStyle = '#8a1606'; ellipse(c, sd * 20, 82, 14, 9); c.fill(); });
+    // 手の火の玉
+    const fb = ang ? 1.5 : 1;
+    c.fillStyle = '#c42a0a'; ellipse(c, -44, 42, 9, 9); c.fill();
+    const fg = c.createRadialGradient(-50, 28, 2, -50, 28, 16 * fb); fg.addColorStop(0, '#fff6b0'); fg.addColorStop(.4, '#ffb02a'); fg.addColorStop(1, 'rgba(255,90,20,0)'); c.fillStyle = fg; c.beginPath(); c.arc(-50, 28, 16 * fb, 0, 7); c.fill();
+    // 頭と炎のかみ
+    flame(c, -22, -44, 12, 42, t, 0); flame(c, 0, -52, 15, 56, t, 1.5); flame(c, 22, -44, 12, 42, t, 3);
+    c.fillStyle = grad(c, 0, -80, 0, 6, [[0, '#ff8a5a'], [1, '#c42a0a']]); ellipse(c, 0, -26, 42, 38); c.fill();
+    c.fillStyle = '#3a0a04'; [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(sd * 24, -50); c.lineTo(sd * 36, -76); c.lineTo(sd * 12, -54); c.closePath(); c.fill(); });
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#fffbe0'; ellipse(c, sd * 17, -28, 11, 11); c.fill();
+      c.fillStyle = '#c40018'; ellipse(c, sd * 17, -27, 3.5, 8); c.fill();
+      c.strokeStyle = '#3a0a04'; c.lineWidth = 4.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 30, -44); c.lineTo(sd * 8, -36 + (ang ? 4 : 0)); c.stroke();
+    });
+    c.fillStyle = '#3a0a04'; A.rr(c, -18, -8, 36, 13, 6.5); c.fill();
+    c.fillStyle = '#fff'; [-10, -3, 3, 10].forEach(x => { c.beginPath(); c.moveTo(x - 3, -8); c.lineTo(x, 0); c.lineTo(x + 3, -8); c.closePath(); c.fill(); });
+    c.restore();
+  };
+
+  // アイスドラゴン：氷の結晶のつばさと、こごえるブレス
+  ART.icedragon = function (c, t, m) {
+    const flap = Math.sin(t * 2) * .18, bob = Math.sin(t * 1.5) * 4, ang = m === 'angry';
+    c.save(); c.translate(0, bob);
+    c.fillStyle = 'rgba(0,0,0,.25)'; ellipse(c, 0, 94, 68, 9); c.fill();
+    [-1, 1].forEach(sd => {    // 氷のつばさ
+      c.save(); c.scale(sd, 1); c.translate(42, 8); c.rotate(-.5 + flap);
+      c.fillStyle = grad(c, 0, -90, 96, 20, [[0, 'rgba(210,244,255,.95)'], [1, 'rgba(90,170,235,.9)']]);
+      c.beginPath(); c.moveTo(0, 10); c.lineTo(2, -96); c.lineTo(30, -58); c.lineTo(50, -92); c.lineTo(66, -40); c.lineTo(100, -52); c.lineTo(76, 22); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 3; c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, 10); c.lineTo(30, -58); c.moveTo(0, 10); c.lineTo(66, -40); c.stroke();
+      c.restore();
+    });
+    c.strokeStyle = '#7ab8ee'; c.lineWidth = 15; c.lineCap = 'round'; c.beginPath(); c.moveTo(38, 70); c.bezierCurveTo(100, 82, 112, 34, 90, 10); c.stroke();   // しっぽ
+    c.fillStyle = '#e8fbff'; c.beginPath(); c.moveTo(78, 2); c.lineTo(102, 6); c.lineTo(92, 30); c.lineTo(84, 18); c.closePath(); c.fill();
+    c.fillStyle = grad(c, 0, -10, 0, 100, [[0, '#a8d8ff'], [1, '#4a86d0']]); ellipse(c, 0, 48, 64, 58); c.fill();
+    c.fillStyle = grad(c, 0, 20, 0, 100, [[0, '#ffffff'], [1, '#bfe3ff']]); ellipse(c, 0, 62, 38, 42); c.fill();
+    c.strokeStyle = 'rgba(80,140,200,.5)'; c.lineWidth = 2; for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(-30, 40 + i * 12); c.quadraticCurveTo(0, 46 + i * 12, 30, 40 + i * 12); c.stroke(); }
+    [-1, 1].forEach(sd => { c.fillStyle = '#3a76c0'; ellipse(c, sd * 34, 98, 20, 10); c.fill(); });
+    // 背中のつらら
+    c.fillStyle = 'rgba(230,250,255,.95)'; [[-24, -4], [-8, -14], [8, -14], [24, -4]].forEach(([x, y]) => { c.beginPath(); c.moveTo(x - 7, y + 14); c.lineTo(x, y - 20); c.lineTo(x + 7, y + 14); c.closePath(); c.fill(); });
+    c.fillStyle = grad(c, 0, -90, 0, 10, [[0, '#bfe6ff'], [1, '#5a9ae0']]); ellipse(c, 0, -36, 52, 44); c.fill();
+    c.fillStyle = grad(c, 0, -30, 0, 10, [[0, '#f0fbff'], [1, '#a8d4f6']]); ellipse(c, 0, -16, 32, 22); c.fill();
+    c.fillStyle = '#2a5a90'; ellipse(c, -11, -16, 4, 6); c.fill(); ellipse(c, 11, -16, 4, 6); c.fill();
+    c.fillStyle = 'rgba(235,252,255,.97)';   // 氷のつの
+    [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(sd * 26, -68); c.quadraticCurveTo(sd * 54, -92, sd * 58, -122); c.quadraticCurveTo(sd * 36, -94, sd * 12, -64); c.closePath(); c.fill(); c.strokeStyle = '#7ab8ee'; c.lineWidth = 2; c.stroke(); });
+    c.beginPath(); c.moveTo(-8, -76); c.lineTo(0, -108); c.lineTo(8, -76); c.closePath(); c.fill();
+    [-1, 1].forEach(sd => {
+      c.fillStyle = '#e0faff'; ellipse(c, sd * 25, -48, 12, 9); c.fill();
+      c.fillStyle = '#1a6ad8'; ellipse(c, sd * 25, -48, 4, 8); c.fill();
+      c.strokeStyle = '#1a3a68'; c.lineWidth = 5; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 38, -62); c.lineTo(sd * 12, -53 + (ang ? 3 : 0)); c.stroke();
+    });
+    if (ang) {   // こごえる息
+      for (let i = 0; i < 5; i++) { const u = ((t * 1.6 + i * .2) % 1); c.fillStyle = 'rgba(220,245,255,' + (.5 * (1 - u)) + ')'; c.beginPath(); c.arc(i % 2 ? 6 : -6, -4 + u * 56, 8 + u * 18, 0, 7); c.fill(); }
+    }
+    for (let i = 0; i < 6; i++) { const sx = -90 + i * 36 + Math.sin(t + i) * 8, sy = ((t * 20 + i * 30) % 220) - 110; c.fillStyle = 'rgba(255,255,255,.8)'; c.beginPath(); c.arc(sx, sy, 1.8, 0, 7); c.fill(); }
+    c.restore();
+  };
+
+  // ラヴァゴーレム：黒い岩に走る、光る溶岩のひび
+  ART.lavagolem = function (c, t, m) {
+    const bob = Math.sin(t * 1.4) * 2.5, ang = m === 'angry', pulse = .65 + .35 * Math.sin(t * 3.4);
+    c.save(); c.translate(0, bob);
+    c.fillStyle = 'rgba(0,0,0,.35)'; ellipse(c, 0, 96, 80, 10); c.fill();
+    const gl = c.createRadialGradient(0, 20, 20, 0, 20, 140); gl.addColorStop(0, 'rgba(255,110,20,' + (.3 * pulse) + ')'); gl.addColorStop(1, 'rgba(255,110,20,0)'); c.fillStyle = gl; c.fillRect(-150, -130, 300, 280);
+    const rock = (x0, x1) => grad(c, x0, 0, x1, 0, [[0, '#2a2430'], [.5, '#4a4250'], [1, '#1c1820']]);
+    const crack = (pts, w) => { c.strokeStyle = 'rgba(255,' + Math.round(110 + 80 * pulse) + ',30,' + (.7 + .3 * pulse) + ')'; c.lineWidth = w; c.lineCap = 'round'; c.lineJoin = 'round'; c.shadowColor = '#ff8a2a'; c.shadowBlur = 8 * pulse; c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.shadowBlur = 0; };
+    [-1, 1].forEach(sd => {   // 腕と溶岩のこぶし
+      const lift = ang ? -16 : Math.sin(t * 1.4 + sd) * 4;
+      c.fillStyle = rock(sd * 40, sd * 100); A.rr(c, sd > 0 ? 58 : -96, -18 + lift, 38, 64, 16); c.fill();
+      crack([[sd * 77, -10 + lift], [sd * 70, 12 + lift], [sd * 80, 36 + lift]], 3);
+      c.fillStyle = grad(c, 0, 40 + lift, 0, 82 + lift, [[0, '#ff9a2a'], [1, '#c8300a']]); A.rr(c, sd > 0 ? 50 : -104, 40 + lift, 54, 42, 18); c.fill();
+      c.strokeStyle = '#2a1008'; c.lineWidth = 3; A.rr(c, sd > 0 ? 50 : -104, 40 + lift, 54, 42, 18); c.stroke();
+      c.fillStyle = '#ffb04a'; c.beginPath(); c.arc(sd * 77, 86 + lift + Math.sin(t * 3 + sd) * 3, 4, 0, 7); c.fill();
+    });
+    c.fillStyle = rock(-60, 60); A.rr(c, -58, -22, 116, 110, 26); c.fill();
+    c.strokeStyle = '#120e14'; c.lineWidth = 3; A.rr(c, -58, -22, 116, 110, 26); c.stroke();
+    crack([[-34, -10], [-14, 12], [-30, 34], [-12, 60]], 3.5); crack([[30, 0], [12, 28], [34, 52], [18, 78]], 3.5); crack([[-8, 20], [8, 40]], 2.5);
+    // 胸のコア
+    const cg = c.createRadialGradient(0, 30, 2, 0, 30, 22); cg.addColorStop(0, '#fff6b0'); cg.addColorStop(.5, 'rgba(255,160,40,' + pulse + ')'); cg.addColorStop(1, 'rgba(255,100,20,0)'); c.fillStyle = cg; c.beginPath(); c.arc(0, 30, 22, 0, 7); c.fill();
+    c.fillStyle = '#322c38'; A.rr(c, -50, 78, 38, 24, 8); c.fill(); A.rr(c, 12, 78, 38, 24, 8); c.fill();
+    // 頭
+    c.fillStyle = rock(-36, 36); A.rr(c, -36, -88, 72, 64, 18); c.fill();
+    c.strokeStyle = '#120e14'; A.rr(c, -36, -88, 72, 64, 18); c.stroke();
+    crack([[-6, -88], [-12, -74], [-4, -62]], 2.5);
+    flame(c, -14, -86, 10, 30, t, 0); flame(c, 10, -88, 12, 40, t, 2); flame(c, 28, -84, 8, 24, t, 4);
+    c.fillStyle = ang ? '#ff3a2a' : '#ffc23a'; c.shadowColor = c.fillStyle; c.shadowBlur = 14 * pulse;
+    c.beginPath(); c.moveTo(-28, -64); c.lineTo(-8, -58); c.lineTo(-10, -48); c.lineTo(-28, -52); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(28, -64); c.lineTo(8, -58); c.lineTo(10, -48); c.lineTo(28, -52); c.closePath(); c.fill(); c.shadowBlur = 0;
+    c.fillStyle = '#ff8a2a'; c.beginPath(); c.moveTo(-18, -38); c.lineTo(-10, -34); c.lineTo(0, -40); c.lineTo(10, -34); c.lineTo(18, -38); c.lineTo(14, -30); c.lineTo(-14, -30); c.closePath(); c.fill();
+    for (let i = 0; i < 4; i++) { const u = ((t * .5 + i * .25) % 1); c.fillStyle = 'rgba(70,60,70,' + (.4 * (1 - u)) + ')'; c.beginPath(); c.arc(-20 + i * 14, -100 - u * 24, 6 + u * 8, 0, 7); c.fill(); }
+    c.restore();
+  };
+
+  // てんくうの騎士：金色の鎧、光の剣、頭上の輪
+  ART.holyknight = function (c, t, m) {
+    const bob = Math.sin(t * 2) * 3, ang = m === 'angry', pulse = .7 + .3 * Math.sin(t * 3);
+    c.save(); c.translate(0, bob);
+    c.fillStyle = 'rgba(0,0,0,.28)'; ellipse(c, 0, 96, 60, 9); c.fill();
+    const hg = c.createRadialGradient(0, -108, 4, 0, -108, 60); hg.addColorStop(0, 'rgba(255,240,170,' + (.5 * pulse) + ')'); hg.addColorStop(1, 'rgba(255,240,170,0)'); c.fillStyle = hg; c.fillRect(-80, -170, 160, 120);
+    c.fillStyle = grad(c, 0, 0, 0, 100, [[0, '#3a6ad8'], [1, '#1a2c78']]);   // マント
+    c.beginPath(); c.moveTo(-58, -10); c.quadraticCurveTo(-92, 60, -68, 100); c.lineTo(68, 100); c.quadraticCurveTo(92, 60, 58, -10); c.closePath(); c.fill();
+    c.strokeStyle = '#ffd24a'; c.lineWidth = 3; c.beginPath(); c.moveTo(-66, 98); c.lineTo(66, 98); c.stroke();
+    // 光の剣
+    c.save(); c.translate(-78, 24); c.rotate(-.22 + (ang ? -.35 : Math.sin(t * 2) * .03));
+    const sg = c.createLinearGradient(-14, 0, 14, 0); sg.addColorStop(0, '#9be7ff'); sg.addColorStop(.5, '#ffffff'); sg.addColorStop(1, '#9be7ff');
+    c.shadowColor = '#9be7ff'; c.shadowBlur = 16 * pulse; c.fillStyle = sg;
+    c.beginPath(); c.moveTo(0, -112); c.lineTo(13, -84); c.lineTo(12, 34); c.lineTo(-12, 34); c.lineTo(-13, -84); c.closePath(); c.fill(); c.shadowBlur = 0;
+    c.fillStyle = '#e0a010'; c.fillRect(-28, 34, 56, 9); c.fillRect(-5, 43, 10, 26);
+    c.restore();
+    const gold = grad(c, -50, 0, 50, 0, [[0, '#d8a020'], [.5, '#fff0b0'], [1, '#c88a10']]);
+    c.fillStyle = gold; A.rr(c, -44, -6, 88, 76, 16); c.fill();
+    c.strokeStyle = '#7a5008'; c.lineWidth = 3; A.rr(c, -44, -6, 88, 76, 16); c.stroke();
+    c.fillStyle = '#fff'; c.fillRect(-4, 4, 8, 50); c.fillRect(-16, 18, 32, 8);   // 胸の十字
+    A.rr(c, -38, 68, 32, 30, 8); c.fillStyle = gold; c.fill(); A.rr(c, 6, 68, 32, 30, 8); c.fill();
+    [-1, 1].forEach(sd => { c.fillStyle = gold; ellipse(c, sd * 52, 0, 25, 21); c.fill(); c.strokeStyle = '#7a5008'; c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.moveTo(sd * 44, -14); c.lineTo(sd * 54, -34); c.lineTo(sd * 64, -12); c.closePath(); c.fill(); });
+    // 盾
+    c.fillStyle = grad(c, 0, 10, 0, 80, [[0, '#ffffff'], [1, '#b8d8ff']]); c.beginPath(); c.moveTo(40, 10); c.lineTo(78, 18); c.lineTo(78, 52); c.quadraticCurveTo(78, 74, 59, 84); c.quadraticCurveTo(40, 74, 40, 52); c.closePath(); c.fill();
+    c.strokeStyle = '#d8a020'; c.lineWidth = 3.5; c.stroke(); c.fillStyle = '#3a6ad8'; ellipse(c, 59, 46, 9, 12); c.fill();
+    // 兜と翼
+    [-1, 1].forEach(sd => { c.fillStyle = 'rgba(255,255,255,.96)'; c.beginPath(); c.moveTo(sd * 30, -52); c.quadraticCurveTo(sd * 72, -66, sd * 84, -96); c.quadraticCurveTo(sd * 62, -76, sd * 44, -80); c.quadraticCurveTo(sd * 66, -84, sd * 76, -110); c.quadraticCurveTo(sd * 40, -92, sd * 26, -72); c.closePath(); c.fill(); c.strokeStyle = '#c8d8f0'; c.lineWidth = 1.5; c.stroke(); });
+    c.fillStyle = gold; A.rr(c, -32, -80, 64, 76, 24); c.fill(); c.strokeStyle = '#7a5008'; c.lineWidth = 3; A.rr(c, -32, -80, 64, 76, 24); c.stroke();
+    c.fillStyle = '#12203a'; A.rr(c, -22, -50, 44, 15, 6); c.fill();
+    c.fillStyle = ang ? '#ffd0d0' : '#9be7ff'; c.shadowColor = c.fillStyle; c.shadowBlur = 10; ellipse(c, -9, -43, 5, 3.5); c.fill(); ellipse(c, 9, -43, 5, 3.5); c.fill(); c.shadowBlur = 0;
+    c.strokeStyle = 'rgba(255,224,120,' + (.75 + .25 * pulse) + ')'; c.lineWidth = 6; c.shadowColor = '#ffe080'; c.shadowBlur = 12; c.beginPath(); c.ellipse(0, -104, 30, 9, 0, 0, 7); c.stroke(); c.shadowBlur = 0;   // 天使の輪
+    c.restore();
+  };
+
+  // 大魔王：紫の炎をまとう、三つ目の王
+  ART.overlord = function (c, t, m) {
+    const bob = Math.sin(t * 1.2) * 4, flap = Math.sin(t * 1.7) * .1, ang = m === 'angry', pulse = .7 + .3 * Math.sin(t * 3.6);
+    c.save(); c.translate(0, bob);
+    c.fillStyle = 'rgba(0,0,0,.4)'; ellipse(c, 0, 98, 78, 11); c.fill();
+    const ag = c.createRadialGradient(0, 0, 20, 0, 0, 150); ag.addColorStop(0, 'rgba(200,90,255,' + (.55 * pulse) + ')'); ag.addColorStop(1, 'rgba(190,60,255,0)'); c.fillStyle = ag; c.fillRect(-160, -160, 320, 320);
+    for (let i = 0; i < 7; i++) {   // まわりの紫の炎
+      const x = -88 + i * 29, ph = i * 1.3, h = 44 + Math.sin(t * 5 + ph) * 12;
+      c.fillStyle = 'rgba(170,60,255,.55)'; flameShape(c, x, 70 - Math.abs(i - 3) * 8, 13, h, Math.sin(t * 7 + ph) * 4); c.fill();
+      c.fillStyle = 'rgba(255,150,255,.5)'; flameShape(c, x, 70 - Math.abs(i - 3) * 8, 7, h * .6, Math.sin(t * 7 + ph) * 3); c.fill();
+    }
+    [-1, 1].forEach(sd => {   // 翼
+      c.save(); c.scale(sd, 1); c.translate(36, -4); c.rotate(-.42 + flap);
+      c.fillStyle = grad(c, 0, -110, 110, 30, [[0, '#3a1466'], [1, '#0e0620']]);
+      c.beginPath(); c.moveTo(0, 14); c.lineTo(8, -106); c.lineTo(34, -64); c.lineTo(56, -100); c.lineTo(76, -42); c.lineTo(108, -56); c.lineTo(82, 28); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(230,100,255,.65)'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(0, 14); c.lineTo(34, -64); c.moveTo(0, 14); c.lineTo(76, -42); c.stroke();
+      c.restore();
+    });
+    c.fillStyle = grad(c, 0, -10, 0, 100, [[0, '#3a1250'], [1, '#12061c']]);   // マント
+    c.beginPath(); c.moveTo(-56, -8); c.quadraticCurveTo(-82, 56, -58, 100); for (let i = 0; i < 5; i++) c.lineTo(-58 + (i + .5) * 23, 100 - (i % 2 ? 0 : 12)); c.lineTo(58, 100); c.quadraticCurveTo(82, 56, 56, -8); c.closePath(); c.fill();
+    c.fillStyle = grad(c, 0, 0, 0, 90, [[0, '#8a46b0'], [1, '#3a1a5c']]); A.rr(c, -40, -2, 80, 86, 22); c.fill();
+    c.strokeStyle = '#c070ff'; c.lineWidth = 2.5; A.rr(c, -40, -2, 80, 86, 22); c.stroke();
+    const gg = c.createRadialGradient(0, 28, 2, 0, 28, 20); gg.addColorStop(0, '#ffffff'); gg.addColorStop(.4, 'rgba(255,90,220,' + pulse + ')'); gg.addColorStop(1, 'rgba(255,90,220,0)'); c.fillStyle = gg; c.beginPath(); c.arc(0, 28, 20, 0, 7); c.fill();
+    c.fillStyle = '#ff5ad8'; c.beginPath(); c.moveTo(0, 14); c.lineTo(9, 28); c.lineTo(0, 42); c.lineTo(-9, 28); c.closePath(); c.fill();
+    [-1, 1].forEach(sd => {   // 腕と闇の玉
+      c.strokeStyle = '#4a2068'; c.lineWidth = 16; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 40, 6); c.quadraticCurveTo(sd * 74, 26, sd * 70, 56 + (ang ? -20 : 0)); c.stroke();
+      c.fillStyle = '#e8d8f8'; for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(sd * 70 + i * 8 - 3, 58 + (ang ? -20 : 0)); c.lineTo(sd * 70 + i * 9, 76 + (ang ? -20 : 0)); c.lineTo(sd * 70 + i * 8 + 3, 58 + (ang ? -20 : 0)); c.closePath(); c.fill(); }
+    });
+    const og = c.createRadialGradient(-72, 38, 2, -72, 38, 24 * (ang ? 1.3 : 1)); og.addColorStop(0, '#ffffff'); og.addColorStop(.3, '#c070ff'); og.addColorStop(1, 'rgba(120,30,200,0)'); c.fillStyle = og; c.beginPath(); c.arc(-72, 38, 24 * (ang ? 1.3 : 1), 0, 7); c.fill();
+    // 頭・つの・冠
+    c.fillStyle = grad(c, 0, -96, 0, 6, [[0, '#a05ac0'], [1, '#52206e']]); ellipse(c, 0, -46, 46, 44); c.fill();
+    c.fillStyle = '#ece0c8';
+    [-1, 1].forEach(sd => {
+      c.beginPath(); c.moveTo(sd * 24, -74); c.bezierCurveTo(sd * 52, -98, sd * 82, -86, sd * 74, -126); c.bezierCurveTo(sd * 60, -100, sd * 40, -92, sd * 14, -68); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(sd * 36, -56); c.bezierCurveTo(sd * 62, -64, sd * 92, -48, sd * 90, -76); c.bezierCurveTo(sd * 76, -58, sd * 54, -50, sd * 34, -46); c.closePath(); c.fill();
+    });
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(-24, -82); c.lineTo(-28, -104); c.lineTo(-12, -90); c.lineTo(0, -112); c.lineTo(12, -90); c.lineTo(28, -104); c.lineTo(24, -82); c.closePath(); c.fill();
+    c.fillStyle = '#ff5ad8'; ellipse(c, 0, -92, 4.5, 4.5); c.fill();
+    c.fillStyle = '#ff2a8a'; c.shadowColor = '#ff2a8a'; c.shadowBlur = 14 * pulse;   // 三つの目
+    [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(sd * 8, -52); c.lineTo(sd * 32, -60 - (ang ? 0 : 3)); c.lineTo(sd * 28, -44); c.closePath(); c.fill(); });
+    ellipse(c, 0, -68, 7, 9); c.fill(); c.shadowBlur = 0;
+    c.fillStyle = '#1a0612'; ellipse(c, 0, -67, 2.5, 7); c.fill();
+    c.fillStyle = '#12040e'; A.rr(c, -24, -32, 48, 17, 8); c.fill();
+    c.fillStyle = '#fff'; [-16, -6, 6, 16].forEach(x => { c.beginPath(); c.moveTo(x - 4, -32); c.lineTo(x, -20); c.lineTo(x + 4, -32); c.closePath(); c.fill(); });
+    c.restore();
+  };
+
+  // 敵カードに収めるための大きさ（1 = そのまま）
+  A.fit = { slime: 1, goblin: 0.95, dragon: 0.78, skeleton: 0.88, ghost: 0.88, golem: 0.84, knight: 0.74, imp: 0.88, demon: 0.7, yeti: 0.78, wizard: 0.78,
+    chibi: 1.05, kogob: 0.98, bigslime: 0.88, frostslime: 0.95, magmaslime: 0.95, flameimp: 0.88, icedragon: 0.76, lavagolem: 0.8, holyknight: 0.72, overlord: 0.8 };
   A.enemyArt = (c, key, t, mood) => ART[key](c, t, mood);
 
   // ---------- 敵カードの背景 ----------

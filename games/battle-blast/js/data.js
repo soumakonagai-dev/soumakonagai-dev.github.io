@@ -55,11 +55,11 @@ BB.data = {
   ],
   // 敵の行動: attack / strong / stone / freeze / defend / seal(ability)
   enemies: {
-    chibi:    { name: 'ちびスライム', art: 'slime',  size: .78, hp: 26, atk: 6,  count: 4,
+    chibi:    { name: 'ちびスライム', art: 'chibi', theme: 'slime', hp: 26, atk: 6,  count: 4,
       actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'attack' }, { type: 'strong' }] },
-    kogob:    { name: 'こゴブリン',   art: 'goblin', size: .8,  hp: 38, atk: 7,  count: 4,
+    kogob:    { name: 'こゴブリン',   art: 'kogob', theme: 'goblin',  hp: 38, atk: 7,  count: 4,
       actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }] },
-    bigslime: { name: 'ビッグスライム', art: 'slime', size: 1.05, hp: 64, atk: 9, count: 4, boss: true,
+    bigslime: { name: 'ビッグスライム', art: 'bigslime', theme: 'slime', hp: 64, atk: 9, count: 4, boss: true,
       actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }, { type: 'attack' }] },
     slime:    { name: 'スライム',   art: 'slime',    hp: 44,  atk: 10, count: 3,
       actions: [{ type: 'attack' }, { type: 'attack' }, { type: 'strong' }] },
@@ -80,25 +80,25 @@ BB.data = {
     demon:    { name: '魔王',       art: 'demon',    hp: 256, atk: 23, count: 4, boss: true,
       actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }] },
     // ---- ステージ 5: こおりの洞窟 ----
-    frostslime: { name: 'フロストスライム', art: 'slime', tint: 'hue-rotate(75deg) saturate(1.2) brightness(1.15)', theme: 'ice', hp: 100, atk: 15, count: 3,
+    frostslime: { name: 'フロストスライム', art: 'frostslime', theme: 'ice', hp: 100, atk: 15, count: 3,
       actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'attack' }, { type: 'strong' }] },
     yeti:       { name: 'イエティ', art: 'yeti', theme: 'ice', hp: 125, atk: 16, count: 3,
       actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'defend' }, { type: 'attack' }, { type: 'freeze' }] },
-    icedragon:  { name: 'アイスドラゴン', art: 'dragon', tint: 'hue-rotate(170deg)', theme: 'ice', hp: 300, atk: 26, count: 4, boss: true,
+    icedragon:  { name: 'アイスドラゴン', art: 'icedragon', theme: 'ice', hp: 300, atk: 26, count: 4, boss: true,
       actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }, { type: 'seal', ability: 'heal' }] },
     // ---- ステージ 6: 灼熱の火山 ----
-    magmaslime: { name: 'マグマスライム', art: 'slime', tint: 'hue-rotate(-85deg) saturate(1.3)', theme: 'volcano', hp: 115, atk: 17, count: 3,
+    magmaslime: { name: 'マグマスライム', art: 'magmaslime', theme: 'volcano', hp: 115, atk: 17, count: 3,
       actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'attack' }] },
-    flameimp:   { name: 'ほのおインプ', art: 'imp', tint: 'hue-rotate(105deg) saturate(1.2)', theme: 'volcano', hp: 125, atk: 17, count: 3,
+    flameimp:   { name: 'ほのおインプ', art: 'flameimp', theme: 'volcano', hp: 125, atk: 17, count: 3,
       actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'seal', ability: 'heal' }, { type: 'strong' }] },
-    lavagolem:  { name: 'ラヴァゴーレム', art: 'golem', tint: 'sepia(1) saturate(5) hue-rotate(-15deg)', theme: 'volcano', hp: 340, atk: 28, count: 4, boss: true,
+    lavagolem:  { name: 'ラヴァゴーレム', art: 'lavagolem', theme: 'volcano', hp: 340, atk: 28, count: 4, boss: true,
       actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'stone' }, { type: 'freeze' }, { type: 'strong' }] },
     // ---- ステージ 7: 天空の神殿 ----
     wizard:     { name: '魔導士', art: 'wizard', theme: 'sky', hp: 130, atk: 18, count: 3,
       actions: [{ type: 'attack' }, { type: 'seal', ability: 'heal' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }] },
-    holyknight: { name: 'てんくうの騎士', art: 'knight', tint: 'hue-rotate(185deg) brightness(1.25)', theme: 'sky', hp: 140, atk: 19, count: 3,
+    holyknight: { name: 'てんくうの騎士', art: 'holyknight', theme: 'sky', hp: 140, atk: 19, count: 3,
       actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }] },
-    overlord:   { name: '大魔王', art: 'demon', tint: 'hue-rotate(200deg) saturate(1.2) brightness(1.1)', theme: 'sky', hp: 400, atk: 31, count: 4, boss: true,
+    overlord:   { name: '大魔王', art: 'overlord', theme: 'sky', hp: 400, atk: 31, count: 4, boss: true,
       actions: [{ type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }] }
   },
   // reward: 敵を倒すごとに enemy[i] コイン、クリアで clear、初クリアで first、星 1 つにつき star
@@ -106,27 +106,40 @@ BB.data = {
   // コインは以前の 4 倍
   stages: [
     { id: 0, name: 'ちいさな森', desc: 'はじめてでも安心のやさしい森', theme: 'forest',
-      enemies: ['chibi', 'kogob', 'bigslime'], reward: { enemy: [0, 0, 0], clear: 400, first: 0, star: 0, fixed: true } },
+      enemies: ['chibi', 'kogob', 'bigslime'], reward: { enemy: [0, 0, 0], clear: 200, first: 0, star: 0, fixed: true } },
     { id: 1, name: 'はじまりの草原', desc: 'スライムとゴブリンが待ち受ける', theme: 'meadow',
-      enemies: ['slime', 'goblin', 'dragon'], reward: { enemy: [60, 80, 140], clear: 400, first: 320, star: 40 } },
+      enemies: ['slime', 'goblin', 'dragon'], reward: { enemy: [30, 40, 70], clear: 200, first: 160, star: 20 } },
     { id: 2, name: 'ほねの墓場', desc: '骨と霊がさまよう古い墓地', theme: 'grave',
-      enemies: ['skeleton', 'ghost', 'golem'], reward: { enemy: [100, 120, 200], clear: 600, first: 480, star: 60 } },
+      enemies: ['skeleton', 'ghost', 'golem'], reward: { enemy: [50, 60, 100], clear: 300, first: 240, star: 30 } },
     { id: 3, name: '魔王城', desc: '最奥で魔王が待つ', theme: 'castle',
-      enemies: ['knight', 'imp', 'demon'], reward: { enemy: [160, 200, 320], clear: 880, first: 720, star: 80 } },
+      enemies: ['knight', 'imp', 'demon'], reward: { enemy: [80, 100, 160], clear: 440, first: 360, star: 40 } },
     { id: 4, name: 'こおりの洞窟', desc: '凍りついた魔物たちの巣', theme: 'ice',
-      enemies: ['frostslime', 'yeti', 'icedragon'], reward: { enemy: [240, 300, 480], clear: 1200, first: 1000, star: 100 } },
+      enemies: ['frostslime', 'yeti', 'icedragon'], reward: { enemy: [120, 150, 240], clear: 600, first: 500, star: 50 } },
     { id: 5, name: '灼熱の火山', desc: '燃えさかる溶岩のなかへ', theme: 'volcano',
-      enemies: ['magmaslime', 'flameimp', 'lavagolem'], reward: { enemy: [320, 400, 640], clear: 1600, first: 1300, star: 130 } },
+      enemies: ['magmaslime', 'flameimp', 'lavagolem'], reward: { enemy: [160, 200, 320], clear: 800, first: 650, star: 65 } },
     { id: 6, name: '天空の神殿', desc: '雲の上で最後の戦いが待つ', theme: 'sky',
-      enemies: ['wizard', 'holyknight', 'overlord'], reward: { enemy: [420, 520, 800], clear: 2000, first: 1700, star: 160 } }
+      enemies: ['wizard', 'holyknight', 'overlord'], reward: { enemy: [210, 260, 400], clear: 1000, first: 850, star: 80 } }
   ],
+  // ガチャは 3 種類。どれも 1 回と 10 回が引ける。min10 は「10 回のうち最低 1 つはこのレア度以上」の保証。
+  //   ノーマル: SSR・UR は出ない / レア: R 以上確定で SSR が出る / ウルトラ: SR 以上確定で最高レア UR が出る
   gacha: {
-    cost: 100, cost10: 900,
-    rates: { N: 55, R: 30, SR: 12, SSR: 3 },
-    rare: { cost: 500, rates: { N: 0, R: 70, SR: 25, SSR: 5 } },   // レアガチャ: R 以上確定
+    kinds: {
+      // SR は多め、SSR・UR は少なめ（SSR は特に低くしてある）
+      normal: { name: 'ノーマル', cost: 100,  cost10: 900,  rates: { N: 58, R: 32, SR: 10 },           min10: 'R' },
+      rare:   { name: 'レア',     cost: 500,  cost10: 4500, rates: { R: 71, SR: 26, SSR: 3 },          min10: null },
+      ultra:  { name: 'ウルトラ', cost: 1000, cost10: 9000, rates: { SR: 95.8, SSR: 3.5, UR: 0.7 },    min10: null }
+    },
+    // ピックアップ: SR 以上のレア度ごとに 1 つの装備が、1 時間ごとに入れ替わる。
+    // ピックアップ装備は、同じレア度のほかの装備より pickBoost 倍出やすい（レア度全体の確率は変わらない）
+    pickBoost: 4,
+    pickHours: 1,
     maxPlus: 20,                            // 合体で上げられる +値の上限
     plusBonus: 0.07                         // +1 ごとに装備の効果 +7%（+20 で 2.4 倍）
   },
+  // チャレンジモード: 難易度 1〜20。上げるほど敵が強くなり、もらえるコインの倍率が上がる
+  //   敵 HP ×(1 + hp×(Lv-1)) / 敵の攻撃力 ×(1 + atk×(Lv-1)) / コイン ×(1 + coin×(Lv-1))
+  //   countDrop: [Lv, 減る手数]。敵が行動するまでの手数が減る（最低 2 手）
+  challenge: { maxLevel: 20, hp: 0.12, atk: 0.08, coin: 0.26, countDrop: [[8, 1], [15, 2]] },
   slots: { weapon: '武器', armor: '防具', acc: 'アクセ' },
   // effects: mul.<能力> 能力の効果量 / combo コンボ倍率 / comboCap コンボ上限 / line 同時消し倍率 / whole 丸ごと消し倍率
   //          maxHp / shield 盾の上限 / startShield 開始シールド / gauge 開始必殺ゲージ / count 敵の行動までの手数
@@ -184,7 +197,14 @@ BB.data = {
     { id: 'c16', slot: 'acc',    rarity: 'SR',  name: 'クロノスの懐中時計', icon: '⏱️', effects: { count: 1, combo: .05, comboCap: 2 } },
     { id: 'c17', slot: 'acc',    rarity: 'SR',  name: '黄金のお守り',   icon: '🧿', effects: { coin: .60, maxHp: 20, reduce: .05 } },
     { id: 'c18', slot: 'acc',    rarity: 'SSR', name: '覇者の首飾り',   icon: '💎', effects: { combo: .15, comboCap: 8, line: .20, whole: .20 } },
-    { id: 'c19', slot: 'acc',    rarity: 'SSR', name: '時の女神の涙',   icon: '💧', effects: { count: 2, mul: { stun: 1.0 }, gauge: 50 } }
+    { id: 'c19', slot: 'acc',    rarity: 'SSR', name: '時の女神の涙',   icon: '💧', effects: { count: 2, mul: { stun: 1.0 }, gauge: 50 } },
+    // ---- UR（ウルトラガチャだけで出る最高レア） ----
+    { id: 'w17', slot: 'weapon', rarity: 'UR',  name: '神剣エクスカリバー', icon: '🌠', effects: { mul: { attack: 1.4 }, line: .25, whole: .40 } },
+    { id: 'w18', slot: 'weapon', rarity: 'UR',  name: '終焉の杖',       icon: '☄️', effects: { mul: { magic: 1.7, poison: 1.0, stun: .60 }, line: .20 } },
+    { id: 'a16', slot: 'armor',  rarity: 'UR',  name: '絶対守護の鎧',   icon: '🔰', effects: { reduce: .30, maxHp: 50, mul: { guard: 1.0 }, startShield: 25, shield: 30 } },
+    { id: 'a17', slot: 'armor',  rarity: 'UR',  name: '創世の法衣',     icon: '🪽', effects: { mul: { heal: 1.5 }, healBetween: 40, maxHp: 30, reduce: .15 } },
+    { id: 'c20', slot: 'acc',    rarity: 'UR',  name: '王者の王冠',     icon: '🏵️', effects: { combo: .20, comboCap: 10, line: .30, whole: .40 } },
+    { id: 'c21', slot: 'acc',    rarity: 'UR',  name: '運命の歯車',     icon: '⚙️', effects: { count: 2, combo: .10, mul: { stun: 1.2 }, gauge: 60, coin: 1.0 } }
   ],
   // いろがえしたマスの基礎値
   buddyBase: { attack: 3, magic: 2, heal: 3, guard: 3, poison: 1, charge: 4, stun: 0.2 },
@@ -228,7 +248,7 @@ BB.data = {
   // スカウト場に並ぶバディのレア度。クリアしたステージ数（0〜6）が進むほど、いいバディが出やすくなる
   // minRarity: その進行度で、3 匹のうち少なくとも 1 匹はこのレア度以上にする
   scout: {
-    maxLevel: 5, dupCoins: 150, candidates: 3,
+    maxLevel: 5, dupCoins: 75, candidates: 3,
     ratesByTier: [
       { N: 70, R: 26, SR: 4,  SSR: 0 },    // 0: まだ 1 つもクリアしていない
       { N: 58, R: 31, SR: 10, SSR: 1 },    // 1
@@ -244,6 +264,19 @@ BB.data = {
 
 BB.data.buddyMap = {};
 BB.data.buddies.forEach(b => { BB.data.buddyMap[b.id] = b; });
+
+// 装備の全体強化: 効果の数値を一律に引き上げる（手数 count はそのまま）
+(function buffEquipment() {
+  const up = (v, k) => Math.round(v * k * 100) / 100;
+  BB.data.equipment.forEach(e => {
+    const f = e.effects;
+    Object.keys(f.mul || {}).forEach(a => { f.mul[a] = up(f.mul[a], 1.3); });
+    ['combo', 'line', 'whole'].forEach(k => { if (f[k]) f[k] = up(f[k], 1.3); });
+    if (f.reduce) f.reduce = up(f.reduce, 1.2);
+    ['maxHp', 'shield', 'startShield', 'gauge', 'healBetween'].forEach(k => { if (f[k]) f[k] = Math.round(f[k] * 1.3); });
+    if (f.comboCap) f.comboCap = Math.round(f.comboCap * 1.25);
+  });
+})();
 
 // 形の回転ぶんも手札に出るようにする。I 型は縦横が最初から別なので対象外。
 // 同じ形の合計の出やすさは変えず、向きの数で割り振る。

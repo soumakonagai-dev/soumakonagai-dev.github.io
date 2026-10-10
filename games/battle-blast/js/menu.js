@@ -2,16 +2,18 @@
 // main.js から BB.menu.draw / click が呼ばれる。ui は main.js の描画ヘルパー一式。
 BB.menu = (function () {
   const D = BB.data, E = BB.equip, G = D.gacha, A = BB.art;
-  const RC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d' };
+  const RC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d', UR: '#ff5ac8' };
   const SLOT_ORDER = ['weapon', 'armor', 'acc'];
   const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky' };
   const LIST_TOP = 58, LIST_BOTTOM = 572, CARD_PITCH = 112;   // ステージ一覧の表示範囲（これをはみ出す分はスクロール）
   let stageScroll = 0, equipTab = 'weapon', pdrag = null, buddyScroll = 0;
 
   let hits = [], sel = null, toast = null;
+  let rateScroll = 0;
+  let chStage = -1, chLevel = 1;   // チャレンジで選んでいるステージ・難易度
   let scoutSel = null, recruitRes = null, buddySel = null;   // スカウト場で選んだ候補 / スカウト結果 / 図鑑で選んだバディ
   const RCOL = RC;
-  let gKind = 'normal';                 // 'normal' | 'rare'
+  let gKind = 'normal';                 // 'normal' | 'rare' | 'ultra'
   let gacha = { phase: 'idle', results: [], t0: 0, n: 1, best: 'N', played: false };
 
   const reg = (x, y, w, h, fn) => hits.push({ x, y, w, h, fn });
@@ -21,6 +23,13 @@ BB.menu = (function () {
     if (name === 'gacha') gacha = { phase: 'idle', results: [], t0: 0, n: 1, best: 'N', played: false };
     if (name === 'equip' && !(sel in save().owned)) sel = null;
     if (name === 'scout') { scoutSel = null; recruitRes = null; }
+    if (name === 'challenge') {   // クリア済みのステージのうち一番先のもの、前回の最高 +1 の難易度から
+      const list = D.stages.map((st, i) => i).filter(i => (save().stages[D.stages[i].id] || {}).cleared);
+      if (list.length) {
+        if (!list.includes(chStage)) chStage = list[list.length - 1];
+        chLevel = Math.min(D.challenge.maxLevel, (save().challenge[D.stages[chStage].id] || 0) + 1);
+      }
+    }
     if (name === 'stages') {   // 次に挑戦するステージが見える位置までスクロール
       const next = D.stages.findIndex((st, i) => E.isUnlocked(save(), i) && !(save().stages[st.id] || {}).cleared);
       stageScroll = Math.max(0, (next < 0 ? D.stages.length - 1 : next) * CARD_PITCH - 90);
@@ -61,6 +70,13 @@ BB.menu = (function () {
     if (o.selected) { c.shadowColor = col; c.shadowBlur = 10; }
     ui.rr(x + .8, y + .8, w - 1.6, h - 1.6, 10); c.stroke();
     c.restore();
+    if (owned && item.rarity === 'UR') {       // にじ色のきらめき
+      const k = ((o.t || 0) / 1800 + x / 300) % 1;
+      c.save(); ui.rr(x, y, w, h, 10); c.clip();
+      const g = c.createLinearGradient(x + (k * 2 - 1) * w, y, x + (k * 2 - 1) * w + w * 1.2, y + h);
+      ['#ff5a5a', '#ffd24a', '#5aff9a', '#5ad8ff', '#a05aff', '#ff5ac8'].forEach((col, i, a) => g.addColorStop(i / (a.length - 1), A.rgba(col, .34)));
+      c.fillStyle = g; c.fillRect(x, y, w, h); c.restore();
+    }
     if (owned && item.rarity === 'SSR') {      // 金色のきらめき
       const k = ((o.t || 0) / 1400 + x / 200) % 1;
       c.save(); ui.rr(x, y, w, h, 10); c.clip();
@@ -88,7 +104,7 @@ BB.menu = (function () {
     ui.bg();
     coinChip(ui, 14, 12, 110);
     ui.speaker(330, 24, ui.SFX.mode);
-    ui.drawArt('slime', 180, 172, .62, 'idle', t / 1000);
+    ui.drawArt('slime', 180, 152, .5, 'idle', t / 1000);
     ui.ctx.save(); ui.ctx.translate(180, 62);
     ui.ctx.shadowColor = 'rgba(160,110,255,.8)'; ui.ctx.shadowBlur = 16;
     ui.textO('バトルブラスト', 0, 0, 32, '#ffd86a', 'center', '#2a1670', 8);
@@ -102,16 +118,14 @@ BB.menu = (function () {
       ui.ctx.fillStyle = '#ff4d6d'; ui.ctx.beginPath(); ui.ctx.arc(0, 0, 11, 0, 7); ui.ctx.fill();
       ui.text('!', 0, 1, 14, '#fff', 'center', true); ui.ctx.restore();
     };
-    ui.button(60, 232, 240, 52, '冒険に出る', '#2fbf71', true, 20);
-    reg(60, 232, 240, 52, () => { ui.SFX.play('ui'); ui.go('stages'); });
-    ui.button(60, 296, 240, 52, 'スカウト', '#e08a2a', false, 20);
-    reg(60, 296, 240, 52, () => { ui.SFX.play('ui'); ui.go('scout'); });
-    badge(292, 302, !!save().scout);
-    ui.button(60, 360, 240, 52, 'ガチャ', '#8b5cf6', false, 20);
-    reg(60, 360, 240, 52, () => { ui.SFX.play('ui'); ui.go('gacha'); });
-    badge(292, 366, save().coins >= G.cost);
-    ui.button(60, 424, 240, 52, 'そうび', '#2f7bff', false, 20);
-    reg(60, 424, 240, 52, () => { ui.SFX.play('ui'); ui.go('equip'); });
+    const B = (y, label, color, pulse, to) => { ui.button(60, y, 240, 46, label, color, pulse, 18); reg(60, y, 240, 46, () => { ui.SFX.play('ui'); ui.go(to); }); };
+    B(214, '冒険に出る', '#2fbf71', true, 'stages');
+    B(268, 'スカウト', '#e08a2a', false, 'scout');
+    badge(292, 272, !!save().scout);
+    B(322, 'チャレンジ', '#e0484a', false, 'challenge');
+    B(376, 'ガチャ', '#8b5cf6', false, 'gacha');
+    badge(292, 380, save().coins >= G.kinds.normal.cost);
+    B(430, 'そうび', '#2f7bff', false, 'equip');
 
     // そうび中・バディ
     ui.text('そうび', 105, 500, 11, '#8e98c8', 'center', true);
@@ -152,7 +166,7 @@ BB.menu = (function () {
       const g = c.createRadialGradient(290, y + 60, 4, 290, y + 60, 130);
       g.addColorStop(0, A.rgba(th.glow, .3)); g.addColorStop(1, A.rgba(th.glow, 0));
       c.fillStyle = g; c.fillRect(14, y, 332, h); c.restore();
-      st.enemies.forEach((k, j) => ui.drawArt(D.enemies[k].art, 218 + j * 46, y + 58 + (j === 2 ? -4 : 6), (j === 2 ? .28 : .22) * (D.enemies[k].size || 1) * (D.enemies[k].art === 'dragon' ? .85 : 1), 'idle', t / 1000 + j, !unlocked, D.enemies[k].tint));
+      st.enemies.forEach((k, j) => ui.drawArt(D.enemies[k].art, 218 + j * 46, y + 58 + (j === 2 ? -4 : 6), (j === 2 ? .3 : .23) * (A.fit[D.enemies[k].art] || 1), 'idle', t / 1000 + j, !unlocked));
       ui.text('STAGE ' + (i + 1), 30, y + 18, 11, '#cfd6ee', 'left', true);
       ui.textO(st.name, 30, y + 38, 18, '#fff', 'left');
       ui.text(st.desc, 30, y + 60, 11, '#d6dcf2', 'left');
@@ -198,8 +212,8 @@ BB.menu = (function () {
     c.save();
     if (anim.shake) c.translate((Math.random() - .5) * anim.shake, (Math.random() - .5) * anim.shake * .6);
     // 台座
-    const rare = anim.kind === 'rare';
-    c.fillStyle = ui.lin(0, cy + 62, 0, cy + 150, rare ? [[0, '#f2c14a'], [1, '#9a6a10']] : [[0, '#e0455f'], [1, '#8c1a3a']]);
+    const rare = anim.kind === 'rare', ultra = anim.kind === 'ultra';
+    c.fillStyle = ui.lin(0, cy + 62, 0, cy + 150, ultra ? [[0, '#a24ad8'], [1, '#341060']] : rare ? [[0, '#f2c14a'], [1, '#9a6a10']] : [[0, '#e0455f'], [1, '#8c1a3a']]);
     ui.rr(cx - 86, cy + 62, 172, 88, 16); c.fill();
     c.fillStyle = 'rgba(255,255,255,.2)'; ui.rr(cx - 80, cy + 66, 160, 18, 9); c.fill();
     c.fillStyle = '#2a0c20'; ui.rr(cx - 34, cy + 112, 68, 30, 8); c.fill();     // 取り出し口
@@ -207,7 +221,7 @@ BB.menu = (function () {
     c.save(); c.translate(cx, cy + 96); c.rotate(anim.knob || 0); c.fillStyle = '#a56a00'; c.fillRect(-12, -3, 24, 6); c.restore();
     // ドーム
     c.fillStyle = 'rgba(190,225,255,.16)'; c.beginPath(); c.arc(cx, cy - 6, 84, Math.PI, 0); c.lineTo(cx + 84, cy + 64); c.lineTo(cx - 84, cy + 64); c.closePath(); c.fill();
-    const cols = rare ? ['#4aa3ff', '#b36bff', '#ffc53d', '#4aa3ff', '#b36bff', '#ffc53d'] : ['#9aa3b8', '#4aa3ff', '#b36bff', '#ffc53d', '#ff6b8b', '#4ade80'];
+    const cols = ultra ? ['#b36bff', '#ffc53d', '#ff5ac8', '#5ad8ff', '#b36bff', '#ffd24a'] : rare ? ['#4aa3ff', '#b36bff', '#ffc53d', '#4aa3ff', '#b36bff', '#ffc53d'] : ['#9aa3b8', '#4aa3ff', '#b36bff', '#ffc53d', '#ff6b8b', '#4ade80'];
     for (let i = 0; i < 16; i++) {
       const a = i * 2.4, rr0 = 22 + (i * 17) % 52, bx = cx + Math.cos(a) * rr0 * 1.05, by = cy + 30 - Math.abs(Math.sin(a * .7)) * rr0 * .8 + Math.sin(t / 380 + i) * (anim.shake ? 6 : 1.5);
       const col = cols[i % cols.length], g = c.createRadialGradient(bx - 4, by - 4, 1, bx, by, 14);
@@ -220,7 +234,7 @@ BB.menu = (function () {
   }
 
   function startPull(ui, t, n) {
-    const res = E.pull(save(), n, null, gKind);
+    const res = E.pull(save(), n, null, gKind, Date.now());
     if (!res) { showToast(t, 'コインが足りません'); ui.SFX.play('pick'); return; }
     const order = E.RARITY_ORDER;
     const best = res.reduce((b, r) => order.indexOf(r.item.rarity) > order.indexOf(b) ? r.item.rarity : b, 'N');
@@ -246,36 +260,42 @@ BB.menu = (function () {
         g.addColorStop(0, 'rgba(255,255,255,' + u + ')'); g.addColorStop(.4, A.rgba(RC[gacha.best], .6 * u)); g.addColorStop(1, A.rgba(RC[gacha.best], 0));
         c.fillStyle = g; c.fillRect(0, 0, 360, 640);
       }
-      const rareK = gKind === 'rare', rt = E.ratesOf(gKind);
-      ui.textO(rareK ? 'レアガチャ' : 'そうびガチャ', 180, 372, 20, rareK ? '#ffd86a' : '#fff', 'center');
-      ui.text((rareK ? '' : 'N ' + rt.N + '%   ') + 'R ' + rt.R + '%   SR ' + rt.SR + '%   SSR ' + rt.SSR + '%', 180, 398, 11, '#b9c2f0', 'center', true);
-      ui.text(rareK ? 'R以上が必ず出る！' : '同じ装備は「ざいりょう」になる', 180, 418, 11, rareK ? '#ffd86a' : '#8e98c8', 'center', rareK);
-      ui.text('そうびで合体すると +1（最大 +' + G.maxPlus + '）', 180, 436, 11, '#8e98c8', 'center');
-      const busy = gacha.phase === 'anim';
-      (rareK ? [[80, 200, 1, G.rare.cost, '1回']] : [[24, 150, 1, G.cost, '1回'], [186, 150, 10, G.cost10, '10回']]).forEach(([x, w, n, cost, label]) => {
+      const K = G.kinds[gKind], rt = E.ratesOf(gKind), busy = gacha.phase === 'anim';
+      const KC = { normal: '#2f7bff', rare: '#e0a020', ultra: '#d946a8' };
+      const NOTE = { normal: 'SSR・URは出ません（レア・ウルトラで登場）', rare: 'R以上が必ず出る！ SSRが出るのはここから', ultra: 'SR以上が必ず出る！ 最高レア「UR」が登場' };
+      ui.textO(K.name + 'ガチャ', 180, 372, 20, gKind === 'normal' ? '#fff' : gKind === 'rare' ? '#ffd86a' : '#ff9ae0', 'center');
+      ui.text(E.RARITY_ORDER.filter(k => rt[k] > 0).map(k => k + ' ' + rt[k] + '%').join('   '), 180, 398, 11, '#b9c2f0', 'center', true);
+      ui.text(NOTE[gKind], 180, 418, 10.5, gKind === 'normal' ? '#8e98c8' : '#ffd86a', 'center', gKind !== 'normal');
+      ui.text('同じ装備は「ざいりょう」になり、合体で +1（最大 +' + G.maxPlus + '）', 180, 436, 10.5, '#8e98c8', 'center');
+      [[24, 150, 1, K.cost, '1回'], [186, 150, 10, K.cost10, '10回']].forEach(([x, w, n, cost, label]) => {
         const ok = save().coins >= cost && !busy;
-        if (ok) ui.button(x, 470, w, 58, label + '  🪙' + cost, rareK ? '#e0a020' : n === 10 ? '#8b5cf6' : '#2f7bff', rareK || n === 10, 16);
-        else ui.disabledButton(x, 470, w, 58, label + '  🪙' + cost, 16);
+        if (ok) ui.button(x, 470, w, 58, label + '  🪙' + cost, KC[gKind], n === 10, label === '10回' && cost >= 4500 ? 15 : 16);
+        else ui.disabledButton(x, 470, w, 58, label + '  🪙' + cost, 15);
         if (!busy) reg(x, 470, w, 58, () => startPull(ui, t, n));
       });
-      if (!rareK) ui.text('10回はSR以上が1つ確定', 261, 544, 11, '#c9b8ff', 'center', true);
-      else ui.text('SSRの確率がアップ！', 180, 544, 11, '#ffd86a', 'center', true);
+      ui.text(K.min10 ? '10回は' + K.min10 + '以上が1つ確定' : 'どの回もSR以上が確定', 261, 544, 11, '#ffd86a', 'center', true);
       // ガチャの切り替え
-      [['normal', 'ノーマル', 70], ['rare', 'レア', 186]].forEach(([k, label, x]) => {
-        const on = gKind === k, col = k === 'rare' ? '#e0a020' : '#2f7bff';
-        c.fillStyle = on ? A.rgba(col, .85) : 'rgba(8,12,28,.7)'; ui.rr(x, 62, 104, 26, 13); c.fill();
+      [['normal', 'ノーマル', 14], ['rare', 'レア', 128], ['ultra', 'ウルトラ', 242]].forEach(([k, label, x]) => {
+        const on = gKind === k, col = KC[k];
+        c.fillStyle = on ? A.rgba(col, .88) : 'rgba(8,12,28,.7)'; ui.rr(x, 62, 104, 26, 13); c.fill();
         c.strokeStyle = on ? '#fff' : 'rgba(255,255,255,.25)'; c.lineWidth = 1; ui.rr(x + .5, 62.5, 103, 25, 12.5); c.stroke();
         ui.text(label, x + 52, 75.5, 13, on ? '#fff' : '#9aa3c4', 'center', true);
         if (!busy) reg(x, 62, 104, 26, () => { if (gKind !== k) { gKind = k; ui.SFX.play('pick'); } });
       });
-      ui.text('コインはステージをクリアして集めよう', 180, 592, 11, '#8e98c8', 'center');
+      drawPickupStrip(ui, t);
+      if (!busy) {
+        c.fillStyle = 'rgba(8,12,28,.75)'; ui.rr(12, 100, 70, 26, 13); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 1; ui.rr(12.5, 100.5, 69, 25, 12.5); c.stroke();
+        ui.text('確率表', 47, 113.5, 12, '#fff', 'center', true);
+        reg(12, 100, 70, 26, () => { ui.SFX.play('ui'); rateScroll = 0; ui.go('rates'); });
+      }
       return;
     }
     // 結果
     const age2 = t - gacha.t0, res = gacha.results, one = res.length === 1;
     if (!gacha.played) {
       gacha.played = true;
-      ui.SFX.play(gacha.best === 'SSR' ? 'special' : gacha.best === 'SR' ? 'perfect' : 'heal');
+      ui.SFX.play(gacha.best === 'UR' || gacha.best === 'SSR' ? 'special' : gacha.best === 'SR' ? 'perfect' : 'heal');
     }
     const flash = A.clamp(1 - age2 / 600, 0, 1);
     c.fillStyle = 'rgba(6,9,22,.55)'; c.fillRect(0, 56, 360, 584);
@@ -290,6 +310,7 @@ BB.menu = (function () {
       c.translate(x + w / 2, y + h / 2); c.scale(.5 + .5 * u, .5 + .5 * u); c.translate(-(x + w / 2), -(y + h / 2)); c.globalAlpha = u;
       itemCard(ui, x, y, w, h, r.item, r.level, { t, noName: one });
       if (one) ui.textO(r.item.name, 180, y + h - 22, 16, '#fff', 'center');
+      if (r.pickup) ui.text('★ PICK UP', x + w / 2, y - 7, one ? 12 : 8.5, '#ffd24a', 'center', true);
       const tag = r.isNew ? ['NEW!', '#ff4d6d'] : ['素材 +1', '#4ade80'];
       c.fillStyle = tag[1]; ui.rr(x + w / 2 - (one ? 34 : 24), y + h + 6, one ? 68 : 48, one ? 20 : 15, 7); c.fill();
       ui.text(tag[0], x + w / 2, y + h + (one ? 16 : 13.8), one ? 12 : 9.5, '#fff', 'center', true);
@@ -306,6 +327,69 @@ BB.menu = (function () {
     reg(24, 556, 150, 52, () => startPull(ui, t, gacha.n));
     ui.button(186, 556, 150, 52, 'OK', '#2fbf71', true, 18);
     reg(186, 556, 150, 52, () => { ui.SFX.play('ui'); gacha = { phase: 'idle', results: [], t0: 0, n: 1, best: 'N', played: false }; });
+  }
+
+  // ---------- ピックアップと確率表 ----------
+  const fmtTime = ms => { const sec = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), ss = sec % 60; return (h ? h + ':' : '') + String(m).padStart(h ? 2 : 1, '0') + ':' + String(ss).padStart(2, '0'); };
+  const fmtRate = r => (r >= 10 ? r.toFixed(1) : r >= 1 ? r.toFixed(2) : r.toFixed(3)) + '%';
+  // ガチャ画面の下: いまのピックアップと、入れ替わるまでの時間
+  function drawPickupStrip(ui, t) {
+    const c = ui.ctx, now = Date.now(), pk = E.pickups(gKind, now);
+    ui.card(12, 556, 336, 66, 'rgba(60,50,110,.8)', 'rgba(24,20,60,.85)', 12);
+    ui.text('PICK UP', 22, 572, 11.5, '#ffd24a', 'left', true);
+    ui.text('あと ' + fmtTime(E.nextPickupAt(now) - now), 22, 592, 12, '#fff', 'left', true);
+    ui.text('1時間ごとに入れかわり', 22, 609, 9, '#9aa3c4', 'left');
+    pk.forEach((p, i) => {
+      const x = 108 + i * 80, col = RC[p.rarity];
+      c.fillStyle = A.rgba(col, .22); ui.rr(x, 562, 74, 54, 10); c.fill();
+      c.strokeStyle = col; c.lineWidth = 1.5; ui.rr(x + .5, 562.5, 73, 53, 10); c.stroke();
+      ui.text(p.rarity, x + 12, 572, 8.5, col, 'left', true);
+      ui.text(p.item.icon, x + 37, 589, 20, '#fff', 'center');
+      ui.text(p.item.name.length > 7 ? p.item.name.slice(0, 6) + '…' : p.item.name, x + 37, 609, 8.5, '#fff', 'center', true);
+    });
+    reg(12, 556, 336, 66, () => { ui.SFX.play('ui'); rateScroll = 0; ui.go('rates'); });
+  }
+
+  function drawRates(ui, t) {
+    ui.bg();
+    header(ui, 'ガチャ確率表', 'gacha');
+    const c = ui.ctx, now = Date.now(), K = G.kinds[gKind], rt = E.ratesOf(gKind);
+    const KC = { normal: '#2f7bff', rare: '#e0a020', ultra: '#d946a8' };
+    [['normal', 'ノーマル', 14], ['rare', 'レア', 128], ['ultra', 'ウルトラ', 242]].forEach(([k, label, x]) => {
+      const on = gKind === k;
+      c.fillStyle = on ? A.rgba(KC[k], .88) : 'rgba(8,12,28,.7)'; ui.rr(x, 60, 104, 26, 13); c.fill();
+      c.strokeStyle = on ? '#fff' : 'rgba(255,255,255,.25)'; c.lineWidth = 1; ui.rr(x + .5, 60.5, 103, 25, 12.5); c.stroke();
+      ui.text(label, x + 52, 73.5, 13, on ? '#fff' : '#9aa3c4', 'center', true);
+      reg(x, 60, 104, 26, () => { if (gKind !== k) { gKind = k; rateScroll = 0; ui.SFX.play('pick'); } });
+    });
+    // レア度ごとの確率と、ピックアップの入れ替わり
+    ui.card(12, 94, 336, 60, 'rgba(40,50,100,.9)', 'rgba(20,26,60,.95)', 12);
+    const ks = E.RARITY_ORDER.filter(k => rt[k] > 0), cw = 336 / ks.length;
+    ks.forEach((k, i) => { const cx = 12 + cw * i + cw / 2; ui.text(k, cx, 108, 11, RC[k], 'center', true); ui.text(fmtRate(rt[k]), cx, 126, 13, '#fff', 'center', true); });
+    ui.text('★ PICK UP は同じレア度の中で約' + G.pickBoost + '倍出やすい　入れかわりまで ' + fmtTime(E.nextPickupAt(now) - now), 180, 144, 9.5, '#ffd24a', 'center', true);
+    // 装備ごとの確率（スクロール）
+    const rows = E.itemRates(gKind, now), RH = 28, LT = 160, LB = 626;
+    const maxS = Math.max(0, rows.length * RH - (LB - LT) + 6);
+    rateScroll = Math.max(0, Math.min(maxS, rateScroll));
+    c.save(); c.beginPath(); c.rect(0, LT, 360, LB - LT); c.clip();
+    rows.forEach((r, i) => {
+      const y = LT + 2 + i * RH - rateScroll;
+      if (y + RH < LT || y > LB) return;
+      c.fillStyle = r.pick ? 'rgba(255,210,74,.2)' : i % 2 ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.08)';
+      ui.rr(12, y, 336, RH - 3, 7); c.fill();
+      if (r.pick) { c.strokeStyle = 'rgba(255,210,74,.8)'; c.lineWidth = 1.2; ui.rr(12.5, y + .5, 335, RH - 4, 7); c.stroke(); }
+      c.fillStyle = RC[r.rarity]; ui.rr(18, y + 6, 26, 13, 4); c.fill();
+      ui.text(r.rarity, 31, y + 12.8, 8.5, '#10142a', 'center', true);
+      ui.text(r.item.icon, 58, y + 12.5, 15, '#fff', 'center');
+      ui.text(r.item.name, 74, y + 12.5, 11, '#fff', 'left', true);
+      if (r.pick) ui.text('★PICK UP', 240, y + 12.5, 9, '#ffd24a', 'right', true);
+      ui.text(fmtRate(r.rate), 340, y + 12.5, 12, r.pick ? '#ffe08a' : '#cfd6ee', 'right', true);
+    });
+    c.restore();
+    if (maxS > 0) {
+      const th = (LB - LT) * (LB - LT) / (rows.length * RH), ty = LT + (LB - LT - th) * rateScroll / maxS;
+      c.fillStyle = 'rgba(255,255,255,.28)'; ui.rr(354, ty, 4, th, 2); c.fill();
+    }
   }
 
   // ---------- そうび ----------
@@ -334,7 +418,7 @@ BB.menu = (function () {
       ui.textO(it.name, 70, 166, 15, '#fff', 'left');
       ui.text(it.rarity + '  ・  ' + slotLabel(it.slot) + '  ・  +' + (lv - 1) + (lv - 1 >= G.maxPlus ? ' (MAX)' : ''), 70, 186, 11, RC[it.rarity], 'left', true);
       const lines = E.describe(it, lv);
-      lines.slice(0, 4).forEach((l, i) => ui.text('・' + l, i < 2 ? 22 : 190, i % 2 ? 224 : 207, 11, '#e6ebff', 'left'));
+      lines.slice(0, 6).forEach((l, i) => ui.text('・' + l, i % 2 ? 134 : 20, 202 + Math.floor(i / 2) * 14, 9.5, '#e6ebff', 'left'));   // 効果は 2 列 × 最大 3 段（ボタンに重ならない幅）
       const eq = sv.equipped[it.slot] === sel;
       if (eq) ui.button(262, 156, 78, 30, 'はずす', '#c0485a', false, 13); else ui.button(262, 156, 78, 30, 'そうび', '#2fbf71', true, 13);
       reg(262, 156, 78, 30, () => { E.equip(sv, sel); ui.SFX.play('ui'); });
@@ -577,10 +661,70 @@ BB.menu = (function () {
     ui.text('なかま ' + Object.keys(sv.buddies).length + ' / ' + D.buddies.length, 180, 626, 11, '#8e98c8', 'center', true);
   }
 
+  // ---------- チャレンジ ----------
+  const CH = D.challenge;
+  const lvColor = l => 'hsl(' + Math.round(130 - (l - 1) * 6.4) + ',72%,46%)';   // 緑 → 赤
+  function drawChallenge(ui, t) {
+    ui.bg();
+    header(ui, 'チャレンジ', 'home');
+    const sv = save(), c = ui.ctx, L = BB.logic;
+    const list = D.stages.map((st, i) => i).filter(i => (sv.stages[D.stages[i].id] || {}).cleared);
+    if (!list.length) {
+      ui.text('🔥', 180, 240, 56, '#fff', 'center');
+      ui.textO('チャレンジモード', 180, 300, 20, '#fff', 'center');
+      ui.text('ステージを 1 つクリアすると、', 180, 340, 13, '#cfd6ee', 'center');
+      ui.text('好きな難易度で挑戦できるようになるよ。', 180, 362, 13, '#cfd6ee', 'center');
+      ui.text('難易度が高いほど、コインがたくさんもらえる！', 180, 396, 12, '#ffe08a', 'center', true);
+      return;
+    }
+    // ステージを選ぶ
+    const st = D.stages[chStage], th = A.theme(THEME_ART[st.theme]), best = sv.challenge[st.id] || 0, pos = list.indexOf(chStage);
+    ui.card(12, 62, 336, 86, th.sky[0], th.sky[1], 14);
+    ui.textO(st.name, 180, 86, 17, '#fff', 'center');
+    ui.text(st.desc, 180, 106, 10.5, '#d6dcf2', 'center');
+    ui.text(best ? '最高クリア  Lv' + best : 'まだ未クリア', 180, 130, 11.5, best ? '#ffe08a' : '#9aa3c4', 'center', true);
+    [[-1, 30, '◀'], [1, 330, '▶']].forEach(([d, x, ch]) => {
+      const ok = list[pos + d] !== undefined;
+      c.fillStyle = ok ? 'rgba(8,12,28,.65)' : 'rgba(8,12,28,.3)'; c.beginPath(); c.arc(x, 105, 15, 0, 7); c.fill();
+      ui.text(ch, x, 105, 14, ok ? '#fff' : '#555c7a', 'center', true);
+      if (ok) reg(x - 20, 82, 40, 46, () => { chStage = list[pos + d]; chLevel = Math.min(CH.maxLevel, (sv.challenge[D.stages[chStage].id] || 0) + 1); ui.SFX.play('pick'); });
+    });
+    // 難易度（1〜20）を選ぶ
+    ui.text('難易度を選ぼう', 20, 168, 12, '#cfd6ee', 'left', true);
+    const cw = 60, ch = 42, gap = 8, x0 = 14, y0 = 180;
+    for (let l = 1; l <= CH.maxLevel; l++) {
+      const col = (l - 1) % 5, row = Math.floor((l - 1) / 5), x = x0 + col * (cw + gap), y = y0 + row * (ch + gap), on = chLevel === l;
+      c.save();
+      if (on) { c.shadowColor = lvColor(l); c.shadowBlur = 14; }
+      c.fillStyle = lvColor(l); ui.rr(x, y, cw, ch, 10); c.fill();
+      c.restore();
+      c.fillStyle = 'rgba(255,255,255,.22)'; ui.rr(x + 2, y + 2, cw - 4, ch * .42, 8); c.fill();
+      c.strokeStyle = on ? '#fff' : 'rgba(0,0,0,.35)'; c.lineWidth = on ? 3 : 1; ui.rr(x + .5, y + .5, cw - 1, ch - 1, 10); c.stroke();
+      ui.textO(String(l), x + cw / 2, y + ch / 2 + 1, 20, '#fff', 'center', 'rgba(0,0,0,.55)', 4);
+      if (l <= best) ui.text('✓', x + cw - 10, y + 10, 12, '#fff', 'center', true);
+      reg(x, y, cw, ch, () => { chLevel = l; ui.SFX.play('pick'); });
+    }
+    // この難易度の中身
+    const ci = L.challengeInfo(chLevel), py = 400;
+    ui.card(12, py, 336, 112, 'rgba(40,50,100,.9)', 'rgba(20,26,60,.95)', 14);
+    c.fillStyle = lvColor(chLevel); ui.rr(24, py + 12, 74, 88, 12); c.fill();
+    ui.text('Lv', 61, py + 32, 12, '#fff', 'center', true);
+    ui.textO(String(chLevel), 61, py + 66, 38, '#fff', 'center', 'rgba(0,0,0,.5)', 5);
+    ui.text('敵のHP', 112, py + 24, 12, '#cfd6ee', 'left', true); ui.text('×' + ci.hp.toFixed(2), 336, py + 24, 13, '#ffb0b0', 'right', true);
+    ui.text('敵のこうげき', 112, py + 46, 12, '#cfd6ee', 'left', true); ui.text('×' + ci.atk.toFixed(2), 336, py + 46, 13, '#ffb0b0', 'right', true);
+    ui.text('行動までの手数', 112, py + 68, 12, '#cfd6ee', 'left', true); ui.text(ci.countMinus ? '−' + ci.countMinus + '手' : 'ふつう', 336, py + 68, 13, ci.countMinus ? '#ffb0b0' : '#9aa3c4', 'right', true);
+    ui.text('もらえるコイン', 112, py + 92, 13, '#ffe08a', 'left', true); ui.textO('×' + ci.coin.toFixed(2), 336, py + 92, 17, '#ffe08a', 'right', 'rgba(60,40,0,.8)', 3.5);
+    const est = BB.equip.stageReward(sv, chStage, st.enemies.length, true, 3, null, chLevel).total;
+    ui.text('クリアで 約 🪙' + est + '（★3のとき）', 180, 528, 12, '#ffe08a', 'center', true);
+    ui.button(60, 548, 240, 54, 'チャレンジ開始!', '#e0484a', true, 19);
+    reg(60, 548, 240, 54, () => { ui.SFX.play('ui'); ui.startStage(chStage, chLevel); });
+    ui.text('負けても、倒した敵のぶんのコインは入るよ', 180, 618, 10.5, '#8e98c8', 'center');
+  }
+
   // ---------- 入口 ----------
   function draw(ui, screen, t) {
     hits = [];
-    ({ home: drawHome, stages: drawStages, gacha: drawGacha, equip: drawEquip, fuse: drawFuse, scout: drawScout, buddies: drawBuddies })[screen](ui, t);
+    ({ home: drawHome, stages: drawStages, gacha: drawGacha, equip: drawEquip, fuse: drawFuse, scout: drawScout, buddies: drawBuddies, challenge: drawChallenge, rates: drawRates })[screen](ui, t);
     if (toast) {
       const u = (t - toast.t0) / 1400;
       if (u >= 1) toast = null;
@@ -601,19 +745,20 @@ BB.menu = (function () {
   }
 
   // メニュー画面の入力。ステージ選択はドラッグ・ホイールでスクロール、それ以外はタップ
-  function down(x, y) { pdrag = { x, y, sy: stageScroll, by: buddyScroll, moved: false }; }
+  function down(x, y) { pdrag = { x, y, sy: stageScroll, by: buddyScroll, rs: rateScroll, moved: false }; }
   function move(screen, x, y) {
     if (!pdrag) return;
     if (Math.abs(y - pdrag.y) > 8) pdrag.moved = true;
     if (screen === 'stages' && pdrag.moved) stageScroll = pdrag.sy - (y - pdrag.y);
     if (screen === 'buddies' && pdrag.moved && pdrag.y > 230) buddyScroll = pdrag.by - (y - pdrag.y);
+    if (screen === 'rates' && pdrag.moved && pdrag.y > 156) rateScroll = pdrag.rs - (y - pdrag.y);
   }
   function up(ui, screen, x, y) {
     const d = pdrag; pdrag = null;
-    if (!d || (d.moved && (screen === 'stages' || (screen === 'buddies' && d.y > 230)))) return;
+    if (!d || (d.moved && (screen === 'stages' || (screen === 'buddies' && d.y > 230) || (screen === 'rates' && d.y > 156)))) return;
     click(ui, screen, x, y);
   }
-  function wheel(screen, dy) { if (screen === 'stages') stageScroll += dy * .5; if (screen === 'buddies') buddyScroll += dy * .5; }
+  function wheel(screen, dy) { if (screen === 'stages') stageScroll += dy * .5; if (screen === 'buddies') buddyScroll += dy * .5; if (screen === 'rates') rateScroll += dy * .5; }
   function cancel() { pdrag = null; }
 
   return { draw, click, enter, down, move, up, wheel, cancel };

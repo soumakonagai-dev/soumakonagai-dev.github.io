@@ -4,7 +4,7 @@ BB.equip = (function () {
   const byId = {};
   D.equipment.forEach(e => { byId[e.id] = e; });
 
-  const RARITY_ORDER = ['N', 'R', 'SR', 'SSR'];
+  const RARITY_ORDER = ['N', 'R', 'SR', 'SSR', 'UR'];
   const pct = v => Math.round(v * 100);
 
   // +値に応じた効果倍率。lv は「+値 + 1」で渡す（+0 = 1.0）
@@ -59,33 +59,82 @@ BB.equip = (function () {
     return lines;
   }
 
-  const ratesOf = kind => kind === 'rare' ? G.rare.rates : G.rates;
-  function pickRarity(rng, minRarity, kind) {
-    const rates = ratesOf(kind), total = Object.values(rates).reduce((a, b) => a + b, 0);
-    let r = rng() * total, pick = 'N';
-    for (const k of RARITY_ORDER) { r -= rates[k]; if (r < 0) { pick = k; break; } }
-    if (minRarity && RARITY_ORDER.indexOf(pick) < RARITY_ORDER.indexOf(minRarity)) pick = minRarity;
-    return pick;
+  const kindOf = kind => G.kinds[kind || 'normal'];
+  const ratesOf = kind => kindOf(kind).rates;
+  // minRarity を渡すと、そのレア度以上だけから（ふだんの比率どおりに）選ぶ
+  function pickRarity(rng, kind, minRarity) {
+    const rates = ratesOf(kind), from = minRarity ? RARITY_ORDER.indexOf(minRarity) : 0;
+    const ks = RARITY_ORDER.filter((k, i) => i >= from && (rates[k] || 0) > 0), total = ks.reduce((a, k) => a + rates[k], 0);
+    let r = rng() * total;
+    for (const k of ks) { r -= rates[k]; if (r < 0) return k; }
+    return ks[ks.length - 1];
+  }
+
+  // ---------- ピックアップ（1 時間ごとに入れ替わる） ----------
+  const HOUR = 3600 * 1000, PICK_FROM = RARITY_ORDER.indexOf('SR');
+  const hourIndex = now => Math.floor((now === undefined ? Date.now() : now) / (HOUR * G.pickHours));
+  const hash = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const poolOf = rarity => D.equipment.filter(e => e.rarity === rarity);
+  // その時間の、(ガチャの種類, レア度) のピックアップ。
+  // 装備の並びをシャッフルして順番に回す（1 周するまで同じ装備は出ない）。周の切れ目でも、前の時間と同じにならない。
+  const rawOrder = (kind, rarity, epoch, n) => {
+    const idx = Array.from({ length: n }, (_, i) => i);
+    let seed = hash(kind + ':' + rarity + ':' + epoch);
+    const rnd = () => { seed = Math.imul(seed ^ (seed >>> 15), 2246822507) >>> 0; seed = (seed + 0x6D2B79F5) >>> 0; return seed / 4294967296; };
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    return idx;
+  };
+  function pickupItem(kind, rarity, now) {
+    const pool = poolOf(rarity), n = pool.length, hi = hourIndex(now);
+    if (n < 3) return pool[hi % Math.max(1, n)] || null;
+    const epoch = Math.floor(hi / n), pos = hi - epoch * n, order = rawOrder(kind, rarity, epoch, n);
+    if (order[0] === rawOrder(kind, rarity, epoch - 1, n)[n - 1]) [order[0], order[1]] = [order[1], order[0]];   // 前の周の最後と同じなら入れ替える
+    return pool[order[pos]];
+  }
+  // そのガチャで出る SR 以上のレア度ごとのピックアップ [{ rarity, item }]
+  function pickups(kind, now) {
+    const rates = ratesOf(kind);
+    return RARITY_ORDER.filter((k, i) => i >= PICK_FROM && (rates[k] || 0) > 0).map(r => ({ rarity: r, item: pickupItem(kind, r, now) }));
+  }
+  const nextPickupAt = now => (hourIndex(now) + 1) * HOUR * G.pickHours;
+  // 装備 1 つぶんの重み（ピックアップは pickBoost 倍）
+  function weightsOf(kind, rarity, now) {
+    const pick = PICK_FROM <= RARITY_ORDER.indexOf(rarity) ? pickupItem(kind, rarity, now) : null;
+    return poolOf(rarity).map(e => ({ item: e, w: pick && e.id === pick.id ? G.pickBoost : 1, pick: !!pick && e.id === pick.id }));
+  }
+  // 確率表: そのガチャで出る装備すべての出現率（%）。レア度が高い順
+  function itemRates(kind, now) {
+    const rates = ratesOf(kind), out = [];
+    RARITY_ORDER.slice().reverse().forEach(r => {
+      if (!(rates[r] > 0)) return;
+      const ws = weightsOf(kind, r, now), total = ws.reduce((a, x) => a + x.w, 0);
+      ws.sort((a, b) => b.w - a.w).forEach(x => out.push({ item: x.item, rarity: r, pick: x.pick, rate: rates[r] * x.w / total }));
+    });
+    return out;
   }
 
   // ガチャを n 回。コインが足りなければ null。結果の配列を返し、セーブも更新する
-  // kind: 'normal' または 'rare'（レアは 1 回 G.rare.cost コインで R 以上確定）
-  const costOf = (kind, n) => kind === 'rare' ? G.rare.cost * n : n === 10 ? G.cost10 : G.cost * n;
-  function pull(save, n, rng, kind) {
+  // kind: 'normal' | 'rare' | 'ultra'。n は 1 か 10（10 回は割引と、最低レア度の保証つき）
+  const costOf = (kind, n) => { const K = kindOf(kind); return n === 10 ? K.cost10 : K.cost * n; };
+  function pull(save, n, rng, kind, now) {
     rng = rng || Math.random;
     const cost = costOf(kind, n);
     if (save.coins < cost) return null;
     save.coins -= cost;
     const results = [];
     for (let i = 0; i < n; i++) {
-      // 10 連は最後の 1 回を SR 以上に保証
-      const rarity = pickRarity(rng, kind !== 'rare' && n === 10 && i === 9 && !results.some(r => RARITY_ORDER.indexOf(r.item.rarity) >= 2) ? 'SR' : null, kind);
-      const pool = D.equipment.filter(e => e.rarity === rarity);
-      const item = pool[Math.floor(rng() * pool.length)];
+      // 10 連は、最後の 1 回で保証のレア度以上が 1 つもなければ、そのレア度以上にする
+      const need = kindOf(kind).min10, forced = !!need && n === 10 && i === 9 && !results.some(r => RARITY_ORDER.indexOf(r.item.rarity) >= RARITY_ORDER.indexOf(need));
+      const rarity = pickRarity(rng, kind, forced ? need : null);
+      // 同じレア度の中から、ピックアップは pickBoost 倍の重みで選ぶ
+      const ws = weightsOf(kind, rarity, now), tw = ws.reduce((a, x) => a + x.w, 0);
+      let r = rng() * tw, chosen = ws[ws.length - 1];
+      for (const x of ws) { r -= x.w; if (r < 0) { chosen = x; break; } }
+      const item = chosen.item;
       // 初めての装備は入手。ダブりは「素材」になり、合体で +値に変えられる
       const has = item.id in save.owned;
       if (!has) save.owned[item.id] = 0; else save.spare[item.id] = (save.spare[item.id] || 0) + 1;
-      results.push({ item, isNew: !has, level: save.owned[item.id] + 1 });
+      results.push({ item, isNew: !has, level: save.owned[item.id] + 1, pickup: chosen.pick });
     }
     save.pulls += n;
     BB.save.commit();
@@ -125,8 +174,17 @@ BB.equip = (function () {
   }
 
   // バトル後のコイン。defeated: 倒した敵の数 / cleared: ステージクリアしたか
-  function stageReward(save, stageIdx, defeated, cleared, stars, mods) {
+  // level を渡すとチャレンジ。初クリアボーナスはなく、難易度に応じたコイン倍率がかかる
+  function stageReward(save, stageIdx, defeated, cleared, stars, mods, level) {
     const st = D.stages[stageIdx], r = st.reward;
+    if (level) {
+      const ci = BB.logic.challengeInfo(level);
+      let raw = 0;
+      for (let i = 0; i < defeated; i++) raw += r.enemy[i];
+      if (cleared) raw += r.clear + r.star * stars;
+      const coins = Math.round(raw * ci.coin), bonus = Math.round(coins * (mods ? mods.coin : 0));
+      return { base: coins, raw, mult: ci.coin, level, bonus, total: coins + bonus, first: false };
+    }
     if (r.fixed) return { base: cleared ? r.clear : 0, bonus: 0, total: cleared ? r.clear : 0, first: false };
     let coins = 0, first = false;
     for (let i = 0; i < defeated; i++) coins += r.enemy[i];
@@ -139,10 +197,12 @@ BB.equip = (function () {
     return { base: coins, bonus, total: coins + bonus, first };
   }
 
-  function applyResult(save, stageIdx, defeated, cleared, stars, mods) {
-    const rw = stageReward(save, stageIdx, defeated, cleared, stars, mods);
+  function applyResult(save, stageIdx, defeated, cleared, stars, mods, level) {
+    const rw = stageReward(save, stageIdx, defeated, cleared, stars, mods, level);
     save.coins += rw.total;
-    if (cleared) {
+    if (level) {   // チャレンジ: クリアした最高の難易度を記録（ステージのクリア記録は変えない）
+      if (cleared) { const id = D.stages[stageIdx].id; save.challenge[id] = Math.max(save.challenge[id] || 0, level); }
+    } else if (cleared) {
       const id = D.stages[stageIdx].id, rec = save.stages[id] || { cleared: false, stars: 0 };
       save.stages[id] = { cleared: true, stars: Math.max(rec.stars, stars) };
     }
@@ -153,5 +213,5 @@ BB.equip = (function () {
   // 前のステージをクリア済みか、このステージの記録があれば解放（ステージを後から追加しても、進行が消えない）
   const isUnlocked = (save, stageIdx) => stageIdx === 0 || !!(save.stages[D.stages[stageIdx - 1].id] || {}).cleared || !!save.stages[D.stages[stageIdx].id];
 
-  return { byId, RARITY_ORDER, ratesOf, costOf, spareList, fuse, fuseAll, computeMods, describe, scaledEffects, pull, equip, stageReward, applyResult, isUnlocked };
+  return { byId, RARITY_ORDER, ratesOf, costOf, pickups, nextPickupAt, itemRates, spareList, fuse, fuseAll, computeMods, describe, scaledEffects, pull, equip, stageReward, applyResult, isUnlocked };
 })();
