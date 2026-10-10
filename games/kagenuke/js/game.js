@@ -3,6 +3,7 @@
 'use strict';
 const K = window.KG, STAGES = window.KG_STAGES, A = window.Art;
 const W = K.W, H = K.H, TAU = Math.PI * 2;
+const M = window.Music || { unlock() {}, play() {}, stop() {}, duck() {}, toggleMute() { return false; }, chapterTrack() { return ''; }, muted: false };
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const lc = document.createElement('canvas'); lc.width = W; lc.height = H;
 const lctx = lc.getContext('2d');
@@ -34,17 +35,19 @@ if (touchMode) setTimeout(setTouchMode, 0);
 const down = new Set(), pressed = new Set();
 let wheelZ = 0, dragging = false, dragDX = 0, dragDY = 0;
 addEventListener('keydown', e => {
+  M.unlock();
+  if (e.code === 'KeyM') { M.toggleMute(); }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Tab'].includes(e.key)) e.preventDefault();
   if (!down.has(e.code)) pressed.add(e.code);
   down.add(e.code);
 });
 addEventListener('keyup', e => down.delete(e.code));
-addEventListener('blur', () => { down.clear(); if (screen === 'play' && world && !world.won && !world.dead) { paused = true; pauseCur = 0; } });
+addEventListener('blur', () => { down.clear(); if (screen === 'play' && world && !world.won && !world.dead) { paused = true; pauseCur = 0; M.duck(true); } });
 const held = (...c) => c.some(k => down.has(k));
 const hit = (...c) => c.some(k => pressed.has(k));
 
 // ---------- 画面上のボタン（スマホ用） ----------
-const BTN_CODE = { left: 'ArrowLeft', right: 'ArrowRight', jump: 'Space', light: 'KeyL', kage: 'KeyC', tab: 'Tab', x: 'KeyX', pause: 'KeyP', zin: 'KeyQ', zout: 'KeyE', done: 'KeyL', lsel: 'Tab' };
+const BTN_CODE = { left: 'ArrowLeft', right: 'ArrowRight', jump: 'Space', light: 'KeyL', kage: 'KeyC', tab: 'Tab', x: 'KeyX', pause: 'KeyP', mute: 'KeyM', zin: 'KeyQ', zout: 'KeyE', done: 'KeyL', lsel: 'Tab' };
 function btnList() {
   if (!touchMode || screen !== 'play' || !world || paused || world.won || world.dead) return [];
   const w = world;
@@ -62,7 +65,8 @@ function btnList() {
     { id: 'right', x: 280, y: 790, r: 72, label: '▶' },
     { id: 'jump', x: 1480, y: 770, r: 92, label: 'ジャンプ' },
     { id: 'light', x: 1300, y: 690, r: 58, label: 'ひかり', sub: 'L' },
-    { id: 'pause', x: 1200, y: 62, r: 34, label: 'Ⅱ' }
+    { id: 'pause', x: 1200, y: 62, r: 34, label: 'Ⅱ' },
+    { id: 'mute', x: 1120, y: 62, r: 34, label: M.muted ? '🔇' : '♪' }
   ];
   if (w.def.kages > 0) {
     list.push({ id: 'kage', x: 1290, y: 830, r: 58, label: '影', sub: 'C' });
@@ -99,8 +103,10 @@ function toWorld(e) {
 let dragPid = -1, lastCX = 0, lastCY = 0;
 cv.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse') setTouchMode();
+  M.unlock();
   const [x, y] = toWorld(e);
   try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  if (touchMode && screen !== 'play' && Math.hypot(x - 1540, y - 50) < 40) { M.toggleMute(); return; }
   const tb = btnAt(x, y);
   if (tb) { btnPress(e.pointerId, tb); e.preventDefault(); return; }
   if (screen === 'title') {
@@ -134,10 +140,11 @@ function startStage(i) {
   stageIdx = i; world = K.createWorld(STAGES[i]);
   screen = 'play'; paused = false; timer = 0; msg = ''; fade = 1; dragDX = dragDY = wheelZ = 0;
   prevPressed = world.switches.map(() => false);
+  M.duck(false); M.play(M.chapterTrack(STAGES[i].id));
 }
 function nextStage() {
   if (stageIdx + 1 < STAGES.length) startStage(stageIdx + 1);
-  else { screen = 'title'; cursor = 0; }
+  else { screen = 'title'; cursor = 0; M.play('title'); }
 }
 function say(t) { msg = t; msgT = 2.6; }
 
@@ -149,7 +156,7 @@ function pauseAt(x, y) {
 function pauseDo(i) {
   if (i === 0) paused = false;
   else if (i === 1) startStage(stageIdx);
-  else { paused = false; screen = 'title'; cursor = stageIdx; }
+  else { paused = false; screen = 'title'; cursor = stageIdx; M.duck(false); M.play('title'); }
 }
 
 // ---------- 更新 ----------
@@ -166,12 +173,13 @@ function tick(dt) {
   if (screen === 'clear') {
     timer += dt;
     if (timer > 0.6 && hit('Enter', 'Space')) nextStage();
-    if (hit('Escape')) screen = 'title';
+    if (hit('Escape')) { screen = 'title'; M.play('title'); }
     return;
   }
   // play
   msgT -= dt;
   const w = world;
+  M.duck(paused);
   if (paused) {
     if (hit('ArrowDown', 'KeyS')) pauseCur = (pauseCur + 1) % PAUSE_ITEMS.length;
     if (hit('ArrowUp', 'KeyW')) pauseCur = (pauseCur + PAUSE_ITEMS.length - 1) % PAUSE_ITEMS.length;
@@ -188,7 +196,7 @@ function tick(dt) {
   }
   if (w.won) {
     timer += dt;
-    if (timer > 1.4) { cleared[STAGES[stageIdx].id] = true; saveCleared(); screen = 'clear'; timer = 0; confettiBurst(); }
+    if (timer > 1.4) { cleared[STAGES[stageIdx].id] = true; saveCleared(); screen = 'clear'; timer = 0; confettiBurst(); M.play('clear'); }
     return;
   }
   const inp = {};
@@ -581,6 +589,8 @@ function drawTitle() {
   }
   ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(236,223,196,.7)'; ctx.font = `20px ${FONT}`;
   ctx.fillText(touchMode ? 'ステージを タップして はじめよう（上の章タブで 章をえらぶ）' : '←→：ステージ　　↑↓：章　　Enter：はじめる　　またはクリック', W / 2, 706);
+  ctx.save(); ctx.textAlign = 'center'; ctx.font = `bold 30px ${FONT}`; ctx.fillStyle = 'rgba(30,20,40,.78)'; ctx.beginPath(); ctx.arc(1540, 50, 30, 0, TAU); ctx.fill();
+  ctx.fillStyle = M.muted ? 'rgba(236,223,196,.4)' : '#ecdfc4'; ctx.fillText(M.muted ? '🔇' : '♪', 1540, 61); ctx.font = `13px ${FONT}`; ctx.fillStyle = 'rgba(236,223,196,.7)'; ctx.fillText('M', 1540, 88); ctx.restore();
   A.drawParticles(ctx);
   A.drawMotes(ctx, W, H, t);
   drawVignette(th);
@@ -685,6 +695,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+M.play('title');
 
 // 検証用
 window.__kg = { setTouchMode, get touchMode() { return touchMode; }, get world() { return world; }, get paused() { return paused; }, get screen() { return screen; }, startStage, K, STAGES };

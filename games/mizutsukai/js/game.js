@@ -2092,9 +2092,9 @@ function draw() {
   if (L && L.rain && state !== 'title' && state !== 'select' && state !== 'badges') { g.addColorStop(0, '#2a2f3d'); g.addColorStop(1, '#151820'); }
   else { g.addColorStop(0, '#16224a'); g.addColorStop(1, '#0a0f22'); }
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  if (state === 'title') { drawTitle(); return drawToasts(); }
-  if (state === 'select') { drawSelect(); return drawToasts(); }
-  if (state === 'badges') { drawBadges(); return drawToasts(); }
+  if (state === 'title') { drawTitle(); drawBlob(); return drawToasts(); }
+  if (state === 'select') { drawSelect(); drawBlob(); return drawToasts(); }
+  if (state === 'badges') { drawBadges(); drawBlob(); return drawToasts(); }
 
   drawZones();
   drawTiles();
@@ -2140,7 +2140,7 @@ function draw() {
   for (const f of fuses) if (!f.done && !f.out) { const left = (f.path.length - 1 - f.prog) * (L.fuseSpeed || 45) / 60, b = f.bomb; text('💣 ' + left.toFixed(1), b.x + 8, b.y - 4, 10, left < 3 ? '#ff6060' : '#ffd860', 'center'); }
 
   // カーソル（タッチで指を離しているときは出さない）
-  if (!touchMode || mouse.down) {
+  if ((!touchMode || mouse.down) && state === 'play') {
     const okZ = inZone(mouse.x, mouse.y);
     ctx.strokeStyle = okZ ? (mouse.down ? '#bff' : 'rgba(150,230,255,.8)') : 'rgba(255,110,110,.8)';
     ctx.beginPath(); ctx.arc(mouse.x, mouse.y, GRAB_R, 0, 7); ctx.stroke();
@@ -2181,6 +2181,7 @@ function draw() {
   }
   if (P.dead) text('やられた…', W / 2, 170, 20, '#f88', 'center');
   if (state === 'pause') drawPause();
+  if (state !== 'play') drawBlob();
   drawToasts();
 }
 function checkClearBadges() {
@@ -2342,6 +2343,41 @@ function drawBadges() {
   for (const b of PAGE_BTNS()) { const can = badgePage + b.d >= 0 && badgePage + b.d < badgePages(); ctx.fillStyle = can ? '#24406e' : '#151a2a'; ctx.fillRect(b.x, b.y, b.w, b.h); text(b.label, b.x + b.w / 2, b.y + 14, 11, can ? '#fff' : '#556', 'center'); }
 }
 // バッジをもらったときのお知らせ
+// ---------------- メニューのカーソル（マウスを追いかける水のかたまり） ----------------
+const blob = { drops: [], bits: [], down: false, px: W / 2, py: H / 2 };
+for (let i = 0; i < 14; i++) blob.drops.push({ x: W / 2, y: H / 2, vx: 0, vy: 0, k: .2 - i * .011, r: 7 - i * .33, a: i * 2.1 });
+function drawBlob() {
+  if (touchMode && !mouse.down) return;
+  const mx = mouse.x, my = mouse.y, sp = Math.hypot(mx - blob.px, my - blob.py); blob.px = mx; blob.py = my;
+  // しずくは、先頭ほど速くマウスへ。うしろのしずくは前のしずくを追う → 動くと水のしっぽがのびる
+  blob.drops.forEach((d, i) => {
+    const lead = i === 0 ? { x: mx, y: my } : blob.drops[i - 1];
+    const wob = i === 0 ? 0 : 3.4, t = frame * .06 + d.a;
+    const tx = (i === 0 ? mx : lead.x * .55 + mx * .45) + Math.cos(t) * wob, ty = (i === 0 ? my : lead.y * .55 + my * .45) + Math.sin(t * 1.3) * wob;
+    d.vx = (d.vx + (tx - d.x) * d.k) * .72; d.vy = (d.vy + (ty - d.y) * d.k) * .72;
+    d.x += d.vx; d.y += d.vy;
+  });
+  // 速く動かすと、しずくが飛び散る
+  if (sp > 6 && Math.random() < Math.min(.8, sp / 30)) { const d = blob.drops[blob.drops.length - 1 - (Math.random() * 4 | 0)]; blob.bits.push({ x: d.x, y: d.y, vx: d.vx * .4 + (Math.random() - .5), vy: d.vy * .4 - Math.random(), r: 1 + Math.random() * 1.4, t: 30 }); }
+  // クリックすると、ぱしゃっとはねる
+  if (mouse.down && !blob.down) for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; blob.bits.push({ x: mx, y: my, vx: Math.cos(a) * (1.4 + Math.random()), vy: Math.sin(a) * (1.4 + Math.random()) - 1, r: 1.2 + Math.random() * 1.3, t: 34 }); }
+  blob.down = mouse.down;
+  blob.bits = blob.bits.filter(b => { b.vy += .12; b.x += b.vx; b.y += b.vy; return --b.t > 0 && b.y < H + 4; });
+  const press = mouse.down ? .8 : 1; // おしている間は、ぎゅっと小さく
+  ctx.save();
+  // ふち（こい青）→ 中身（明るい青）の順にかさねると、まるがくっついて1つのかたまりに見える
+  for (const [grow, col] of [[1.6, 'rgba(20,70,150,.9)'], [0, 'rgba(80,175,255,.95)']]) {
+    ctx.fillStyle = col; ctx.beginPath();
+    for (const d of blob.drops) { const r = d.r * press + grow; ctx.moveTo(d.x + r, d.y); ctx.arc(d.x, d.y, r, 0, 7); }
+    for (const b of blob.bits) { const r = b.r * Math.min(1, b.t / 12) + grow * .6; ctx.moveTo(b.x + r, b.y); ctx.arc(b.x, b.y, r, 0, 7); }
+    ctx.fill();
+  }
+  // 光のつや
+  const h = blob.drops[0];
+  ctx.fillStyle = 'rgba(210,240,255,.9)'; ctx.beginPath(); ctx.arc(h.x - 2.4, h.y - 2.6, 2.2 * press, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(Math.round(h.x - 3.4), Math.round(h.y - 3.8), 1.5, 1.5);
+  ctx.restore();
+}
 function drawToasts() {
   toasts = toasts.filter(t => --t.t > 0);
   toasts.slice(0, 3).forEach((t, i) => {
