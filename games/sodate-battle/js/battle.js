@@ -23,7 +23,8 @@ const Battle = (() => {
     inited = true;
     root = $('battle'); canvas = $('bt-canvas');
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    const coarse = matchMedia('(pointer:coarse)').matches;
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, coarse ? 1.5 : 2));
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 300);
@@ -31,7 +32,7 @@ const Battle = (() => {
     sun = new THREE.DirectionalLight(0xffffff, 0.9);
     sun.position.set(10, 20, 8); sun.castShadow = true;
     Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 60 });
-    sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0005;
+    sun.shadow.mapSize.set(coarse ? 512 : 1024, coarse ? 512 : 1024); sun.shadow.bias = -0.0005;
     scene.add(sun);
     floorMesh = new THREE.Mesh(new THREE.CircleGeometry(R, 56), new THREE.MeshToonMaterial({ color: 0xcfcfcf }));
     floorMesh.rotation.x = -Math.PI / 2; floorMesh.receiveShadow = true; scene.add(floorMesh);
@@ -79,6 +80,8 @@ const Battle = (() => {
     camera.aspect = w / h;
     ctx && (ctx.baseFov = w / h < 1 ? 72 : 50);
     camera.fov = w / h < 1 ? 72 : 50;
+    // 縦向きは、下の操作ボタンに隠れないよう、画面の上寄りに映す
+    if (w / h < 1) camera.setViewOffset(w, h, 0, Math.round(h * 0.15), w, h); else camera.clearViewOffset();
     camera.updateProjectionMatrix();
   }
   function disposeObj(o) {
@@ -792,7 +795,7 @@ const Battle = (() => {
       takenType: ctx.takenType, timeUp: !!ctx.timeUp, hpRate: P.hp / P.maxHp,
     };
     clearScene();
-    root.classList.add('hidden');
+    root.classList.add('hidden'); document.body.classList.remove('in-battle');
     for (const k in keys) keys[k] = false;
     const cb = ctx.onEnd; ctx = null;
     cb(res);
@@ -830,7 +833,7 @@ const Battle = (() => {
     $('bt-intro-s').textContent = (opts.enemy.line ? '「' + opts.enemy.line + '」' : '') ;
     $('bt-intro-r').textContent = 'ランク ' + (opts.enemy.rank || '') + (opts.enemy.boss ? '　BOSS' : '');
     $('bt-time').classList.remove('low'); $('bt-combo').style.opacity = 0; $('bt-flash').style.opacity = 0;
-    root.classList.remove('hidden');
+    root.classList.remove('hidden'); document.body.classList.add('in-battle');
     for (const k in keys) keys[k] = false;
     for (const k in edge) edge[k] = false;
     resize();

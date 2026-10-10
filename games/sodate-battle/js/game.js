@@ -382,7 +382,7 @@ function vHome() {
   const pips = S.apd > 3 ? `<b class="tp">のこり ${S.actions} / ${maxActions()} 回</b>` : Array.from({ length: maxActions() }, (_, i) => `<span class="${i < S.actions ? 'on' : ''}"></span>`).join('');
   const dbg = DEBUG ? `<div class="row" style="margin-top:10px"><button data-a="dbg" data-v="tp">+1000TP</button><button data-a="dbg" data-v="stat">全能力+100</button><button data-a="dbg" data-v="stat2">全能力+300</button><button data-a="dbg" data-v="area">全エリア解放</button><button data-a="dbg" data-v="day">+10日</button></div>` : '';
   return `${topBar()}${toastHtml()}
-  <div class="grid g2">
+  <div class="grid g2 homegrid">
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3>${t.icon} ${c.name}</h3><div><span class="tag">${t.name}</span>${elemTag(c.elem)}</div>
