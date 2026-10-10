@@ -6,7 +6,7 @@ BB.menu = (function () {
   const SLOT_ORDER = ['weapon', 'armor', 'acc'];
   const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky', mush: 'mush', sea: 'sea', desert: 'desert', factory: 'factory', void: 'void', crystal: 'crystal', storm: 'storm', candy: 'candy', space: 'space', throne: 'throne', carnival: 'carnival', pirate: 'pirate', sakura: 'sakura', jurassic: 'jurassic', chaos: 'chaos' };
   const LIST_TOP = 58, LIST_BOTTOM = 572, CARD_PITCH = 112;   // ステージ一覧の表示範囲（これをはみ出す分はスクロール）
-  let stageScroll = 0, equipTab = 'weapon', pdrag = null, buddyScroll = 0;
+  let stageScroll = 0, equipTab = 'weapon', pdrag = null, buddyScroll = 0, equipScroll = 0, fuseScroll = 0;
 
   let hits = [], sel = null, toast = null;
   let rateScroll = 0;
@@ -21,6 +21,8 @@ BB.menu = (function () {
 
   function enter(name) {
     if (name === 'gacha') gacha = { phase: 'idle', results: [], t0: 0, n: 1, best: 'N', played: false };
+    if (name === 'equip') equipScroll = 0;
+    if (name === 'fuse') fuseScroll = 0;
     if (name === 'equip' && !(sel in save().owned)) sel = null;
     if (name === 'scout') { scoutSel = null; recruitRes = null; }
     if (name === 'challenge') {   // クリア済みのステージのうち一番先のもの、前回の最高 +1 の難易度から
@@ -438,15 +440,26 @@ BB.menu = (function () {
       c.strokeStyle = on ? '#fff' : 'rgba(255,255,255,.22)'; c.lineWidth = 1; ui.rr(x + .5, 246.5, 107, 23, 11.5); c.stroke();
       const own = D.equipment.filter(e => e.slot === slot && e.id in sv.owned).length, all = D.equipment.filter(e => e.slot === slot).length;
       ui.text(slotLabel(slot) + ' ' + own + '/' + all, x + 54, 258.5, 11.5, on ? '#fff' : '#9aa3c4', 'center', true);
-      reg(x, 246, 108, 24, () => { equipTab = slot; ui.SFX.play('pick'); });
+      reg(x, 246, 108, 24, () => { equipTab = slot; equipScroll = 0; ui.SFX.play('pick'); });
     });
     const items = D.equipment.filter(e => e.slot === equipTab).sort((a, b) => E.RARITY_ORDER.indexOf(b.rarity) - E.RARITY_ORDER.indexOf(a.rarity));
-    const cw = 80, ch = 62, gx = 8, gy = 4, x0 = 8, y0 = 276;
+    // 一覧は数が多いのでスクロール（ドラッグ・ホイール）
+    const cw = 80, ch = 62, gx = 8, gy = 4, x0 = 8, GT = 276, GB = 618, rows = Math.ceil(items.length / 4);
+    const maxS = Math.max(0, rows * (ch + gy) - (GB - GT) + 4);
+    equipScroll = Math.max(0, Math.min(maxS, equipScroll));
+    c.save(); c.beginPath(); c.rect(0, GT, 360, GB - GT); c.clip();
     items.forEach((item, i) => {
-      const x = x0 + (i % 4) * (cw + gx), y = y0 + Math.floor(i / 4) * (ch + gy), l = item.id in sv.owned ? sv.owned[item.id] + 1 : 0;
+      const x = x0 + (i % 4) * (cw + gx), y = GT + Math.floor(i / 4) * (ch + gy) - equipScroll, l = item.id in sv.owned ? sv.owned[item.id] + 1 : 0;
+      if (y + ch < GT || y > GB) return;
       itemCard(ui, x, y, cw, ch, item, l, { selected: sel === item.id, equipped: sv.equipped[item.slot] === item.id, t, count: sv.spare[item.id] });
-      reg(x, y, cw, ch, () => { sel = item.id; ui.SFX.play('pick'); });
+      const vy0 = Math.max(y, GT), vy1 = Math.min(y + ch, GB);
+      reg(x, vy0, cw, vy1 - vy0, () => { sel = item.id; ui.SFX.play('pick'); });
     });
+    c.restore();
+    if (maxS > 0) {   // スクロールバー
+      const bh = Math.max(24, (GB - GT) * (GB - GT) / (rows * (ch + gy))), by = GT + (GB - GT - bh) * (equipScroll / maxS);
+      c.fillStyle = 'rgba(255,255,255,.28)'; ui.rr(355, by, 3, bh, 1.5); c.fill();
+    }
     const have = Object.keys(sv.owned).length;
     ui.text('所持 ' + have + ' / ' + D.equipment.length, 180, 628, 11, '#8e98c8', 'center', true);
   }
@@ -489,13 +502,20 @@ BB.menu = (function () {
       ui.text('ガチャで ' + it.rarity + ' の装備がダブると', 180, 346, 12, '#6b7391', 'center');
       ui.text('ここで合体の素材にできます', 180, 364, 12, '#6b7391', 'center');
     } else {
+      // ざいりょうが多いときはスクロール
+      const GT = 240, GB = 534, rows = Math.ceil(spares.length / 4), maxS = Math.max(0, rows * 78 - (GB - GT) + 4);
+      fuseScroll = Math.max(0, Math.min(maxS, fuseScroll));
+      c.save(); c.beginPath(); c.rect(0, GT, 360, GB - GT); c.clip();
       spares.forEach((s, i) => {
-        const x = 8 + (i % 4) * 88, y = 244 + Math.floor(i / 4) * 78;
+        const x = 8 + (i % 4) * 88, y = 244 + Math.floor(i / 4) * 78 - fuseScroll;
+        if (y + 70 < GT || y > GB) return;
         itemCard(ui, x, y, 80, 70, s.item, 1, { t, count: s.count });
-        reg(x, y, 80, 70, () => {
+        const vy0 = Math.max(y, GT), vy1 = Math.min(y + 70, GB);
+        reg(x, vy0, 80, vy1 - vy0, () => {
           if (E.fuse(sv, sel, s.item.id)) { fuseFx = t; ui.SFX.play('perfect'); showToast(t, it.name + ' が +' + sv.owned[sel] + ' になった！'); }
         });
       });
+      c.restore();
       ui.text('タップで 1 つ合体（+1）', 180, 540, 11, '#8e98c8', 'center');
       ui.button(70, 556, 220, 48, 'まとめて合体', '#e0a020', true, 16);
       reg(70, 556, 220, 48, () => {
@@ -817,20 +837,22 @@ BB.menu = (function () {
   }
 
   // メニュー画面の入力。ステージ選択はドラッグ・ホイールでスクロール、それ以外はタップ
-  function down(x, y) { pdrag = { x, y, sy: stageScroll, by: buddyScroll, rs: rateScroll, moved: false }; }
+  function down(x, y) { pdrag = { x, y, sy: stageScroll, by: buddyScroll, rs: rateScroll, es: equipScroll, fs: fuseScroll, moved: false }; }
   function move(screen, x, y) {
     if (!pdrag) return;
     if (Math.abs(y - pdrag.y) > 8) pdrag.moved = true;
     if (screen === 'stages' && pdrag.moved) stageScroll = pdrag.sy - (y - pdrag.y);
     if (screen === 'buddies' && pdrag.moved && pdrag.y > 230) buddyScroll = pdrag.by - (y - pdrag.y);
     if (screen === 'rates' && pdrag.moved && pdrag.y > 156) rateScroll = pdrag.rs - (y - pdrag.y);
+    if (screen === 'equip' && pdrag.moved && pdrag.y > 274) equipScroll = pdrag.es - (y - pdrag.y);
+    if (screen === 'fuse' && pdrag.moved && pdrag.y > 240 && pdrag.y < 536) fuseScroll = pdrag.fs - (y - pdrag.y);
   }
   function up(ui, screen, x, y) {
     const d = pdrag; pdrag = null;
-    if (!d || (d.moved && (screen === 'stages' || (screen === 'buddies' && d.y > 230) || (screen === 'rates' && d.y > 156)))) return;
+    if (!d || (d.moved && (screen === 'stages' || (screen === 'buddies' && d.y > 230) || (screen === 'rates' && d.y > 156) || (screen === 'equip' && d.y > 274) || (screen === 'fuse' && d.y > 240 && d.y < 536)))) return;
     click(ui, screen, x, y);
   }
-  function wheel(screen, dy) { if (screen === 'stages') stageScroll += dy * .5; if (screen === 'buddies') buddyScroll += dy * .5; if (screen === 'rates') rateScroll += dy * .5; }
+  function wheel(screen, dy) { if (screen === 'stages') stageScroll += dy * .5; if (screen === 'buddies') buddyScroll += dy * .5; if (screen === 'rates') rateScroll += dy * .5; if (screen === 'equip') equipScroll += dy * .5; if (screen === 'fuse') fuseScroll += dy * .5; }
   function cancel() { pdrag = null; }
 
   return { draw, click, enter, down, move, up, wheel, cancel };
