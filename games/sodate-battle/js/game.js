@@ -37,13 +37,13 @@ function canAct() { return S.actions > 0 && (!forced() || S.apd > 3); }
 function trainBonus(tid) {
   let b = 0;
   ITEMS.forEach(it => { if (it.kind === 'perm' && has(it.id) && it.train[tid]) b = Math.max(b, it.train[tid]); });
-  return b;
+  return b * 1.25;   // 強化の倍率を、少し上げた
 }
 function newGame(charId) {
   const c = CHARS[charId];
   S = {
     day: 1, tp: 0, charId, stats: Object.assign({}, c.start), stamina: 100, mood: 2,
-    maxDay: selMode === 'short' ? 10 : MAX_DAY, apd: selMode === 'short' ? 30 : 3, actions: selMode === 'short' ? 30 : 3,
+    equip: {}, maxDay: selMode === 'short' ? 10 : MAX_DAY, apd: selMode === 'short' ? 30 : 3, actions: selMode === 'short' ? 30 : 3,
     learned: [], equipped: [null, null, null, null], items: {}, defeated: {}, areaUnlocked: 1, protein: false,
   };
   learnCheck(true);
@@ -141,8 +141,8 @@ function enemyFor(tr, nora) {
 function startBattle(e) {
   const c = CHARS[S.charId];
   const stats = statsFromTotal(e.type, e.total);
-  const pdef = { name: c.name, type: c.type, elem: c.elem, color: c.color, stats: Object.assign({}, S.stats), skills: S.equipped.slice(), ult: 'ult_' + S.charId };
-  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: trainerSkills(e.type, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, rank: rankOf(e.total) };
+  const pdef = { name: c.name, type: c.type, elem: c.elem, color: c.color, stats: effStats(S), skills: S.equipped.slice(), ult: 'ult_' + S.charId, atkElem: weaponElem(S), powMul: PLAYER_POW, normMul: PLAYER_NORM, hpMul: PLAYER_HP };
+  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: enemySkillIds(e, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, rank: rankOf(e.total) };
   Battle.start({ player: pdef, enemy: edef, area: e.area, onEnd: r => battleEnd(r, sel) });
 }
 function battleEnd(r, s) {
@@ -195,7 +195,7 @@ document.addEventListener('click', e => {
 function act(a, v) {
   switch (a) {
     case 'new': scr = 'select'; break;
-    case 'cont': S = loadSave(); if (S) { S.maxDay = S.maxDay || 100; S.apd = S.apd || 3; batchN = 1; scr = 'home'; toast = ''; } break;
+    case 'cont': S = loadSave(); if (S) { S.maxDay = S.maxDay || 100; S.apd = S.apd || 3; S.equip = S.equip || {}; batchN = 1; scr = 'home'; toast = ''; } break;
     case 'pickchar': selChar = v; break;
     case 'pickmode': selMode = v; break;
     case 'startgame': newGame(selChar); batchN = 1; scr = 'home'; break;
@@ -208,6 +208,8 @@ function act(a, v) {
     case 'skills': scr = 'skills'; break;
     case 'equip': equip(v); break;
     case 'items': scr = 'items'; break;
+    case 'openequip': scr = 'equip'; break;
+    case 'wear': wear(v); break;
     case 'use': useItem(v); break;
     case 'shop': scr = 'shop'; break;
     case 'buy': buy(v); break;
@@ -234,7 +236,7 @@ function act(a, v) {
   toastMaybeClear(a);
   render();
 }
-function toastMaybeClear(a) { if (['skills', 'items', 'shop', 'map', 'title', 'new'].includes(a)) toast = ''; }
+function toastMaybeClear(a) { if (['skills', 'items', 'openequip', 'shop', 'map', 'title', 'new'].includes(a)) toast = ''; }
 
 function afterResult() {
   if (result.win && result.champion) { ending(true); return; }
@@ -301,7 +303,7 @@ function debug(v) {
 // ---------- 描画 ----------
 function render() {
   const ui = $('#ui');
-  const f = { title: vTitle, select: vSelect, home: vHome, skills: vSkills, items: vItems, shop: vShop, map: vMap, versus: vVersus, result: vResult, ending: vEnding }[scr];
+  const f = { title: vTitle, select: vSelect, home: vHome, skills: vSkills, items: vItems, equip: vEquip, shop: vShop, map: vMap, versus: vVersus, result: vResult, ending: vEnding }[scr];
   ui.innerHTML = f();
   document.querySelectorAll('canvas.radar').forEach(drawRadar);
   Sound.bgm('home');
@@ -311,8 +313,8 @@ function render() {
   window.scrollTo(0, 0);
 }
 const pct = v => Math.min(100, Math.sqrt(v / STAT_CAP) * 100);
-function statRows(stats) {
-  return STATS.map(k => `<div class="statrow"><span style="color:${STAT_COLOR[k]}">${STAT_NAME[k]}</span><b>${stats[k]}</b><div class="bar"><i style="width:${pct(stats[k])}%;background:${STAT_COLOR[k]}"></i></div></div>`).join('');
+function statRows(stats, bonus) {
+  return STATS.map(k => `<div class="statrow"><span style="color:${STAT_COLOR[k]}">${STAT_NAME[k]}</span><b>${stats[k]}${bonus && bonus[k] ? '<small style="color:#ffd75e">+' + bonus[k] + '</small>' : ''}</b><div class="bar"><i style="width:${pct(stats[k])}%;background:${STAT_COLOR[k]}"></i></div></div>`).join('');
 }
 function drawRadar(cv) {
   const stats = JSON.parse(cv.dataset.stats), dpr = 2, W = 300;
@@ -330,7 +332,7 @@ function drawRadar(cv) {
   STATS.forEach((k, i) => { const [x, y] = pt(i, 1.2); g.fillStyle = STAT_COLOR[k]; g.fillText(STAT_NAME[k], x, y); });
 }
 const toastHtml = () => toast ? `<div class="toast">${toast}</div>` : '';
-const elemTag = e => `<span class="tag" style="color:${ELEM[e].css}">${ELEM[e].n}属性</span>`;
+const elemTag = e => ELEM[e] ? `<span class="tag" style="color:${ELEM[e].css}">${ELEM[e].n}属性</span>` : '<span class="tag" style="color:#ffd75e">武器の属性</span>';
 
 function vTitle() {
   const has = !!loadSave();
@@ -390,12 +392,12 @@ function vHome() {
       </div>
       <div class="pv" id="pv"></div>
       <canvas class="radar" data-stats='${JSON.stringify(S.stats)}'></canvas>
-      ${statRows(S.stats)}
+      ${statRows(S.stats, equipBonus(S))}
       <div class="statrow"><span>スタミナ</span><b>${S.stamina}</b><div class="bar"><i style="width:${S.stamina}%;background:#ffa94d"></i></div></div>
       <div class="sub" style="margin-top:4px">調子：${m.icon} ${m.n}（上昇量 ×${m.mul}）${S.protein ? '　🥛プロテイン効果中' : ''}</div>
     </div>
     <div class="h-go">
-      <button class="main" style="width:100%;font-size:19px;padding:14px" data-a="map" ${fz || (S.apd > 3 && S.actions < 1) ? 'disabled' : ''}>⚔️ おでかけ（${S.apd > 3 ? '行動' + BATTLE_COST + '回ぶん' : '1日使う'}）</button>
+      <button class="main" style="width:100%;font-size:19px;padding:14px" data-a="map" ${fz || (S.apd > 3 && S.actions < 1) ? 'disabled' : ''}>⚔️ 戦闘（${S.apd > 3 ? '行動' + BATTLE_COST + '回ぶん' : '1日使う'}）</button>
     </div>
     <div class="card h-train">
       <div>
@@ -412,12 +414,13 @@ function vHome() {
       </div>
     </div>
     <div class="h-more">
-      <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="grid" style="grid-template-columns:repeat(2,1fr)">
         <button data-a="skills">📘 技セット</button>
+        <button data-a="openequip">🧰 装備</button>
         <button data-a="shop">🛒 ショップ</button>
         <button data-a="items">🎒 もちもの</button>
       </div>
-      <p class="sub">おでかけ＝バトル。${S.apd > 3 ? '行動' + BATTLE_COST + '回ぶんを使う' : '1日を使う'}ので、期限（${S.maxDay}日）の中で「鍛える」と「戦う」を配分しよう。</p>
+      <p class="sub">戦闘に出ると、${S.apd > 3 ? '行動' + BATTLE_COST + '回ぶんを使う' : '1日を使う'}ので、期限（${S.maxDay}日）の中で「鍛える」と「戦う」を配分しよう。</p>
       ${dbg}
       <p><button class="danger" data-a="title" style="font-size:12px;padding:4px 10px">タイトルへ（自動セーブ済み）</button></p>
     </div>
@@ -447,7 +450,7 @@ function vSkills() {
     <div class="grid g2">${list}</div>`;
 }
 function vItems() {
-  const owned = ITEMS.filter(it => it.kind !== 'cons' && has(it.id));
+  const owned = ITEMS.filter(it => it.kind !== 'cons' && it.kind !== 'equip' && has(it.id));
   const cons = ITEMS.filter(it => it.kind === 'cons' && count(it.id) > 0);
   return `<div class="top"><h2>🎒 もちもの</h2><button data-a="home">もどる</button></div>${toastHtml()}
     <h3>使う道具</h3>
@@ -456,16 +459,22 @@ function vItems() {
     <div class="grid g2" style="margin-top:8px">${owned.length ? owned.map(it => `<div class="card"><b>${it.icon} ${it.name}</b><div class="sub">${it.desc}</div></div>`).join('') : '<p class="sub">まだない。</p>'}</div>`;
 }
 function vShop() {
-  const list = ITEMS.filter(it => it.req <= S.areaUnlocked).map(it => {
+  const card = it => {
     const owned = it.kind !== 'cons' && has(it.id);
-    return `<div class="card skill"><div><b>${it.icon} ${it.name}</b> <span class="tag">${{ perm: 'ずっと', cons: '消耗', facility: '施設' }[it.kind]}</span>
+    return `<div class="card skill"><div><b>${it.icon} ${it.name}</b> <span class="tag">${{ perm: 'ずっと', cons: '消耗', facility: '施設', equip: EQUIP_SLOTS[it.slot] || '装備' }[it.kind]}</span>${it.elem ? elemTag(it.elem) : ''}
       <div class="sub">${it.desc}</div>${it.kind === 'cons' ? `<div class="sub">持っている数：${count(it.id)}</div>` : ''}</div>
       <button class="main" data-a="buy" data-v="${it.id}" ${owned || S.tp < it.price ? 'disabled' : ''}>${owned ? '購入済' : it.price + ' TP'}</button></div>`;
-  }).join('');
+  };
+  const avail = ITEMS.filter(it => it.req <= S.areaUnlocked);
+  const list = avail.filter(it => it.kind !== 'equip').map(card).join('');
+  const eqList = avail.filter(it => it.kind === 'equip').map(card).join('');
   const lock = ITEMS.filter(it => it.req > S.areaUnlocked).length;
   return `<div class="top"><h2>🛒 ショップ</h2><div><span class="tp">TP ${S.tp}</span>　<button data-a="home">もどる</button></div></div>${toastHtml()}
     <p class="sub">モンスターに勝ってTPをためよう。道具は早く買うほど、期限までに多く鍛えられる。</p>
-    <div class="grid g2">${list}</div>
+    <h3>トレーニング用品</h3>
+    <div class="grid g2" style="margin:8px 0 16px">${list}</div>
+    <h3>🧰 装備（買ったら「装備」でつける。属性つきの武器は、技の効果も変える）</h3>
+    <div class="grid g2" style="margin-top:8px">${eqList}</div>
     ${lock ? `<p class="sub">🔒 エリアを進めると、${lock}種類の道具が並ぶようになる。</p>` : ''}`;
 }
 function vMap() {
@@ -478,7 +487,7 @@ function vMap() {
       <div class="sub">${ty.name} / ${ELEM[t.elem].n}属性 / 強さ ランク${rk}　TP ${done ? Math.round(t.tp * 0.3) + '（再戦）' : t.tp}</div></div>
       <button class="main" data-a="versus" data-v="${t.id}" ${locked ? 'disabled' : ''}>しょうぶ</button></div>`;
   }).join('');
-  return `<div class="top"><h2>⚔️ おでかけ</h2><button data-a="home">もどる</button></div>
+  return `<div class="top"><h2>⚔️ 戦闘</h2><button data-a="home">もどる</button></div>
     <div class="row" style="margin-bottom:10px">${tabs}</div>
     <p class="sub">バトルに出かけると1日を使う。あなたのランク：${rankOf(totalOf(S.stats))}（目安：このエリア ${AREAS[mapArea].rank}）</p>
     <div class="grid g2">${list}</div>
@@ -490,7 +499,7 @@ function vVersus() {
   const ty = ATK_TYPES[e.type], tp = sel.tr ? (S.defeated[sel.tr.id] ? Math.round(sel.tr.tp * 0.3) : sel.tr.tp) : sel.nora.tp;
   return `<div class="top"><h2>しょうぶ！</h2><button data-a="${forced() ? 'home' : 'map'}">もどる</button></div>
     <div class="grid g2">
-      <div class="card"><h3>${ATK_TYPES[c.type].icon} ${c.name}（あなた）</h3><div class="sub">ランク ${rankOf(totalOf(S.stats))}</div>${statRows(S.stats)}</div>
+      <div class="card"><h3>${ATK_TYPES[c.type].icon} ${c.name}（あなた）</h3><div class="sub">ランク ${rankOf(totalOf(S.stats))}</div>${statRows(effStats(S), equipBonus(S))}</div>
       <div class="card"><h3>${ty.icon} ${e.name}</h3><div class="sub">${ty.name} / ${ELEM[e.elem].n}属性 / ランク ${rankOf(e.total)}</div>${statRows(es)}
         ${sel.tr ? `<p class="sub">「${sel.tr.line}」</p>` : ''}</div>
     </div>
@@ -544,3 +553,29 @@ if (typeof THREE === 'undefined') {
 
 // 景色を見るボタン（画面のボタンを隠す）
 (() => { const b = document.getElementById('peek'); b.addEventListener('click', () => { document.body.classList.toggle('peeking'); }); })();
+
+// ---------- 装備 ----------
+function wear(id) {
+  const it = EQUIP_BY_ID[id];
+  if (!it || !has(id)) return;
+  S.equip = S.equip || {};
+  if (S.equip[it.slot] === id) { S.equip[it.slot] = null; toast = it.name + ' を外した。'; }
+  else { S.equip[it.slot] = id; toast = it.icon + ' ' + it.name + ' を装備した！' + (it.elem ? '\n通常攻撃と「属性の技」が ' + ELEM[it.elem].n + '属性 になる。' : ''); }
+  Sound.play('ok'); save();
+}
+function vEquip() {
+  const b = equipBonus(S), we = weaponElem(S);
+  const slots = Object.keys(EQUIP_SLOTS).map(sl => {
+    const it = S.equip && S.equip[sl] && EQUIP_BY_ID[S.equip[sl]];
+    return `<div class="slot ${it ? 'on' : ''}"><div class="sub">${EQUIP_SLOTS[sl]}</div>${it ? `<b>${it.icon} ${it.name}</b><div class="sub">${it.desc}</div>` : '<span class="sub">（なし）</span>'}</div>`;
+  }).join('');
+  const lists = Object.keys(EQUIP_SLOTS).map(sl => {
+    const items = EQUIPS.filter(it => it.slot === sl && has(it.id));
+    return `<h3 style="margin-top:14px">${EQUIP_SLOTS[sl]}</h3><div class="grid g2" style="margin-top:6px">${items.length ? items.map(it => `<div class="card skill"><div><b>${it.icon} ${it.name}</b>${it.elem ? elemTag(it.elem) : ''}<div class="sub">${it.desc}</div></div><button class="${S.equip && S.equip[sl] === it.id ? 'danger' : 'main'}" data-a="wear" data-v="${it.id}">${S.equip && S.equip[sl] === it.id ? '外す' : '装備'}</button></div>`).join('') : '<p class="sub">まだ持っていない。ショップで買えるよ。</p>'}</div>`;
+  }).join('');
+  const sum = STATS.filter(k => b[k]).map(k => STAT_NAME[k] + ' +' + b[k]).join('　') || 'なし';
+  return `<div class="top"><h2>🧰 装備（${CHARS[S.charId].name}）</h2><button data-a="home">もどる</button></div>${toastHtml()}
+    <div class="slots" style="grid-template-columns:repeat(3,1fr)">${slots}</div>
+    <div class="card" style="margin-bottom:6px"><b>装備の効果</b>：${sum}<div class="sub">武器の属性：${we ? ELEM[we].n + '属性（通常攻撃と、属性ショット・属性バースト・属性の守りの属性が変わる）' : 'なし（無属性）'}</div></div>
+    ${lists}`;
+}

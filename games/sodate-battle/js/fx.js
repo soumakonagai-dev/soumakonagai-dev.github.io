@@ -449,6 +449,7 @@ const FX = (() => {
         const k = Math.sin(Math.min(1, q * 1.3) * Math.PI);
         aL = -1.55; aR = -1.4 + k * 2.2; lean = 0.08;
       } else if (s.style === 'dash') { aR = -1.6; aL = 1.2; lean = 0.55; }
+      else if (s.style === 'spin') { aR = aL = -1.5; lean = 0.15; }
       else if (s.style === 'threat') { aR = -2.3 * ramp; aL = -2.3 * ramp; lean = -0.28 * ramp; headX = -0.4 * ramp; twist = Math.sin(t * 38) * 0.04 * ramp; }
       else if (s.style === 'retreat') { aR = aL = -0.5 * ramp; lean = -0.18 * ramp; headX = 0.2 * ramp; }
       else if (s.style === 'buff') { const k = Math.sin(q * Math.PI); aR = -2.6 * k; aL = -2.6 * k; lean = -0.15 * k; }
@@ -476,6 +477,7 @@ const FX = (() => {
         } else if (s.style === 'cast') {
           const k = Math.sin(Math.min(1, q * 1.4) * Math.PI);
           lean = -0.28 * k; headX = -0.45 * k; aR = aL = -0.5 * k;
+        } else if (s.style === 'spin') { lean = 0.1; aR = aL = -0.8; headX = 0.1;
         } else if (s.style === 'threat') {
           if (s.kind === 'tail') { lean = -0.12 * ramp; headX = -0.25 * ramp; aR = aL = -0.2 * ramp; p.raiseTail = 1.35 * ramp; }
           else { lean = -0.6 * ramp; headX = -0.5 * ramp; aR = aL = -1.25 * ramp; p.raiseTail = 0.6 * ramp; }

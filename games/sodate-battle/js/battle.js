@@ -202,7 +202,7 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     glow(p.x, 1.3, p.z, guarded ? 0x9fe0ff : FX.ELEM_FX[elem][1], guarded ? 2 : (crit ? 6 : 3.4), 0.2);
     shock(p.x, p.z, guarded ? 1.5 : (crit ? 3.8 : 2.6), guarded ? 0x9fe0ff : FX.ELEM_FX[elem][1], 0.3, 0.2);
   }
-  function blastFx(elem, x, z, r, ult) {
+  function blastFx(elem, x, z, r, ult, quiet) {
     const c = FX.ELEM_FX[elem][1];
     parts.ringBurst(elem, x, z, r, Math.round(26 + r * 5));
     parts.column(elem, x, z, r * 0.8, 40 + Math.round(r * 8), 6 + r);
@@ -215,6 +215,7 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     const dome = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     dome.position.set(x, 0, z);
     addFx(0.35, dome, (k, o) => { o.scale.setScalar(0.3 + (1 - k) * 0.8); o.material.opacity = k * 0.4; });
+    if (quiet) { ctx.shake = Math.max(ctx.shake, 0.1); return; }
     ctx.shake = Math.max(ctx.shake, Math.min(0.9, 0.2 + r * 0.07 + (ult ? 0.3 : 0)));
     ctx.hitstop = Math.max(ctx.hitstop, ult ? 0.2 : 0.08);
     Sound.play(elem === 'earth' ? 'quake' : elem === 'wind' ? 'thunder' : elem === 'fire' ? 'fire' : elem === 'water' ? 'water' : 'explode');
@@ -243,13 +244,14 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
       pos: new THREE.Vector3(side === 'p' ? -7 : 7, 0, 0), yaw: side === 'p' ? Math.PI / 2 : -Math.PI / 2,
       busy: 0, atkCd: 0, stun: 0, inv: 0, stepT: 0, stepCd: 0, stepV: null, dash: null, kb: new THREE.Vector3(),
       guard: false, wantGuard: false, guardHp: 0, guardBroke: 0,
-      buffs: { atk: 0, def: 0, spd: 0 }, slow: 0, flash: 0, anim: null, combo: 0, comboT: 0, alt: false, charge: 0,
+      buffs: { atk: 0, def: 0, spd: 0, weak: 0, drain: 0 }, burnT: 0, burnAcc: 0, burnBy: null, burnPow: 0, shield: 0, shieldT: 0, gcd: 0, hop: 0, spin: null, leap: null, slow: 0, flash: 0, anim: null, combo: 0, comboT: 0, alt: false, charge: 0,
       in: { fwd: 0, right: 0 }, moving: false,
       skills: (def.skills || []).map(id => id ? { def: SKILL_BY_ID[id], cd: side === 'e' ? rand(1, 4) : 0 } : null),
       ult: def.ult ? SKILL_BY_ID[def.ult] : null,
       ai: def.ai, lvl: def.lvl || 0, aiT: rand(0.3, 0.8), strafe: Math.random() < 0.5 ? 1 : -1, aiAtk: false, aiGuardT: 0,
       dead: false,
     };
+    f.maxHp = Math.round(f.maxHp * (def.hpMul || 1)); f.powMul = def.powMul || 1; f.normMul = def.normMul || 1; f.atkElem = def.atkElem || null;
     f.hp = f.maxHp; f.hpShown = f.hp;
     f.guardHp = 60 + st.DEF * 0.15;
     f.ranged = def.type === 'mage' || def.type === 'archer';
@@ -278,12 +280,18 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     const crit = Math.random() < 0.06;
     if (crit) d *= 1.5;
     if (t.buffs.def > 0) d *= 0.5;
+    if (t.buffs.weak > 0) d *= 1.35;
     let guarded = false;
     if (t.guard && t.guardBroke <= 0 && t.stun <= 0) {
       guarded = true; d *= 0.3; t.guardHp -= d;
       if (t.guardHp <= 0) { t.guardBroke = 2.0; t.stun = 0.9; t.guardHp = 60 + t.stats.DEF * 0.15; floatText(t, 'ガード崩れ！', '#ffd75e', 'sm'); Sound.play('break'); parts.burst('none', t.pos.x, 1.4, t.pos.z, 30, 7, 0.3); }
     }
+    if (t.shield > 0) {
+      const ab = Math.min(t.shield, d); t.shield -= ab; d -= ab;
+      if (d < 1) { floatText(t, 'ブロック', '#9fe7ff', 'sm'); t.flash = 0.08; Sound.play('guard'); parts.burst('water', t.pos.x, 1.4, t.pos.z, 10, 4, 0.3); return true; }
+    }
     d = Math.max(1, Math.round(d));
+    ctx.lastDmg = d;
     t.hp = Math.max(0, t.hp - d);
     t.flash = 0.14;
     const mult = elemMult(elem, t.elem), big = d >= t.maxHp * 0.1;
@@ -306,6 +314,9 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     if (!guarded && !t.atkT.armor && (d >= t.maxHp * 0.12 || o.stun)) {
       t.stun = Math.max(t.stun, o.stun || 0.35); t.busy = 0; t.dash = null; t.charge = 0; t.anim = null;
     }
+    if (o.burn) { t.burnT = 3.5; t.burnBy = a; t.burnPow = power * 0.22; t.burnAcc = 0; floatText(t, 'やけど', '#ff8a4a', 'sm'); }
+    if (a.buffs.drain > 0 && a !== t) { const h = Math.round(d * 0.3); a.hp = Math.min(a.maxHp, a.hp + h); floatText(a, '+' + h, '#7dff9a', 'sm'); }
+    if (o.weak) { t.buffs.weak = Math.max(t.buffs.weak, o.weak); floatText(t, '呪い', '#c08aff', 'sm'); }
     if (o.slow) { t.slow = o.slow; for (let i = 0; i < 10; i++) parts.emit({ x: t.pos.x + rand(-0.5, 0.5), y: rand(0.3, 1.6), z: t.pos.z + rand(-0.5, 0.5), vy: 1, color: 0x9fe7ff, life: 0.7, size: 0.4 }); }
     if (t.hp <= 0) knockOut(t, a, elem);
     return true;
@@ -348,22 +359,22 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     else { g.add(FX.glowSprite(c[1], size * 4.2, 1)); g.add(FX.glowSprite(0xffffff, size * 2, 1)); }
     const p = f.pos.clone().addScaledVector(dir, 1.2); p.y = 1.3;
     g.position.copy(p); scene.add(g);
-    projs.push({ mesh: g, pos: p, vel: dir.multiplyScalar(o.speed), owner: f, power: o.power, dmg: o.dmg, elem: o.elem, r: size + 0.15 + (shape === 'spear' ? 0.25 : 0), life: 1.7, pierce: o.pierce, hit: false, slow: o.slow, stun: o.stun, size, shape });
+    projs.push({ mesh: g, pos: p, vel: dir.multiplyScalar(o.speed), owner: f, power: o.power, dmg: o.dmg, elem: o.elem, r: size + 0.15 + (shape === 'spear' ? 0.25 : 0), life: o.life || 1.7, pierce: o.pierce, hit: false, slow: o.slow, stun: o.stun, size, shape, homing: o.homing, weak: o.weak, speed: o.speed, burn: o.burn, drain: o.drain });
     glow(p.x, p.y, p.z, c[1], size * 5, 0.15);
     parts.burst(o.elem, p.x, p.y, p.z, 8, 3, 0.1);
   }
   function doNormal(f, charge) {
     if (f.dead || ctx.start > 0 || f.busy > 0 || f.stun > 0 || f.stepT > 0 || f.atkCd > 0 || f.dash) return false;
-    const a = f.atkT;
+    const a = f.atkT, ne = f.atkElem || f.elem;
     face(f);
-    let kind = a.kind, dmg = a.dmg, power = a.power;
+    let kind = a.kind, dmg = a.dmg, power = a.power * (f.normMul || 1);
     if (kind === 'dual') { f.alt = !f.alt; kind = f.alt ? 'melee' : 'proj'; dmg = f.alt ? 'physical' : 'magic'; }
     let cd = a.cd, big = false;
     if (a.combo) {
       f.combo = f.comboT > 0 ? (f.combo + 1) % 3 : 0; f.comboT = 0.9;
       if (f.combo === 2) { power *= 1.5; cd = 0.7; big = true; }
     }
-    if (a.charge) power = a.power * (1 + charge * 2.2);
+    if (a.charge) power = a.power * (f.normMul || 1) * (1 + charge * 2.2);
     f.busy = a.wind + 0.12; f.atkCd = cd;
     const style = f.type === 'heavy' ? 'pound' : kind === 'proj' ? (f.type === 'archer' ? 'shoot' : 'cast') : 'slash';
     setAnim(f, style, Math.max(0.3, a.wind + 0.2));
@@ -372,32 +383,35 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
       later(a.wind, () => {
         if (f.dead || f.stun > 0) return;
         face(f);
-        const ecs = FX.ELEM_FX[f.elem], rr = (a.range || 2.6) + 0.5;
+        const ecs = FX.ELEM_FX[ne], rr = (a.range || 2.6) + 0.5;
         if (big) clawSlash(f, rr, a.arc || 110, ecs, 2);
         else slashArc(f, rr, a.arc || 110, ecs[1], f.type === 'heavy', (f.combo === 0 ? 0.55 : -0.55) * (Math.random() < 0.3 ? -1 : 1));
         if (f.type === 'heavy') { parts.ringBurst('earth', f.pos.x + Math.sin(f.yaw) * 2.2, f.pos.z + Math.cos(f.yaw) * 2.2, 2, 14); ctx.shake = Math.max(ctx.shake, 0.25); }
-        if (inCone(f, opp(f), a.range || 2.6, a.arc || 110)) hurt(opp(f), f, power, dmg, f.elem, { kb: big ? 1.6 : 1 });
+        if (inCone(f, opp(f), a.range || 2.6, a.arc || 110)) hurt(opp(f), f, power, dmg, ne, { kb: big ? 1.6 : 1 });
       });
     } else {
       later(a.wind, () => {
         if (f.dead || f.stun > 0) return;
         face(f);
-        castRune(f, FX.ELEM_FX[f.elem][1], false, true);
-        spawnProj(f, { power, dmg, elem: f.elem, speed: a.pspeed || 18, size: a.charge ? 0.22 + charge * 0.22 : 0.38, shape: a.shape });
+        castRune(f, FX.ELEM_FX[ne][1], false, true);
+        spawnProj(f, { power, dmg, elem: ne, speed: a.pspeed || 18, size: a.charge ? 0.22 + charge * 0.22 : 0.38, shape: a.shape });
       });
     }
     return true;
   }
   function useSkill(f, i, isUlt, o) {
     o = o || {};
-    const s = isUlt ? f.ult : (f.skills[i] && f.skills[i].def);
+    const s0 = isUlt ? f.ult : (f.skills[i] && f.skills[i].def);
+    const s = s0 && (s0.elem === 'self' || s0.elem === 'weapon') ? Object.assign({}, s0, { elem: s0.elem === 'weapon' ? (f.atkElem || 'none') : f.elem }) : s0;
     if (!s || f.dead || ctx.start > 0 || (!o.force && f.busy > 0) || f.stun > 0 || f.stepT > 0 || f.dash) return false;
     if (isUlt) { if (f.gauge < 100) return false; }
     else if (f.skills[i].cd > 0) return false;
-    const qk = o.quick ? 0.5 : 1, pw = s.power * (o.boost || 1);
+    const qk = o.quick ? 0.5 : 1, pw = s.power * (o.boost || 1) * (f.powMul || 1);
     if (!o.quick) face(f);
     const t = opp(f);
     if (isUlt) { f.gauge = 0; cutIn(f, s); } else f.skills[i].cd = s.ct * (f.side === 'e' ? 1.25 : 1);
+    if (f.side === 'e') { f.gcd = 0.9 + Math.random() * 0.8; if (!o.quick && !o.force && !isUlt) floatText(f, s.name, '#ffd8b0', 'sm'); }
+    if (s.pat) return runPattern(f, s, o);
     const dmg = s.type === 'magic' ? 'magic' : 'physical';
     const ec = FX.ELEM_FX[s.elem], isMagic = s.type === 'magic';
     const pre = isUlt ? 0.5 : 0;
@@ -451,11 +465,11 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
         runeCircle(ox, 0.12, oz, s.r * 1.15, ec[1], 0.8, { spin: 2, expand: true });
         for (let i = 0; i < 3; i++) later(i * 0.07, () => shock(ox, oz, s.r * (0.7 + i * 0.25), ec[1], 0.4, 0.2 + i * 1.1));
         const tt = opp(f);
-        if (Math.hypot(tt.pos.x - ox, tt.pos.z - oz) <= s.r + 0.5) hurt(tt, f, pw, dmg, s.elem, { slow: s.slow, stun: s.stun, kb: 2 });
+        if (Math.hypot(tt.pos.x - ox, tt.pos.z - oz) <= s.r + 0.5) hurt(tt, f, pw, dmg, s.elem, { slow: s.slow, stun: s.stun, kb: s.kb || 2 });
       });
     } else if (s.range === 'dash') {
       const back = s.dir === 'back', dur = o.quick ? 0.14 : 0.22, dirv = back ? -1 : 1;
-      f.dash = { vx: Math.sin(f.yaw) * s.dist / dur * dirv, vz: Math.cos(f.yaw) * s.dist / dur * dirv, t: dur, skill: s, hit: back, dmg, boost: o.boost || 1 };
+      f.dash = { vx: Math.sin(f.yaw) * s.dist / dur * dirv, vz: Math.cos(f.yaw) * s.dist / dur * dirv, t: dur, skill: s, hit: back, dmg, boost: (o.boost || 1) * (f.powMul || 1) };
       f.inv = Math.max(f.inv, dur + 0.05); f.busy = dur + 0.15;
       Sound.play('dash');
     } else if (s.range === 'tele') {
@@ -482,11 +496,276 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     return true;
   }
   const pick2 = a => a[(Math.random() * a.length) | 0];
+  let zones = [];
+  const dotHurt = (t, a, power, dmgType, elem, o) => {
+    const hs = ctx.hitstop, sh = ctx.shake, fk = ctx.fovKick;
+    const r = hurt(t, a, power, dmgType, elem, Object.assign({ kb: 0.12 }, o || {}));
+    ctx.hitstop = hs; ctx.shake = Math.max(sh, 0.08); ctx.fovKick = fk; return r;
+  };
+  // 円形の範囲攻撃（予告 → 着弾）
+  function strike(f, x, z, r, delay, power, dmgType, elem, o) {
+    o = o || {};
+    const ec = FX.ELEM_FX[elem];
+    const l = Math.hypot(x, z); if (l > R - 1) { x *= (R - 1) / l; z *= (R - 1) / l; }
+    telegraph(x, z, r, f.side === 'e' ? 0xff5a3a : ec[1], delay);
+    if (o.sky) { const sp = FX.glowSprite(ec[1], 3, 1); sp.position.set(x, 22, z); scene.add(sp); addFx(delay, sp, (k, ob) => { ob.position.y = 1 + k * 21; ob.scale.setScalar(2 + (1 - k) * 4); }); }
+    later(delay, () => {
+      if (f.dead) return;
+      blastFx(elem, x, z, r, false, true);
+      const t = opp(f);
+      if (Math.hypot(t.pos.x - x, t.pos.z - z) <= r + 0.5) { ctx.lastDmg = 0; hurt(t, f, power, dmgType, elem, { stun: o.stun, slow: o.slow, kb: o.kb || 1.6, weak: o.weak, burn: o.burn }); if (o.drain && ctx.lastDmg) healF(f, ctx.lastDmg * o.drain); }
+    });
+  }
+  function addZone(z) {
+    z.t = 0; z.acc = 0;
+    const g = new THREE.Group(), col = FX.ELEM_FX[z.elem][1]; z.g = g;
+    if (z.kind === 'pool' || z.kind === 'pull') {
+      const rp = FX.runePlane(col, 0.55); rp.rotation.x = -Math.PI / 2; rp.scale.setScalar(z.r); rp.position.y = 0.08; g.add(rp);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(z.r, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.06; g.add(disc); z.rp = rp;
+    } else if (z.kind === 'tornado') {
+      const cn = new THREE.Mesh(new THREE.CylinderGeometry(z.r * 0.95, z.r * 0.3, 6, 18, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.32, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })); cn.position.y = 3; g.add(cn); z.cn = cn;
+      const rp = FX.runePlane(col, 0.4); rp.rotation.x = -Math.PI / 2; rp.scale.setScalar(z.r); rp.position.y = 0.08; g.add(rp);
+    } else if (z.kind === 'beam') {
+      const mk = (rd, op, c) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rd, rd, z.len, 10, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = Math.PI / 2; m.position.z = z.len / 2 + 1; return m; };
+      z.o1 = mk(z.width * 0.6, 0.45, col); z.o2 = mk(z.width * 0.25, 0.95, 0xffffff); g.add(z.o1); g.add(z.o2); g.position.y = 1.3;
+    }
+    g.position.x = z.x; g.position.z = z.z; if (z.kind !== 'beam') g.position.y = 0;
+    scene.add(g); zones.push(z);
+  }
+  function updateZones(dt) {
+    for (let i = zones.length - 1; i >= 0; i--) {
+      const z = zones[i], f = z.owner, t = opp(f); z.t += dt; z.acc += dt;
+      let end = z.t >= z.dur || f.dead || ctx.over;
+      const ec = FX.ELEM_FX[z.elem];
+      if (z.kind === 'beam') {
+        if (f.stun > 0) end = true;
+        if (!end) {
+          const want = Math.atan2(t.pos.x - f.pos.x, t.pos.z - f.pos.z), mx = z.turn * dt;
+          f.yaw += Math.max(-mx, Math.min(mx, angDiff(want, f.yaw))); f.yawLock = clock + 0.15; f.busy = 0.2;
+          z.g.position.set(f.pos.x, 1.3, f.pos.z); z.g.rotation.y = f.yaw;
+          const fl = 0.7 + Math.sin(clock * 50) * 0.3; z.o1.material.opacity = 0.45 * fl; z.o2.material.opacity = 0.95 * fl;
+          const tx = f.pos.x + Math.sin(f.yaw) * 14, tz = f.pos.z + Math.cos(f.yaw) * 14;
+          for (let k = 0; k < 3; k++) parts.emit({ x: f.pos.x + Math.sin(f.yaw) * rand(1, 18), y: 1.3 + rand(-0.4, 0.4), z: f.pos.z + Math.cos(f.yaw) * rand(1, 18), vx: rand(-1, 1), vy: rand(-0.5, 1), vz: rand(-1, 1), color: pick2(ec), life: 0.3, size: 0.4, drag: 2 });
+          if (z.acc >= 0.25 && z.t > 0.12) {
+            z.acc = 0;
+            const px = t.pos.x - f.pos.x, pz = t.pos.z - f.pos.z, along = px * Math.sin(f.yaw) + pz * Math.cos(f.yaw), perp = Math.abs(px * Math.cos(f.yaw) - pz * Math.sin(f.yaw));
+            if (along > 0 && along < z.len && perp < z.width / 2 + 0.7) dotHurt(t, f, z.power, z.dmg, z.elem, { kb: 0.2 });
+          }
+        }
+      } else if (z.kind === 'pull') {
+        const dx = z.x - t.pos.x, dz = z.z - t.pos.z, l = Math.hypot(dx, dz);
+        if (l > 1.4 && !t.dead) { t.pos.x += dx / l * 5.5 * dt; t.pos.z += dz / l * 5.5 * dt; clampArena(t); }
+        z.rp.rotation.z = -z.t * 4; z.rp.scale.setScalar(z.r * (1.25 - 0.45 * z.t / z.dur));
+        const a = rand(0, 6.28), rr = z.r * 1.6; parts.emit({ x: z.x + Math.cos(a) * rr, y: rand(0.2, 2), z: z.z + Math.sin(a) * rr, vx: -Math.cos(a) * rr * 2, vy: 0, vz: -Math.sin(a) * rr * 2, color: pick2(ec), life: 0.5, size: 0.4 });
+        if (end && !f.dead && !ctx.over) strike(f, z.x, z.z, z.r + 0.6, 0.18, z.power, z.dmg, z.elem, { kb: 3 });
+      } else if (z.kind === 'tornado') {
+        const dx = t.pos.x - z.x, dz = t.pos.z - z.z, l = Math.hypot(dx, dz) || 1;
+        z.x += dx / l * 2.3 * dt; z.z += dz / l * 2.3 * dt; z.g.position.set(z.x, 0, z.z); z.cn.rotation.y = z.t * 9; z.cn.scale.set(1 + Math.sin(z.t * 5) * 0.08, 1, 1 + Math.sin(z.t * 5) * 0.08);
+        const a = z.t * 12 + rand(0, 6.28), h = rand(0, 6); parts.emit({ x: z.x + Math.cos(a) * z.r * (0.3 + h * 0.12), y: h, z: z.z + Math.sin(a) * z.r * (0.3 + h * 0.12), vx: 0, vy: 1, vz: 0, color: pick2(ec), life: 0.5, size: 0.5, drag: 1 });
+        if (z.acc >= z.tick) { z.acc = 0; if (Math.hypot(t.pos.x - z.x, t.pos.z - z.z) <= z.r + 0.6) dotHurt(t, f, z.power, z.dmg, z.elem, { kb: 0.6 }); }
+      } else if (z.kind === 'pool') {
+        z.rp.rotation.z = z.t * 0.6;
+        if (Math.random() < dt * 14) parts.emit({ x: z.x + rand(-z.r, z.r) * 0.8, y: 0.2, z: z.z + rand(-z.r, z.r) * 0.8, vy: rand(0.8, 2), color: pick2(ec), life: 0.8, size: 0.4 });
+        const inside = Math.hypot(t.pos.x - z.x, t.pos.z - z.z) <= z.r + 0.4;
+        if (inside) t.slow = Math.max(t.slow, 0.3);
+        if (z.acc >= 0.5) { z.acc = 0; if (inside) dotHurt(t, f, z.power, z.dmg, z.elem, { kb: 0.05 }); }
+      }
+      if (end) { scene.remove(z.g); disposeObj(z.g); zones.splice(i, 1); }
+    }
+  }
+  // 敵だけが使う技の動き
+  function runPattern(f, s, o) {
+    const t = opp(f), q = o.quick ? 0.55 : 1, pw = s.power * (o.boost || 1) * (f.powMul || 1), dmg = s.hybrid ? (f.stats.ATK >= f.stats.MAG ? 'physical' : 'magic') : (s.type === 'magic' ? 'magic' : 'physical'), ec = FX.ELEM_FX[s.elem];
+    const slashAt = (reach, arc, power, kb, stun) => {
+      if (f.dead || f.stun > 0) return false;
+      clawSlash(f, reach + 0.5, arc, ec, 2);
+      if (inCone(f, opp(f), reach, arc)) return hurt(opp(f), f, power, dmg, s.elem, { kb: kb || 1.4, stun });
+      return false;
+    };
+    switch (s.pat) {
+      case 'rush': {
+        const n = s.n || 3, gap = 0.5 * q; f.busy = n * gap + 0.25; setAnim(f, 'dash', n * gap + 0.2);
+        for (let k = 0; k < n; k++) later(k * gap, () => {
+          if (f.dead || f.stun > 0 || f.dash) return;
+          face(f); const dur = 0.17, dd = Math.min(s.dist || 4.5, dist(f, opp(f)) + 0.8);
+          f.dash = { vx: Math.sin(f.yaw) * dd / dur, vz: Math.cos(f.yaw) * dd / dur, t: dur, skill: { power: s.power, elem: s.elem, stun: 0 }, hit: false, dmg, boost: o.boost || 1 };
+          f.inv = Math.max(f.inv, dur + 0.03); Sound.play('dash');
+        });
+        break;
+      }
+      case 'leap': {
+        const dur = 0.75 * q + 0.2; f.busy = dur + 0.5; setAnim(f, 'dash', dur); Sound.play('dash');
+        telegraph(t.pos.x, t.pos.z, s.r, 0xff5a3a, dur);
+        f.leap = { t: 0, dur, sx: f.pos.x, sz: f.pos.z, tx: t.pos.x, tz: t.pos.z, r: s.r, power: pw, dmg, elem: s.elem };
+        break;
+      }
+      case 'combo': {
+        f.busy = 0.12 + 3 * 0.28 + 0.2; setAnim(f, 'slash', 0.9);
+        for (let k = 0; k < 3; k++) later(0.12 + k * 0.28 * q, () => { if (f.dead || f.stun > 0) return; face(f); Sound.play('swing'); slashAt(s.reach, s.arc, pw * (k === 2 ? 1.5 : 1), k === 2 ? 2 : 0.8, 0); });
+        break;
+      }
+      case 'drain': {
+        f.busy = 0.5; setAnim(f, 'slash', 0.5); Sound.play('swing');
+        later(0.2 * q, () => {
+          if (f.dead || f.stun > 0) return; ctx.lastDmg = 0;
+          if (slashAt(s.reach, s.arc, pw, 1.2, 0) && ctx.lastDmg) { const h = Math.round(ctx.lastDmg * 0.6); f.hp = Math.min(f.maxHp, f.hp + h); floatText(f, '+' + h, '#7dff9a', 'sm'); for (let k = 0; k < 14; k++) parts.emit({ x: opp(f).pos.x, y: 1.4, z: opp(f).pos.z, vx: (f.pos.x - opp(f).pos.x) * 1.5, vy: rand(0, 2), vz: (f.pos.z - opp(f).pos.z) * 1.5, color: 0x7dff9a, life: 0.6, size: 0.35 }); }
+        });
+        break;
+      }
+      case 'wave': {
+        f.busy = 0.5; setAnim(f, 'pound', 0.5); Sound.play('quake'); parts.ringBurst('earth', f.pos.x, f.pos.z, 2, 14);
+        later(0.15 * q, () => { if (f.dead) return; spawnProj(f, { power: pw, dmg, elem: s.elem, speed: s.speed || 9, size: s.size || 2.2, pierce: true, shape: 'crescent' }); });
+        break;
+      }
+      case 'cross': {
+        f.busy = 0.6; setAnim(f, 'pound', 0.6); Sound.play('quake'); ctx.shake = Math.max(ctx.shake, 0.25);
+        later(0.2 * q, () => { if (f.dead) return; for (let k = 0; k < 4; k++) spawnProj(f, { power: pw, dmg, elem: s.elem, speed: 15, size: 1.2, pierce: true, shape: 'crescent', ang: k * Math.PI / 2 }); });
+        break;
+      }
+      case 'barrage': {
+        const n = s.n || 6; f.busy = 0.15 + n * 0.14 + 0.2; setAnim(f, f.type === 'archer' ? 'shoot' : 'cast', f.busy);
+        for (let k = 0; k < n; k++) later(0.15 + k * 0.14 * q, () => { if (f.dead || f.stun > 0) return; face(f); Sound.play('shot'); spawnProj(f, { power: pw, dmg, elem: s.elem, speed: 18, size: 0.34, ang: rand(-0.09, 0.09) }); });
+        break;
+      }
+      case 'homing': case 'curse': {
+        f.busy = 0.5; setAnim(f, 'cast', 0.5); Sound.play('magic');
+        later(0.2 * q, () => { if (f.dead) return; face(f); spawnProj(f, { power: pw, dmg, elem: s.elem, speed: s.speed || 8, size: 0.55, homing: s.turn || (s.pat === 'curse' ? 1.3 : 2), life: 4.2, weak: s.pat === 'curse' ? 7 : 0, slow: s.pat === 'curse' ? 2 : 0 }); });
+        break;
+      }
+      case 'chain': {
+        const n = s.n || 5; f.busy = 0.6; setAnim(f, 'cast', 0.6); Sound.play('fire');
+        for (let k = 0; k < n; k++) strike(f, f.pos.x + Math.sin(f.yaw) * (2.8 + k * 2.8), f.pos.z + Math.cos(f.yaw) * (2.8 + k * 2.8), s.r || 2.1, Math.max(0.3, 0.5 * q) + k * 0.16, pw, dmg, s.elem, {});
+        break;
+      }
+      case 'scatter': {
+        const n = s.n || 5, spread = s.spread || 5, stag = s.stagger || 0.2, dl = Math.max(0.35, (s.delay || 0.8) * (o.quick ? 0.8 : 1)), cx = t.pos.x, cz = t.pos.z;
+        f.busy = 0.6; setAnim(f, 'cast', 0.6); Sound.play('magic');
+        for (let k = 0; k < n; k++) {
+          let x, z;
+          if (s.ring) { const a = k / n * 6.283; x = cx + Math.cos(a) * spread; z = cz + Math.sin(a) * spread; }
+          else if (k === 0) { x = cx; z = cz; }
+          else { const a = rand(0, 6.283), rr = Math.sqrt(Math.random()) * spread; x = cx + Math.cos(a) * rr; z = cz + Math.sin(a) * rr; }
+          later(k * stag, () => { if (!f.dead) strike(f, x, z, s.r || 2.4, dl, pw, dmg, s.elem, { sky: s.sky, stun: s.stun, kb: 1.6 }); });
+        }
+        if (s.ring) later(n * stag + 0.15, () => { if (!f.dead) strike(f, opp(f).pos.x, opp(f).pos.z, (s.r || 2.4) + 0.5, dl, pw, dmg, s.elem, { sky: true, kb: 2 }); });
+        break;
+      }
+      case 'bolts': {
+        const n = s.n || 5; f.busy = 0.6; setAnim(f, 'cast', 0.6); Sound.play('thunder');
+        for (let k = 0; k < n; k++) later(k * 0.5 * q, () => { if (!f.dead) strike(f, opp(f).pos.x, opp(f).pos.z, s.r || 1.9, 0.55, pw, dmg, s.elem, { sky: true }); });
+        break;
+      }
+      case 'pool': {
+        f.busy = 0.5; setAnim(f, 'cast', 0.5); Sound.play('magic');
+        const x = t.pos.x, z = t.pos.z; telegraph(x, z, s.r, 0xb06aff, 0.8);
+        later(0.8 * q, () => { if (!f.dead) addZone({ kind: 'pool', owner: f, x, z, r: s.r, dur: s.dur || 6, power: pw, dmg, elem: s.elem }); });
+        break;
+      }
+      case 'pull': {
+        f.busy = (s.dur || 1.2) + 0.5; setAnim(f, 'cast', s.dur || 1.2); Sound.play('tele');
+        addZone({ kind: 'pull', owner: f, x: f.pos.x, z: f.pos.z, r: s.r, dur: s.dur || 1.2, power: pw, dmg, elem: s.elem });
+        break;
+      }
+      case 'beam': {
+        const dur = s.dur || 1.6; f.busy = dur + 0.2; setAnim(f, 'cast', dur); Sound.play('thunder');
+        addZone({ kind: 'beam', owner: f, x: f.pos.x, z: f.pos.z, dur, len: s.len || 22, width: s.width || 1.5, turn: s.turn || 0.9, power: pw, dmg, elem: s.elem });
+        break;
+      }
+      case 'tornado': {
+        f.busy = 0.5; setAnim(f, 'cast', 0.5); Sound.play('thunder');
+        addZone({ kind: 'tornado', owner: f, x: f.pos.x + Math.sin(f.yaw) * 2.5, z: f.pos.z + Math.cos(f.yaw) * 2.5, r: s.r || 2.2, dur: s.dur || 4.5, tick: 0.4, power: pw, dmg, elem: s.elem });
+        break;
+      }
+      case 'spin': {
+        const dur = (s.dur || 1.5); f.busy = dur + 0.35; setAnim(f, 'spin', dur); Sound.play('swing');
+        f.spin = { t: 0, acc: 0.2, dur, r: s.r || 3.4, power: pw, dmg };
+        break;
+      }
+      case 'enrage': {
+        f.busy = 0.6; setAnim(f, 'buff', 0.6); f.buffs.atk = 9; f.buffs.spd = 9; f.buffs.ultAura = 1.2;
+        floatText(f, '怒り！', '#ff6a4a', 'big'); shock(f.pos.x, f.pos.z, 4, 0xff5a3a, 0.6); ctx.shake = Math.max(ctx.shake, 0.2); Sound.play('quake');
+        break;
+      }
+      case 'shield': {
+        f.busy = 0.5; setAnim(f, 'buff', 0.5); f.shield = f.maxHp * 0.07; f.shieldT = 9; floatText(f, '殻をまとった', '#9fe7ff', 'sm'); shock(f.pos.x, f.pos.z, 3, 0x9fe7ff, 0.6); Sound.play('buff');
+        break;
+      }
+      case 'tele_strike': {
+        f.busy = 0.3 * q + 0.6; setAnim(f, 'slash', 0.3 * q + 0.5); Sound.play('tele');
+        parts.burst(f.elem, f.pos.x, 1.2, f.pos.z, 24, 6, 0.3);
+        const dx = t.pos.x - f.pos.x, dz = t.pos.z - f.pos.z, l = Math.hypot(dx, dz) || 1;
+        f.pos.x = t.pos.x + dx / l * 2.4; f.pos.z = t.pos.z + dz / l * 2.4; clampArena(f); face(f);
+        parts.burst(f.elem, f.pos.x, 1.2, f.pos.z, 24, 6, 0.3); shock(f.pos.x, f.pos.z, 2.2, ec[1], 0.4);
+        later(0.3 * q, () => { Sound.play('crit'); slashAt(s.reach, s.arc, pw, 2.2, 0.4); });
+        break;
+      }
+      case 'flurry': {
+        const n = s.n || 3; f.busy = n * 0.5 + 0.2; setAnim(f, 'slash', n * 0.5);
+        for (let k = 0; k < n; k++) later(k * 0.5 * q, () => {
+          if (f.dead || f.stun > 0) return; const tt = opp(f), a = rand(0, 6.283);
+          parts.burst(f.elem, f.pos.x, 1.2, f.pos.z, 16, 5, 0.3);
+          f.pos.x = tt.pos.x + Math.cos(a) * 2.6; f.pos.z = tt.pos.z + Math.sin(a) * 2.6; clampArena(f); face(f); Sound.play('tele'); shock(f.pos.x, f.pos.z, 2, ec[1], 0.3);
+          later(0.16 * q, () => { Sound.play('swing'); slashAt(s.reach, s.arc, pw, 1.6, 0.25); });
+        });
+        break;
+      }
+      case 'decoy': {
+        const n = s.n || 3; f.busy = 0.6; setAnim(f, 'cast', 0.6); Sound.play('magic');
+        for (let k = 0; k < n; k++) {
+          const a = k / n * 6.283 + rand(0, 1), gx = f.pos.x + Math.cos(a) * 3.2, gz = f.pos.z + Math.sin(a) * 3.2;
+          const gh = new THREE.Group(); const sp = FX.glowSprite(ec[1], 3.6, 0.8); sp.position.y = 1.3; gh.add(sp);
+          const cl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 2.2, 10, 1, true), new THREE.MeshBasicMaterial({ color: ec[1], transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })); cl.position.y = 1.1; gh.add(cl);
+          gh.position.set(gx, 0, gz); addFx(1.3 * q + 0.1, gh, (kk, ob) => { ob.rotation.y += 0.2; cl.material.opacity = 0.3 + Math.sin(clock * 30) * 0.2; });
+          strike(f, gx, gz, s.r || 2.4, 1.2 * q + 0.1, pw, dmg, s.elem, { kb: 1.8 });
+        }
+        break;
+      }
+      case 'elemshot': {
+        const fx = elemEffects(s.elem); castRune(f, ec[1], false, true); f.busy = 0.45; setAnim(f, 'cast', 0.45); Sound.play('magic');
+        later(0.18 * q, () => { if (f.dead) return; face(f); spawnProj(f, { power: pw * (s.elem === 'none' ? 1.12 : 1), dmg, elem: s.elem, speed: 21, size: 0.5, shape: 'spear', pierce: fx.pierce, slow: fx.slow, stun: fx.stun, weak: fx.weak, burn: fx.burn, drain: fx.drain }); });
+        break;
+      }
+      case 'elemburst': {
+        const fx = elemEffects(s.elem); castRune(f, ec[1], false, false); f.busy = 0.6; setAnim(f, 'pound', 0.6);
+        strike(f, f.pos.x, f.pos.z, s.r || 4.4, 0.3, pw * (s.elem === 'none' ? 1.12 : 1), dmg, s.elem, { slow: fx.slow, stun: fx.stun, weak: fx.weak, burn: fx.burn, drain: fx.drain, kb: 2.2 });
+        break;
+      }
+      case 'elemguard': {
+        castRune(f, ec[1], false, false); f.busy = 0.4; setAnim(f, 'buff', 0.4); shock(f.pos.x, f.pos.z, 3, ec[1], 0.6); Sound.play('buff');
+        const say = (txt) => floatText(f, txt, '#' + new THREE.Color(ec[1]).getHexString(), 'sm');
+        if (s.elem === 'fire') { f.buffs.atk = 8; say('攻撃UP'); }
+        else if (s.elem === 'water') { healF(f, f.maxHp * 0.25); }
+        else if (s.elem === 'earth') { f.shield = f.maxHp * 0.1; f.shieldT = 8; say('岩の殻'); }
+        else if (s.elem === 'wind') { f.buffs.spd = 8; f.inv = Math.max(f.inv, 0.5); say('加速'); }
+        else if (s.elem === 'light') { healF(f, f.maxHp * 0.15); f.shield = f.maxHp * 0.05; f.shieldT = 8; }
+        else if (s.elem === 'dark') { f.buffs.drain = 8; say('吸血'); }
+        else { f.buffs.def = 6; say('防御UP'); }
+        break;
+      }
+      default: break;
+    }
+    return true;
+  }
+  function elemEffects(elem) { return ({ fire: { burn: true }, water: { slow: 2.5 }, earth: { stun: 0.45 }, wind: { pierce: true }, light: { drain: 0.35 }, dark: { weak: 6 } })[elem] || {}; }
+  function healF(f, amount) {
+    const h = Math.round(amount); if (h <= 0 || f.dead) return;
+    f.hp = Math.min(f.maxHp, f.hp + h); floatText(f, '+' + h, '#7dff9a', 'big'); Sound.play('heal');
+    for (let k = 0; k < 24; k++) { const a = k / 24 * 12; parts.emit({ x: f.pos.x + Math.cos(a) * 1.0, y: 0.2 + k * 0.07, z: f.pos.z + Math.sin(a) * 1.0, vy: rand(1.5, 3), color: pick2([0x7dff9a, 0xdfffe8]), life: rand(0.7, 1.1), size: 0.4, drag: 0.5 }); }
+  }
   // 強い技は、前ぶり（後ずさり・しっぽを上げる・吠える）のあとに、すばやく放つ
   const STRONG_POWER = 85;
-  const isStrong = s => s && (s.type === 'physical' || s.type === 'magic' || s.type === 'move') && s.power >= STRONG_POWER;
-  function laneWarn(f, s, dur) {
+  const isStrong = s => s && !s.self && (s.big || ((s.type === 'physical' || s.type === 'magic' || s.type === 'move') && s.power >= STRONG_POWER));
+  function aiPatOk(f, s, d) {
+    if (s.pat === 'enrage') return !(f.buffs.atk > 0) && d < 12;
+    if (s.pat === 'shield') return !(f.shield > 0) && f.hp < f.maxHp * 0.92;
+    const r = s.rng || [0, 14];
+    return d >= r[0] && d <= r[1];
+  }
+  const PAT_LANE = { beam: 'line', wave: 'line', barrage: 'line', homing: 'line', curse: 'line', rush: 'dash', tele_strike: 'dash', flurry: 'dash', leap: 'dash', spin: 'circle', drain: 'melee', combo: 'melee' };
+  function laneWarn(f, s0, dur) {
     const col = 0xff4a3a;
+    const rg = s0.pat ? PAT_LANE[s0.pat] : s0.range;
+    const s = Object.assign({}, s0, { range: rg, dist: s0.dist || 6, size: s0.pat === 'wave' ? 2.2 : s0.size });
     const mkFlat = (geo, ox, oz) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = -Math.PI / 2; return m; };
     const g = new THREE.Group(); g.position.set(f.pos.x, 0.09, f.pos.z); g.rotation.y = f.yaw;
     if (s.range === 'line' || s.range === 'dash') {
@@ -514,7 +793,7 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     f.windup = { i, kind, t: 0, dur, roared: false };
     f.busy = dur + 0.15; f.aiAtk = false;
     setAnim(f, kind === 'retreat' ? 'retreat' : 'threat', dur);
-    floatText(f, '！', '#ff5a4a', 'big'); Sound.play('warn');
+    floatText(f, s.name + '！', '#ff5a4a', 'big'); Sound.play('warn');
     laneWarn(f, s, dur);
     return true;
   }
@@ -605,11 +884,12 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     const reach = melee ? (f.atkT.range || 2.6) + 0.4 : 15;
     if (d < reach && Math.random() < 0.3 + 0.3 * lvl) f.aiAtk = true;
     f.skills.forEach((sk, i) => {
-      if (!sk || sk.cd > 0 || f.windup || f.busy > 0) return;
+      if (!sk || sk.cd > 0 || f.windup || f.busy > 0 || f.gcd > 0) return;
       const s = sk.def, strong = isStrong(s);
       if (Math.random() > (strong ? 0.42 + 0.3 * lvl : 0.15 + 0.2 * lvl)) return;
       let ok = false;
-      if (s.range === 'line') ok = d > 2.5 && d < 14;
+      if (s.pat) ok = aiPatOk(f, s, d);
+      else if (s.range === 'line') ok = d > 2.5 && d < 14;
       else if (s.range === 'circle') ok = s.at === 'target' ? d < 12 : d < s.r + 1;
       else if (s.range === 'melee') ok = d < s.reach + 0.3;
       else if (s.range === 'dash') ok = d > 2.5 && d < s.dist + 1;
@@ -620,7 +900,14 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
   // ---------- 更新 ----------
   function updateFighter(f, dt) {
     const o = opp(f);
-    for (const k of ['atk', 'def', 'spd', 'ultAura']) if (f.buffs[k] > 0) f.buffs[k] -= dt;
+    for (const k of ['atk', 'def', 'spd', 'ultAura', 'weak', 'drain']) if (f.buffs[k] > 0) f.buffs[k] -= dt;
+    if (f.burnT > 0 && !f.dead) {
+      f.burnT -= dt; f.burnAcc += dt;
+      if (Math.random() < dt * 14) parts.emit({ x: f.pos.x + rand(-0.4, 0.4), y: rand(0.4, 2), z: f.pos.z + rand(-0.4, 0.4), vy: rand(1, 2.5), color: pick2([0xff4a1a, 0xff9a2a]), life: 0.5, size: 0.4, drag: 1 });
+      if (f.burnAcc >= 0.5) { f.burnAcc -= 0.5; if (f.burnBy) dotHurt(f, f.burnBy, f.burnPow, 'magic', 'fire', { kb: 0 }); }
+    }
+    if (f.shieldT > 0) { f.shieldT -= dt; if (f.shieldT <= 0) f.shield = 0; }
+    f.gcd = Math.max(0, f.gcd - dt);
     f.busy = Math.max(0, f.busy - dt); f.atkCd = Math.max(0, f.atkCd - dt); f.stun = Math.max(0, f.stun - dt);
     f.inv = Math.max(0, f.inv - dt); f.stepCd = Math.max(0, f.stepCd - dt); f.slow = Math.max(0, f.slow - dt);
     f.flash = Math.max(0, f.flash - dt); f.comboT = Math.max(0, f.comboT - dt);
@@ -636,6 +923,20 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     if (f.stepT > 0) {
       f.stepT -= dt; f.pos.x += f.stepV.x * dt; f.pos.z += f.stepV.z * dt; f.moving = true;
       if (Math.random() < 0.8) parts.emit({ x: f.pos.x, y: 0.2, z: f.pos.z, vx: rand(-0.5, 0.5), vy: 0.3, vz: rand(-0.5, 0.5), color: 0xcfd6e8, life: 0.3, size: 0.6, drag: 2 });
+    } else if (f.leap) {
+      const L = f.leap; L.t += dt; const k = Math.min(1, L.t / L.dur);
+      f.pos.x = L.sx + (L.tx - L.sx) * k; f.pos.z = L.sz + (L.tz - L.sz) * k; f.hop = Math.sin(k * Math.PI) * 3.4; f.inv = Math.max(f.inv, 0.05); f.moving = true;
+      if (k >= 1) {
+        f.hop = 0; f.leap = null; blastFx(L.elem, L.tx, L.tz, L.r, false);
+        runeCircle(L.tx, 0.12, L.tz, L.r * 1.1, FX.ELEM_FX[L.elem][1], 0.6, { spin: 2, expand: true });
+        const t2 = opp(f); if (Math.hypot(t2.pos.x - L.tx, t2.pos.z - L.tz) <= L.r + 0.5) hurt(t2, f, L.power, L.dmg, L.elem, { kb: 2.4 });
+      }
+    } else if (f.spin) {
+      const S2 = f.spin; S2.t += dt; S2.acc += dt; f.yawLock = clock + 0.2; f.yaw += dt * 15; f.moving = true;
+      const dx = o.pos.x - f.pos.x, dz = o.pos.z - f.pos.z, l = Math.hypot(dx, dz) || 1;
+      if (l > 1.6) { f.pos.x += dx / l * 4.2 * dt; f.pos.z += dz / l * 4.2 * dt; }
+      if (S2.acc >= 0.32) { S2.acc = 0; slashArc(f, S2.r + 0.3, 340, FX.ELEM_FX[f.elem][1], true, 0); if (Math.hypot(o.pos.x - f.pos.x, o.pos.z - f.pos.z) <= S2.r + 0.6) hurt(o, f, S2.power, S2.dmg, f.elem, { kb: 1.4 }); }
+      if (S2.t >= S2.dur) { f.spin = null; f.yawLock = 0; f.busy = 0.35; }
     } else if (f.dash) {
       const d = f.dash; d.t -= dt;
       f.pos.x += d.vx * dt; f.pos.z += d.vz * dt; f.moving = true;
@@ -663,7 +964,7 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
       }
     }
     const dd = dist(f, o);
-    if (dd < 1.3 && !f.dash && dd > 0.001) {
+    if (dd < 1.3 && !f.dash && !f.leap && dd > 0.001) {
       const push = (1.3 - dd) * 0.5;
       f.pos.x += (f.pos.x - o.pos.x) / dd * push; f.pos.z += (f.pos.z - o.pos.z) / dd * push;
     }
@@ -711,6 +1012,10 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
   function updateProjs(dt) {
     for (let i = projs.length - 1; i >= 0; i--) {
       const p = projs[i];
+      if (p.homing && !opp(p.owner).dead) {
+        const tt = opp(p.owner), want = Math.atan2(tt.pos.x - p.pos.x, tt.pos.z - p.pos.z), cur = Math.atan2(p.vel.x, p.vel.z), df = angDiff(want, cur), mx = p.homing * dt, na = cur + Math.max(-mx, Math.min(mx, df));
+        p.vel.set(Math.sin(na) * p.speed, 0, Math.cos(na) * p.speed);
+      }
       p.pos.addScaledVector(p.vel, dt); p.mesh.position.copy(p.pos); p.life -= dt;
       const c = FX.ELEM_FX[p.elem];
       for (let k = 0; k < 2; k++) parts.emit({ x: p.pos.x + rand(-0.15, 0.15), y: p.pos.y + rand(-0.15, 0.15), z: p.pos.z + rand(-0.15, 0.15), vx: -p.vel.x * 0.04 + rand(-0.5, 0.5), vy: rand(-0.3, 0.8), vz: -p.vel.z * 0.04 + rand(-0.5, 0.5), color: c[(Math.random() * 3) | 0], life: rand(0.25, 0.45), size: p.size * rand(0.7, 1.3), drag: 2, grow: -0.5 });
@@ -718,7 +1023,8 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
       const t = opp(p.owner);
       let remove = p.life <= 0 || Math.hypot(p.pos.x, p.pos.z) > R + 1;
       if (!remove && !t.dead && !(p.hit && p.pierce) && Math.hypot(p.pos.x - t.pos.x, p.pos.z - t.pos.z) < p.r + 0.7) {
-        if (t.inv <= 0) { hurt(t, p.owner, p.power, p.dmg, p.elem, { slow: p.slow, stun: p.stun }); p.hit = true; if (!p.pierce) remove = true; }
+        if (t.inv <= 0) { ctx.lastDmg = 0; hurt(t, p.owner, p.power, p.dmg, p.elem, { slow: p.slow, stun: p.stun, weak: p.weak, burn: p.burn }); p.hit = true;
+          if (p.drain && ctx.lastDmg) healF(p.owner, ctx.lastDmg * p.drain); if (!p.pierce) remove = true; }
       }
       if (remove) { parts.burst(p.elem, p.pos.x, p.pos.y, p.pos.z, p.hit ? 4 : 10, 3, 0.1); scene.remove(p.mesh); disposeObj(p.mesh); projs.splice(i, 1); }
     }
@@ -738,8 +1044,9 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     m.root.rotation.y = f.yaw;
     FX.pose(m, {
       moving: f.moving, atk: f.anim ? 1 - f.anim.t / f.anim.dur : 0, style: f.anim && f.anim.style, kind: f.windup ? f.windup.kind : null, slowWalk: !!(f.windup && f.windup.kind === 'retreat'), stun: f.stun > 0, guard: f.guard, dead: f.dead,
-      charge: f.charge, buff: f.buffs.atk > 0 || f.buffs.spd > 0 || f.buffs.ultAura > 0, barrier: f.buffs.def > 0, flash: f.flash,
+      charge: f.charge, buff: f.buffs.atk > 0 || f.buffs.spd > 0 || f.buffs.ultAura > 0, barrier: f.buffs.def > 0 || f.shield > 0, flash: f.flash,
     }, t);
+    if (f.hop) { m.root.position.y += f.hop; m.shadow.position.y = 0.03 - m.root.position.y; m.shadow.scale.setScalar(Math.max(0.4, 1 - f.hop * 0.2)); }
     if (f.dead) m.root.position.y = 0.45;
     m.root.visible = !(f.inv > 0 && f.stepT > 0 && Math.floor(t * 30) % 2 === 0);
   }
@@ -803,9 +1110,14 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
   }
 
   // ---------- ループ ----------
+  // 1フレームの途中でエラーが出ても、画面が止まらないようにする
   function loop(now) {
     if (!running) return;
     raf = requestAnimationFrame(loop);
+    try { step(now); } catch (e) { console.error(e); }
+    try { renderer.render(scene, camera); } catch (e) { console.error(e); }
+  }
+  function step(now) {
     const rawDt = Math.min(0.05, (now - last) / 1000); last = now;
     let dt = rawDt;
     if (ctx.slowT > 0) { ctx.slowT -= rawDt; dt *= ctx.slow; }
@@ -836,7 +1148,7 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     else { P.in = { fwd: 0, right: 0 }; E.in = { fwd: 0, right: 0 }; P.wantGuard = E.wantGuard = false; }
     for (const k in edge) edge[k] = false;
     updateFighter(P, dt); updateFighter(E, dt);
-    updateProjs(dt); updateFx(dt);
+    updateProjs(dt); updateZones(dt); updateFx(dt);
     scenery.update(clock, dt, parts);
     parts.update(dt);
     parts.setScale(renderer.domElement.height, camera.fov);
@@ -849,13 +1161,13 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
       ctx.overT -= rawDt;
       if (ctx.overT <= 0) finish(ctx.winner === 'p', false);
     }
-    renderer.render(scene, camera);
   }
 
   function clearScene() {
     [P, E].forEach(f => { if (f && f.model) { scene.remove(f.model.root); disposeObj(f.model.root); } });
     (projs || []).forEach(p => { scene.remove(p.mesh); disposeObj(p.mesh); });
     (fxs || []).forEach(x => { if (x.obj) { scene.remove(x.obj); disposeObj(x.obj); } });
+    zones.forEach(z => { scene.remove(z.g); disposeObj(z.g); }); zones = [];
     if (scenery) { scene.remove(scenery.group); disposeObj(scenery.group); scenery = null; }
     if (parts) parts.clear();
     document.getElementById('bt-fx').innerHTML = '';
@@ -915,5 +1227,5 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     running = true; last = performance.now();
     raf = requestAnimationFrame(loop);
   }
-  return { start, _dbg: () => ({ P, E, ctx }) };
+  return { start, _dbg: () => ({ P, E, ctx, useSkill, startWindup }) };
 })();

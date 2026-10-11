@@ -116,10 +116,11 @@ SKILLS.forEach(s => { SKILL_BY_ID[s.id] = s; });
 
 function learnText(sk) {
   const ks = Object.keys(sk.learn || {});
-  return ks.length ? ks.map(k => STAT_NAME[k] + ' ' + sk.learn[k]).join(' & ') + ' で習得' : '';
+  return ks.length ? ks.map(k => STAT_NAME[k] + ' ' + sk.learn[k]).join(sk.any ? ' または ' : ' & ') + ' で習得' : '';
 }
 function canLearn(sk, stats) {
-  return !sk.ult && Object.keys(sk.learn).every(k => stats[k] >= sk.learn[k]);
+  const ks = Object.keys(sk.learn);
+  return !sk.ult && (sk.any ? ks.some(k => stats[k] >= sk.learn[k]) : ks.every(k => stats[k] >= sk.learn[k]));
 }
 
 // トレーニング
@@ -131,7 +132,7 @@ const TRAINING = {
   pray:     { name: '祈り', icon: '🙏', main: 'RES', sub: 'MAG', cost: 15 },
   dash:     { name: 'ダッシュ', icon: '⚡', main: 'SPD', sub: 'ATK', cost: 20 },
 };
-const TRAIN_MAIN = 10, TRAIN_SUB = 4;
+const TRAIN_MAIN = 12, TRAIN_SUB = 5;
 const MOODS = [
   { n: '不調', mul: 0.7, icon: '😵' },
   { n: 'やや不調', mul: 0.85, icon: '😟' },
@@ -225,6 +226,123 @@ function rankOf(total) {
 // 敵が使う技: 習得条件を満たす攻撃技のうち威力が高い順に3つ
 function trainerSkills(type, stats) {
   const rep = TYPE_REP[type];
-  return SKILLS.filter(s => !s.ult && s.users.includes(rep) && (s.type === 'physical' || s.type === 'magic' || s.type === 'move') && s.power > 0 && canLearn(s, stats))
+  return SKILLS.filter(s => !s.ult && !s.equipDep && s.users.includes(rep) && (s.type === 'physical' || s.type === 'magic' || s.type === 'move') && s.power > 0 && canLearn(s, stats))
     .sort((a, b) => b.power - a.power).slice(0, 3).map(s => s.id);
 }
+
+// ---------- 敵だけが使う技（プレイヤーは覚えられない）----------
+// pat = 動きの種類（battle.js の runPattern）。elem:'self' は、使う敵自身の属性になる。
+// rng = 敵がこの技を使う距離の範囲。big = 強い技（前ぶりあり）。
+const ENEMY_SKILLS = [
+  { id: 'e_claw_rush', name: '連続ひっかき', type: 'physical', elem: 'none', power: 26, ct: 5, pat: 'rush', n: 3, dist: 4.5, rng: [2.5, 10], users: ['sword', 'fist', 'dual', 'heavy'], minArea: 0 },
+  { id: 'e_pounce', name: 'とびかかり', type: 'physical', elem: 'none', power: 62, ct: 6, pat: 'leap', r: 2.6, rng: [3, 12], users: ['sword', 'dual', 'fist', 'heavy'], minArea: 0 },
+  { id: 'e_combo_bite', name: 'かみつき連打', type: 'physical', elem: 'none', power: 30, ct: 6, pat: 'combo', reach: 3.4, arc: 110, rng: [0, 3.6], users: ['sword', 'fist', 'dual', 'heavy'], minArea: 0 },
+  { id: 'e_tail_whip', name: 'しっぽ薙ぎ', type: 'physical', elem: 'none', power: 48, ct: 6, range: 'circle', r: 3.8, delay: 0.25, rng: [0, 4.5], users: ['sword', 'dual'], minArea: 0 },
+  { id: 'e_stomp', name: 'ふみつけ', type: 'physical', elem: 'earth', power: 50, ct: 6, range: 'circle', r: 3.4, delay: 0.3, users: ['heavy', 'fist'], minArea: 0 },
+  { id: 'e_kamaitachi', name: 'かまいたち', type: 'physical', elem: 'wind', power: 54, ct: 6, range: 'line', speed: 24, size: 0.9, shape: 'crescent', users: ['archer', 'dual', 'sword'], minArea: 0 },
+  { id: 'e_hidama', name: 'ひだま', type: 'magic', elem: 'self', power: 36, ct: 6, pat: 'homing', speed: 9, turn: 1.4, rng: [3, 16], users: ['mage'], minArea: 0 },
+  { id: 'e_barrage', name: '連弾', type: 'magic', elem: 'self', power: 24, ct: 7, pat: 'barrage', n: 6, rng: [4, 16], users: ['mage', 'archer', 'dual'], minArea: 0 },
+  { id: 'e_feather_rain', name: '羽根の雨', type: 'physical', elem: 'wind', power: 52, ct: 8, pat: 'scatter', n: 6, spread: 5, stagger: 0.25, delay: 0.7, r: 2.0, sky: true, rng: [0, 14], users: ['archer'], minArea: 0 },
+  { id: 'e_wave', name: '衝撃波', type: 'physical', elem: 'earth', power: 66, ct: 7, pat: 'wave', speed: 9, size: 2.2, rng: [4, 14], users: ['heavy', 'fist', 'sword'], minArea: 1 },
+  { id: 'e_homing', name: 'ホーミングボール', type: 'magic', elem: 'self', power: 52, ct: 8, pat: 'homing', speed: 8, turn: 2.2, rng: [3, 16], users: ['mage', 'dual', 'archer'], minArea: 1 },
+  { id: 'e_fire_pillars', name: '連続柱', type: 'magic', elem: 'self', power: 52, ct: 9, pat: 'chain', n: 5, r: 2.1, rng: [3, 14], users: ['mage', 'sword', 'dual'], minArea: 1 },
+  { id: 'e_poison_pool', name: 'どくの沼', type: 'magic', elem: 'dark', power: 14, ct: 12, pat: 'pool', r: 3.4, dur: 6, rng: [0, 12], users: ['mage', 'dual', 'archer', 'fist'], minArea: 1 },
+  { id: 'e_drain', name: 'いのち吸い', type: 'magic', elem: 'dark', power: 58, ct: 9, pat: 'drain', reach: 3.4, arc: 120, rng: [0, 3.8], users: ['dual', 'fist', 'mage'], minArea: 1 },
+  { id: 'e_bolts', name: '雷の連撃', type: 'magic', elem: 'wind', power: 50, ct: 10, pat: 'bolts', n: 5, r: 1.9, rng: [0, 14], users: ['mage', 'archer'], minArea: 1 },
+  { id: 'e_mines', name: '地雷', type: 'physical', elem: 'earth', power: 58, ct: 11, pat: 'scatter', n: 4, spread: 4.5, stagger: 0.1, delay: 1.7, r: 2.4, rng: [0, 12], users: ['heavy', 'sword', 'fist'], minArea: 1 },
+  { id: 'e_rage', name: '怒り', type: 'support', elem: 'none', power: 0, ct: 20, pat: 'enrage', rng: [0, 12], users: ['heavy', 'fist', 'sword'], minArea: 1 },
+  { id: 'e_shell', name: '守りの殻', type: 'support', elem: 'earth', power: 0, ct: 18, pat: 'shield', rng: [0, 14], users: ['heavy', 'mage', 'archer'], minArea: 1 },
+  { id: 'e_roar_blast', name: '咆哮衝撃', type: 'physical', elem: 'none', power: 55, ct: 9, range: 'circle', r: 6, delay: 0.35, kb: 4, rng: [0, 6], users: ['heavy', 'fist', 'sword', 'dual'], minArea: 1 },
+  { id: 'e_tornado', name: '竜巻', type: 'magic', elem: 'wind', power: 16, ct: 12, pat: 'tornado', r: 2.2, dur: 4.5, rng: [3, 13], users: ['archer', 'mage', 'sword'], minArea: 2 },
+  { id: 'e_spin', name: '大回転', type: 'physical', elem: 'none', power: 42, ct: 10, pat: 'spin', r: 3.4, dur: 1.5, rng: [0, 9], users: ['sword', 'heavy', 'fist'], minArea: 2 },
+  { id: 'e_cross', name: '十字の波', type: 'physical', elem: 'self', power: 58, ct: 10, pat: 'cross', rng: [0, 12], users: ['heavy', 'fist', 'sword'], minArea: 2 },
+  { id: 'e_curse', name: '呪いの弾', type: 'magic', elem: 'dark', power: 40, ct: 10, pat: 'curse', speed: 11, rng: [3, 15], users: ['mage', 'dual'], minArea: 2 },
+  { id: 'e_dive', name: '急降下', type: 'physical', elem: 'self', power: 92, ct: 11, pat: 'leap', r: 3.6, rng: [3, 12], big: true, users: ['archer', 'sword', 'dual'], minArea: 2 },
+  { id: 'e_rockfall', name: '落石', type: 'physical', elem: 'earth', power: 66, ct: 11, pat: 'scatter', n: 6, spread: 5.5, stagger: 0.22, delay: 0.9, r: 2.3, sky: true, rng: [0, 13], users: ['heavy', 'fist'], minArea: 2 },
+  { id: 'e_frost_nova', name: '氷結の波', type: 'magic', elem: 'water', power: 62, ct: 10, range: 'circle', r: 6, delay: 0.4, slow: 3, rng: [0, 6], users: ['mage'], minArea: 2 },
+  { id: 'e_gravity', name: '重力の渦', type: 'magic', elem: 'dark', power: 88, ct: 12, pat: 'pull', r: 3.6, dur: 1.2, rng: [2, 10], big: true, users: ['mage', 'heavy', 'dual'], minArea: 2 },
+  { id: 'e_beam', name: 'ビーム', type: 'magic', elem: 'self', power: 22, ct: 13, pat: 'beam', dur: 1.6, len: 22, width: 1.5, turn: 0.9, rng: [3, 14], big: true, users: ['mage', 'dual'], minArea: 2 },
+  { id: 'e_shadow_strike', name: '影の強襲', type: 'physical', elem: 'dark', power: 95, ct: 11, pat: 'tele_strike', dist: 6, reach: 3.6, arc: 150, rng: [3, 14], big: true, users: ['dual', 'sword', 'archer'], minArea: 3 },
+  { id: 'e_meteor_shower', name: '流星群', type: 'magic', elem: 'fire', power: 70, ct: 14, pat: 'scatter', n: 8, spread: 6, stagger: 0.22, delay: 0.8, r: 2.6, sky: true, rng: [0, 14], big: true, users: ['mage'], minArea: 3 },
+  { id: 'e_ice_bind', name: '氷の鎖', type: 'magic', elem: 'water', power: 36, ct: 11, pat: 'scatter', n: 1, spread: 0, stagger: 0, delay: 0.7, r: 2.4, stun: 0.9, rng: [0, 12], users: ['mage'], minArea: 3 },
+  { id: 'e_decoy', name: '分身爆弾', type: 'physical', elem: 'self', power: 62, ct: 13, pat: 'decoy', n: 3, r: 2.4, rng: [1, 10], big: true, users: ['dual', 'sword'], minArea: 3 },
+  { id: 'e_pillar_ring', name: '光柱の輪', type: 'magic', elem: 'light', power: 64, ct: 14, pat: 'scatter', ring: true, n: 8, spread: 5.5, stagger: 0.12, delay: 0.85, r: 2.2, sky: true, rng: [0, 14], big: true, users: ['dual', 'mage'], minArea: 4 },
+  { id: 'e_flurry', name: '瞬影連斬', type: 'physical', elem: 'dark', power: 72, ct: 15, pat: 'flurry', n: 3, reach: 3.6, arc: 130, rng: [3, 14], big: true, users: ['dual', 'sword'], minArea: 4 },
+];
+ENEMY_SKILLS.forEach(s => { SKILL_BY_ID[s.id] = s; });
+
+// 敵の技の組み合わせ：基本の攻撃技2つ ＋ 敵専用の技（エリアが進むほど増える）。同じ敵は、いつも同じ組み合わせ。
+function enemySkillIds(e, stats) {
+  const base = trainerSkills(e.type, stats).slice(0, 2);
+  let h = 7; const key = e.id || String(Math.random());
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const pool = ENEMY_SKILLS.filter(s => s.users.includes(e.type) && s.minArea <= e.area);
+  const want = Math.min(pool.length, 2 + e.area + (e.boss ? 2 : 0) + (e.champion ? 2 : 0));
+  const picked = [];
+  const bigs = pool.filter(s => s.big);
+  if (bigs.length && e.area >= 2) picked.push(bigs[Math.floor(rnd() * bigs.length)]);
+  const rest = pool.filter(s => !picked.includes(s));
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  while (picked.length < want && rest.length) picked.push(rest.shift());
+  return base.concat(picked.map(s => s.id));
+}
+
+// ---------- 装備（TPで買って、装備画面でつける）----------
+const EQUIP_SLOTS = { weapon: '武器', armor: '防具', acc: 'アクセサリー' };
+const PLAYER_POW = 1.3;     // こちらの技の威力の倍率
+const PLAYER_NORM = 1.2;    // こちらの通常攻撃の倍率
+const PLAYER_HP = 1.3;      // こちらの最大体力の倍率
+const EQUIPS = [];
+(() => {
+  const add = (id, name, icon, slot, bonus, price, req, elem) => EQUIPS.push({ id, name, icon, kind: 'equip', slot, bonus, price, req, elem: elem || null });
+  // 武器（属性つきは、通常攻撃と「属性の技」の属性が変わる）
+  add('w_fang', '鋭い牙', '🦷', 'weapon', { ATK: 20 }, 120, 1);
+  const el = [
+    ['fire', '炎のきば', '🔥', { ATK: 28 }, 1], ['water', '水のきば', '💧', { MAG: 32 }, 1], ['earth', '岩のつの', '🪨', { ATK: 22, DEF: 14 }, 1],
+    ['wind', '風の羽かざり', '🍃', { ATK: 20, SPD: 24 }, 1], ['light', '光のつの', '✨', { MAG: 28, RES: 16 }, 2], ['dark', '闇のきば', '🌑', { ATK: 24, MAG: 24 }, 2],
+  ];
+  el.forEach(([e, n, ic, b, req]) => add('w_' + e, n, ic, 'weapon', b, req > 1 ? 440 : 280, req, e));
+  add('w_dragon', '竜のきば', '🐉', 'weapon', { ATK: 70 }, 1200, 3);
+  add('w_staff', '賢者の杖', '🪄', 'weapon', { MAG: 80 }, 1200, 3);
+  const el2 = [['fire', '業火のきば', { ATK: 62, MAG: 26 }], ['water', '大海のきば', { MAG: 72, RES: 26 }], ['earth', '大地のつの', { ATK: 50, DEF: 44 }],
+    ['wind', '疾風の羽かざり', { ATK: 46, SPD: 56 }], ['light', '聖なるつの', { MAG: 64, RES: 44 }], ['dark', '深淵のきば', { ATK: 56, MAG: 56 }]];
+  el2.forEach(([e, n, b]) => add('w2_' + e, n, '⭐', 'weapon', b, 1700, 4, e));
+  // 防具
+  add('a_hide', '皮のよろい', '🥋', 'armor', { DEF: 20 }, 120, 1);
+  add('a_shell', 'かたいこうら', '🐢', 'armor', { DEF: 45, HP: 20 }, 420, 2);
+  add('a_cloak', '魔法のマント', '🧥', 'armor', { RES: 45 }, 420, 2);
+  add('a_scale', '竜のうろこ', '🐲', 'armor', { DEF: 80, RES: 30 }, 1400, 3);
+  add('a_crystal', '水晶のよろい', '💎', 'armor', { DEF: 60, RES: 60, HP: 40 }, 2300, 4);
+  // アクセサリー
+  add('c_power', '力のお守り', '💪', 'acc', { ATK: 25 }, 150, 1);
+  add('c_mind', '知恵のお守り', '🧠', 'acc', { MAG: 25 }, 150, 1);
+  add('c_boots', '俊足のくつ', '👟', 'acc', { SPD: 30 }, 200, 1);
+  add('c_heart', '命の指輪', '💍', 'acc', { HP: 60 }, 320, 2);
+  add('c_guard', '守りのバッジ', '🔰', 'acc', { DEF: 25, RES: 25 }, 360, 2);
+  add('c_orb', '星のオーブ', '🔮', 'acc', { HP: 20, ATK: 20, DEF: 20, MAG: 20, RES: 20, SPD: 20 }, 1900, 4);
+  EQUIPS.forEach(it => { it.desc = equipDesc(it); });
+})();
+function equipDesc(it) {
+  const b = Object.keys(it.bonus).map(k => STAT_NAME[k] + '+' + it.bonus[k]).join(' ');
+  return b + (it.elem ? '　' + ELEM[it.elem].n + '属性' : '');
+}
+const EQUIP_BY_ID = {};
+EQUIPS.forEach(it => { EQUIP_BY_ID[it.id] = it; });
+ITEMS.push(...EQUIPS);
+function equipBonus(S) {
+  const b = {}; STATS.forEach(k => { b[k] = 0; });
+  ['weapon', 'armor', 'acc'].forEach(sl => { const it = S.equip && S.equip[sl] && EQUIP_BY_ID[S.equip[sl]]; if (it) for (const k in it.bonus) b[k] += it.bonus[k]; });
+  return b;
+}
+function weaponElem(S) { const it = S.equip && S.equip.weapon && EQUIP_BY_ID[S.equip.weapon]; return it && it.elem ? it.elem : null; }
+function effStats(S) { const b = equipBonus(S), o = {}; STATS.forEach(k => { o[k] = S.stats[k] + b[k]; }); return o; }
+
+// ---------- もちものの属性で効果が変わる技 ----------
+// 属性：火＝やけど／水＝鈍足／土＝ひるみ／風＝貫通／光＝吸収／闇＝呪い
+SKILLS.push(
+  { id: 'elem_shot', name: '属性ショット', type: 'magic', elem: 'weapon', power: 62, ct: 5, pat: 'elemshot', hybrid: true, equipDep: true, any: true, learn: { ATK: 70, MAG: 70 }, users: ['leo', 'miruru', 'gantetsu', 'shizuku', 'ruina'], desc: '武器の属性の弾を放つ。火:やけど／水:鈍足／土:ひるみ／風:貫通／光:吸収／闇:呪い' },
+  { id: 'elem_burst', name: '属性バースト', type: 'magic', elem: 'weapon', power: 88, ct: 8, pat: 'elemburst', hybrid: true, equipDep: true, any: true, r: 4.4, learn: { ATK: 190, MAG: 190 }, users: ['leo', 'miruru', 'gantetsu', 'shizuku', 'ruina'], desc: '武器の属性で周囲を爆発させる。属性ごとに追加効果が変わる' },
+  { id: 'elem_guard', name: '属性の守り', type: 'support', elem: 'weapon', power: 0, ct: 14, pat: 'elemguard', self: true, equipDep: true, any: true, learn: { DEF: 100, RES: 100 }, users: ['leo', 'miruru', 'gantetsu', 'shizuku', 'ruina'], desc: '武器の属性の力をまとう。火:攻撃UP／水:回復／土:殻／風:加速／光:回復＋殻／闇:吸血／無:防御UP' },
+);
+SKILLS.forEach(s => { SKILL_BY_ID[s.id] = s; });

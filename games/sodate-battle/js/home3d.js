@@ -177,7 +177,7 @@ const HomeBG = (() => {
     if (screen === 'title') { todTarget = 0.62; camMode = 'title'; }
     else if (screen === 'select') { todTarget = 0.04; camMode = 'select'; }
     else if (screen === 'shop') { todTarget = 0.34; camMode = 'shop'; }
-    else if (screen === 'skills' || screen === 'items') { todTarget = 0.95; camMode = 'skills'; }
+    else if (screen === 'skills' || screen === 'items' || screen === 'equip') { todTarget = 0.95; camMode = 'skills'; }
     else if (screen === 'result') { todTarget = extra && extra.win ? 0.34 : 0.66; win = !!(extra && extra.win); }
     else if (screen === 'ending') { todTarget = extra && extra.win ? 0.03 : 0.95; camMode = 'title'; }
     else if (screen === 'map' || screen === 'versus') {
