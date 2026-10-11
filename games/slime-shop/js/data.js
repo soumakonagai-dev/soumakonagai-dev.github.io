@@ -45,6 +45,15 @@ const EXTRACTS = {
   secret: ['秘伝のスライムエキス', '#ffd24a', 'VIPが大金を出す伝説のエキス。入れすぎはもったいない', 14],
 };
 for (const k in EXTRACTS) addItem('extract_' + k, { name: EXTRACTS[k][0], kind: 'extract', ex: k, unit: '回', rate: 4, color: EXTRACTS[k][1], icon: k === 'secret' ? '🏺' : '🧪', w: 5, note: EXTRACTS[k][2] });
+// スポンサー商品（PRすると、メーカーが開発して、ホームセンターで買えるようになる）
+addItem('glue_silk', { name: 'ふわり絹ノリ', kind: 'glue', unit: 'ml', stab: 1.15, rate: 40, color: '#fff5f8', icon: '🧴', w: 1, ft: { sarasara: 1 }, note: '「さらさら」の感触になる。限界が安定' });
+addItem('glue_gel', { name: 'ぷるジェルノリ', kind: 'glue', unit: 'ml', stab: 1.3, rate: 40, color: '#e8fff6', icon: '🧴', w: 1, ft: { kunyu: 1 }, note: '「くにゅくにゅ」の感触になる。かなり安定' });
+addItem('borax_mild', { name: 'やさしいホウ砂水', kind: 'borax', unit: 'ml', rate: 24, color: '#d9f0ff', icon: '🧪', w: 1, edge: 1.5, note: 'ギリギリの幅が1.5倍に広がる' });
+addItem('borax_fine', { name: '精密ホウ砂水', kind: 'borax', unit: 'ml', rate: 24, color: '#c8e8ff', icon: '🧪', w: 1, edge: 2.1, note: 'ギリギリの幅が約2倍に広がる' });
+addItem('soap_cloud', { name: 'クラウドソープ', kind: 'soap', unit: 'ml', rate: 36, color: '#f4fbff', icon: '🫧', w: 1, edge: 1.6, note: '泡のギリギリの幅が広がる' });
+addItem('soap_pop', { name: 'はじけるソープ', kind: 'soap', unit: 'ml', rate: 36, color: '#fff0fb', icon: '🫧', w: 1, edge: 1.3, ft: { pachi: 1 }, note: '「ぱちぱち」の感触になる' });
+addItem('glitter_holo', { name: 'ホログラムラメ', kind: 'glitter', unit: '回', rate: 4, color: '#d8f0ff', icon: '💎', w: 5, note: '色が七色にかわるラメ' });
+addItem('paint_neon', { name: '蛍光ペイント', kind: 'paint', unit: '回', rate: 4, color: '#39ff88', icon: '🎨', w: 5, note: 'ネオンみたいな、あざやかな色' });
 for (const k in GLITTERS) addItem('glitter_' + k, { name: `ラメ（${GLITTERS[k][0]}）`, kind: 'glitter', unit: '回', rate: 4, color: GLITTERS[k][1], icon: '✨', w: 5, note: 'キラキラ' });
 
 // stock: [材料ID, 1パックの量, 値段]
@@ -81,6 +90,9 @@ const FEEL2 = {
   piri: { name: 'ぴりぴり', ex: 'thunder', desc: 'ときどき しびれて ビリッとする' },
   shuwa: { name: 'しゅわしゅわ', ex: 'fizz', desc: '泡がしゅわしゅわはじける' },
   mochi: { name: 'もちもち', ex: 'mochi', desc: 'ものすごくのびて、はずむ' },
+  sarasara: { name: 'さらさら', ex: null, desc: 'さらさらして気持ちいい' },
+  kunyu: { name: 'くにゅくにゅ', ex: null, desc: 'くにゅっと曲がって、はずむ' },
+  pachi: { name: 'ぱちぱち', ex: null, desc: 'ぱちぱち音がはじける' },
 };
 const ftv = (sl, k) => ((sl.ft || {})[k]) || 0;
 const ftSum = (sl, ks) => ks.reduce((a, k) => a + ftv(sl, k), 0);

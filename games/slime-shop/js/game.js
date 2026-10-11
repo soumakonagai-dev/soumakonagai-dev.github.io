@@ -1,5 +1,6 @@
 'use strict';
 // ====== ゲーム本体（状態・時間・お客さん・従業員・画面）======
+const DEBUG = /[?&]debug(=|&|$)/.test(location.search);   // URLに ?debug を付けたときだけ、デバッグメニューが使える
 const SAVE_KEY = 'slime-shop-save-v1';
 const NEW_WARN = '⚠ <b>セーブデータが消えます。</b><br>これまでのお金・スライム・従業員・レシピが、すべてなくなります。<br>本当に「はじめから」にしますか？';
 let S = null;                 // ゲームの状態
@@ -43,11 +44,11 @@ const storeCap = () => STORE_CAP[S.up.store].v;
 const weightOf = d => Object.keys(d).reduce((a, id) => a + (ITEMS[id] ? ITEMS[id].w * d[id] : 0), 0);
 // 冒険で手に入れたものをバッグに入れる
 function giveItem(id, q) { const it = ITEMS[id]; if (weightOf(S.bag) + it.w * q > bagCap()) return false; S.bag[id] = (S.bag[id] || 0) + q; return true; }
-const hasStaff = role => S.staff.filter(s => s.role === role);
-const clerkBonus = () => { const c = hasStaff('clerk'); return c.length ? 0.95 + 0.2 * Math.max(...c.map(x => x.skill)) : 1.05; };
+const hasStaff = role => S.staff.filter(s => s.role === role && !Biz.off(s));
+const clerkBonus = () => { const c = hasStaff('clerk'); return c.length ? 0.95 + 0.2 * Math.max(...c.map(x => x.skill * Biz.moodK(x))) : 1.05; };
 
 function priceOf(shopId, i) {
-  const [item, pack, base] = SHOPS[shopId].stock[i];
+  const [item, pack, base] = Biz.stock(shopId)[i];
   let f = S.pf[shopId] || 1;
   if (S.sale && S.sale.shop === shopId && S.sale.item === item) f *= 0.8;
   return Math.max(10, Math.round(base * f / 10) * 10);
@@ -74,6 +75,7 @@ function newDay() {
   const sk = pick(Object.keys(SHOPS)), st = pick(SHOPS[sk].stock);
   S.sale = Math.random() < 0.6 ? { shop: sk, item: st[0] } : null;
   S.trend = Math.random() < 0.5 ? pick(TRAITS) : null;
+  Biz.morning();
 }
 function envHints() {
   const e = S.env, h = [WEATHERS[S.weather].hint];
@@ -123,7 +125,7 @@ function vipVisit() {
   if (UI.isOpen()) UI.toast(`🎩 VIPが「${o.st.name}」を競り落とした！ +${yen(final)}`, 'good'); else UI.auction(o.st.name, o.sl.price, final, n);
 }
 function customerBuy(typeId) {
-  const type = CUSTOMERS[typeId], bonus = clerkBonus(), fans = 1 + Math.min(0.25, S.sns.followers / 800);   // フォロワーが多いと「人気のお店」でちょっと買いやすい
+  const type = CUSTOMERS[typeId], bonus = clerkBonus(), fans = (1 + Math.min(0.25, S.sns.followers / 800)) * Biz.interiorBonus();   // フォロワーが多いと「人気のお店」でちょっと買いやすい
   let best = null, bu = -1e9, seen = 0; const why = {};
   S.shelf.forEach((sl, i) => {
     const st = sl.sid && S.slimes.find(x => x.id === sl.sid);
@@ -151,6 +153,7 @@ function customerBuy(typeId) {
   sfx('coin'); UI.toast(`${type.icon} ${type.name}が「${best.st.name}」を買った！ +${yen(best.price * qty)}`, 'good');
   if (repLevel() > before) { UI.toast(`★お店の評判が${'★'.repeat(repLevel())}になった！`, 'good'); }
   snsUgc(typeId, true, best.st, null);
+  if (typeId === 'asmr' && Math.random() < 0.45) Biz.stream(best.st);
   World.refreshShelf();
   return { sold: true, msg: ['😊 これください！', '✨ これがいい！', '💖 買います！'][(Math.random() * 3) | 0] };
 }
@@ -161,7 +164,7 @@ function customerBuy(typeId) {
 const SNS_USERS = ['ぷにちゃん', 'nobi_nobi', 'スラ子', 'mochi_77', 'asmr_hunter', 'キラキラ★', 'ぷるぷる大好き', 'ふわ太', 'ひんやり部', 'slime.kids', 'おさんぽママ', 'まるまる🎩', 'かりん', 'そうた@学生', 'ゆう'];
 const snsUser = () => SNS_USERS[(Math.random() * SNS_USERS.length) | 0];
 const SEGS = { kid: 'こども', student: 'がくせい', nobi: 'のびのび好き', puni: 'ぷにぷに好き', asmr: 'ASMR', family: '子連れ', collector: 'コレクター' };
-const snsMul = () => (1 + Math.min(2, S.sns.followers / 120)) * (S.sns.viralDay === S.day ? 1.8 : 1);
+const snsMul = () => (1 + Math.min(2, S.sns.followers / 120)) * (S.sns.viralDay === S.day ? 1.8 : 1) * Biz.surgeMul();
 function snsAppeal(sl) {
   let a = 1; for (const t of TRAITS) a += 0.9 * ((sl.traits || {})[t] || 0);
   a += 0.5 * Math.min(1, (sl.sp || 0) / 3) + 0.7 * Object.keys(sl.ft || {}).length + Math.min(1, (sl.gl || 0) / 1.2) + 0.5 * (sl.crunch || 0) + ({ C: 0, B: 0.2, A: 0.7, S: 1.3 }[sl.q] || 0) + 3 * Math.min(1, (sl.sec || 0) / 0.5);
@@ -219,7 +222,7 @@ function snsPost(st, img, caption, tags) {
   return p;
 }
 function snsTick() {
-  const sns = S.sns, now = S.day * 1440 + S.min;
+  const sns = S.sns, now = S.day * 1440 + S.min; Biz.sponsorCheck();
   for (const p of sns.posts) {
     if (p.done) continue; const pr = clamp((now - p.t0) / 300, 0, 1), ease = 1 - Math.pow(1 - pr, 2), want = Math.round(p.likesTarget * ease);
     if (want > p.likes) { const d = want - p.likes; p.likes = want; sns.likesTotal += d; S.today.likes += d; }
@@ -241,7 +244,7 @@ function crafterTick() {
     const r = sf.recipeId && S.recipes.find(x => x.id === sf.recipeId);
     if (!r) { sf.msg = 'レシピ未設定'; continue; }
     const tag = STAFF_TAGS.find(t => t.id === sf.tag) || STAFF_TAGS[1];
-    sf.prog = (sf.prog || 0) + tag.spd;
+    sf.prog = (sf.prog || 0) + tag.spd * Biz.moodK(sf);
     if (sf.prog < 190 - 110 * sf.skill) continue;
     if (!Object.keys(r.items).every(id => (S.stock[id] || 0) >= r.items[id])) { sf.msg = '材料不足'; continue; }
     sf.prog = 0; sf.msg = '';
@@ -270,7 +273,7 @@ function buyerRun() {
     let best = null;
     for (const sk in SHOPS) {
       if (SHOPS[sk].needRep && repLevel() < SHOPS[sk].needRep) continue;
-      SHOPS[sk].stock.forEach((e, i) => { if (e[0] !== id) return; const up = priceOf(sk, i) / e[1]; if (!best || up < best.up) best = { sk, i, up, pack: e[1], price: priceOf(sk, i) }; });
+      Biz.stock(sk).forEach((e, i) => { if (e[0] !== id) return; const up = priceOf(sk, i) / e[1]; if (!best || up < best.up) best = { sk, i, up, pack: e[1], price: priceOf(sk, i) }; });
     }
     if (!best) continue;
     let packs = 0;
@@ -304,7 +307,7 @@ function endDay() {
   if (ending) return; ending = true;
   if (Workshop.active) Workshop.exit(true);
   const rows = [], t = S.today;
-  const bu = buyerRun();
+  const bu = buyerRun(), bz = Biz.night();
   let wages = 0;
   S.staff.forEach(sf => { wages += ROLES[sf.role].wage; });
   S.money -= RENT + wages;
@@ -327,6 +330,7 @@ function endDay() {
       <tr><td>家賃</td><td class="r">-${yen(RENT)}</td></tr>
       ${wages ? `<tr><td>従業員の給料（${S.staff.length}人）</td><td class="r">-${yen(wages)}</td></tr>` : ''}
       ${bu.spent ? `<tr><td>仕入れ係の購入<br><small class="sub">${bu.lines.join('、')}</small></td><td class="r">-${yen(bu.spent)}</td></tr>` : ''}
+      ${bz.html}
       <tr class="tot"><td>所持金</td><td>${yen(S.money)}</td></tr>
     </table></div>
     ${t.high > 2 ? '<p class="sub">💡 値段が高くて帰った人が多い。棚の値段を下げるか、個性（ギリギリ・エキス）を強めてみよう。スラグラムに投稿すると、お客さんも増える！</p>' : ''}
@@ -361,6 +365,7 @@ function startGame(state) {
   World.setArea(S.area === 'town' ? 'town' : 'shop');
   if (S.area === 'town' && S.pos) World.place(S.pos[0], S.pos[1], 0);
   World.refreshShelf(); World.refreshStaff();
+  Biz.ensure(); World.applyInterior(S.interior); World.refreshBranches(S.branches.length);
   World.setEnvironment(S.min, S.weather);
 }
 function onAreaChange(name, prev) {
@@ -401,7 +406,7 @@ const UI = (function () {
   function openShop(id) {
     const sd = SHOPS[id];
     openUI(() => {
-      const rows = sd.stock.map(([item, pack, base], i) => {
+      const rows = Biz.stock(id).map(([item, pack, base], i) => {
         const it = ITEMS[item], p = priceOf(id, i), sale = S.sale && S.sale.shop === id && S.sale.item === item;
         const unit = (p / pack).toFixed(p / pack < 1 ? 2 : 1), bagFull = weightOf(S.bag) + it.w * pack > bagCap();
         return `<div class="item"><span class="ic" style="background:${it.color}">${it.icon}</span>
@@ -417,7 +422,7 @@ const UI = (function () {
     }, { cls: 'wide' });
   }
   function buy(shop, i, n) {
-    const [item, pack] = SHOPS[shop].stock[i], p = priceOf(shop, i) * n, it = ITEMS[item];
+    const [item, pack] = Biz.stock(shop)[i], p = priceOf(shop, i) * n, it = ITEMS[item];
     if (S.money < p) return toast('お金が足りない', 'bad');
     if (weightOf(S.bag) + it.w * pack * n > bagCap()) return toast('バッグに入りきらない！', 'bad');
     S.money -= p; S.bag[item] = (S.bag[item] || 0) + pack * n; sfx('buy'); paint();
@@ -488,11 +493,12 @@ const UI = (function () {
       const head = `<div class="hd"><h2>📱 スラグラム</h2><button data-act="close">× とじる</button></div>
         <div class="prof"><div class="avatar">🧴</div><div class="pstats"><div><b>${sn.posts.length}</b><small>投稿</small></div><div><b>${sn.followers}</b><small>フォロワー</small></div><div><b>${sn.likesTotal}</b><small>いいね</small></div></div></div>
         <div class="sub">スライム商店　＠slime_shoten　${boost ? `｜ 🎯 今日の注目：${boost}（お客さん増）` : ''}${sn.viralDay === S.day ? '｜ 🔥バズり中！' : ''}</div>
-        <div class="tabs"><button class="${snsTab === 'feed' ? 'on' : ''}" data-act="stab" data-t="feed">投稿</button><button class="${snsTab === 'new' ? 'on' : ''}" data-act="stab" data-t="new">＋ 新しい投稿（あと${left}回）</button><button class="${snsTab === 'ugc' ? 'on' : ''}" data-act="stab" data-t="ugc">お客さんの反応</button></div>`;
+        <div class="tabs"><button class="${snsTab === 'feed' ? 'on' : ''}" data-act="stab" data-t="feed">投稿</button><button class="${snsTab === 'new' ? 'on' : ''}" data-act="stab" data-t="new">＋ 新しい投稿（あと${left}回）</button><button class="${snsTab === 'ugc' ? 'on' : ''}" data-act="stab" data-t="ugc">お客さんの反応</button><button class="${snsTab === 'sp' ? 'on' : ''}" data-act="stab" data-t="sp">スポンサー</button><button class="${snsTab === 'nt' ? 'on' : ''}" data-act="stab" data-t="nt">通知${sn.unread ? '(' + sn.unread + ')' : ''}</button></div>`;
       let body = '';
       if (snsTab === 'feed') {
         body = sn.posts.length ? `<div class="sgrid">${sn.posts.map(p => `<div class="stile" data-act="postopen" data-id="${p.id}"><img src="${p.img}" alt=""><span class="lk">❤ ${p.likes}</span>${p.viral ? '<span class="vr">🔥</span>' : ''}${p.done ? '' : '<span class="pg">…</span>'}</div>`).join('')}</div>` : '<p class="sub">まだ投稿がありません。「＋ 新しい投稿」からスライムを紹介しよう！ いいねがつくと、フォロワーが増えて、お客さんも増えるよ。</p>';
       } else if (snsTab === 'new') body = composerHTML(left);
+      else if (snsTab === 'sp') body = Biz.sponsorHTML(); else if (snsTab === 'nt') body = Biz.notifHTML();
       else body = (sn.ugc.length ? sn.ugc.map(u => `<div class="ug ${u.good ? 'g' : ''}"><span class="ic2">${u.icon}</span><div class="grow"><b>${esc(u.user)}</b>${u.good ? '' : ' <span class="tag">ひとこと</span>'}<br>${esc(u.text)}<br><small class="sub">❤ ${u.likes}・${u.day}日目</small></div></div>`).join('') : '<p class="sub">お客さんの投稿はまだありません。お店で買い物をしてくれた人や、買わずに帰った人が、感想を書き込むことがあります。ここで反応を見て、値段や商品を考えよう。</p>');
       return head + `<div class="scroll">${body}</div>`;
     }, { cls: 'wide' });
@@ -595,7 +601,7 @@ const UI = (function () {
         <div class="card"><b>今日のここまで</b><br>売れた ${S.today.sold}個 / 売上 ${yen(S.today.rev)} / 作った ${S.today.made}個
         ${S.today.missed ? ` / 逃したお客さん ${S.today.missed}人（店番を雇おう）` : ''}</div>
         <div class="row"><button class="main" data-act="endday">今日を終える（決算へ）</button><button data-act="save">セーブ</button>
-        <button data-act="mute">効果音：${S.mute ? 'OFF' : 'ON'}</button><button class="danger" data-act="reset">はじめから</button></div>
+        ${DEBUG ? '<button data-act="debug">🛠 デバッグ</button>' : ''}<button data-act="mute">効果音：${S.mute ? 'OFF' : 'ON'}</button><button class="danger" data-act="reset">はじめから</button></div>
         <p class="sub">0:00になると自動で今日が終わります。お店にいないとき、店番がいないとお客さんは帰ってしまいます。</p>`;
     }
     if (tab === 'equip') {
@@ -611,7 +617,7 @@ const UI = (function () {
       h += Object.keys(ROLES).map(r => `<p class="sub">${ROLES[r].icon} <b>${ROLES[r].name}</b>：${ROLES[r].desc}（給料 ${yen(ROLES[r].wage)}/日）</p>`).join('');
       S.staff.forEach(sf => {
         const tag = STAFF_TAGS.find(t => t.id === sf.tag);
-        h += `<div class="card"><div class="row between"><b>${ROLES[sf.role].icon} ${sf.name}（${ROLES[sf.role].name}）</b><span><span class="tag">${tag.name}</span> 腕前 ${Math.round(sf.skill * 100)}</span></div>`;
+        h += `<div class="card"><div class="row between"><b>${ROLES[sf.role].icon} ${sf.name}（${ROLES[sf.role].name}）</b><span>${Biz.face(sf.mood == null ? 70 : sf.mood)} 機嫌${Math.round(sf.mood == null ? 70 : sf.mood)} <span class="tag">${tag.name}</span>${S.absent && S.absent[sf.id] ? ' <span class="tag sale">欠席中</span>' : ''}${sf.branch ? ' <span class="tag">支店の店長</span>' : ''} 腕前 ${Math.round(sf.skill * 100)}</span></div>`;
         if (sf.role === 'crafter') {
           h += `<div class="row"><select data-act="setrecipe" data-id="${sf.id}"><option value="">作るレシピを選ぶ…</option>${S.recipes.map(r => `<option value="${r.id}" ${sf.recipeId === r.id ? 'selected' : ''}>${esc(r.name)}（${r.q}）</option>`).join('')}</select> <small class="sub">${sf.msg || ''}</small></div>
             <small class="sub">レシピをそのまま再現します（ノリ300ml分）。腕前が低いと分量がぶれて、ギリギリのレシピは失敗しやすい。</small>`;
@@ -683,7 +689,7 @@ const UI = (function () {
       const r = ROLES[d.r]; if (S.money < r.hire) return;
       S.money -= r.hire;
       const used = S.staff.map(s => s.name), nm = pick(STAFF_NAMES.filter(n => !used.includes(n)).concat(['ハナ']));
-      S.staff.push({ id: S.nid++, role: d.r, name: nm, skill: rnd(0.25, 0.6), tag: pick(STAFF_TAGS).id, recipeId: null, prog: 0 });
+      S.staff.push({ id: S.nid++, role: d.r, name: nm, mood: 80, skill: rnd(0.25, 0.6), tag: pick(STAFF_TAGS).id, recipeId: null, prog: 0 });
       sfx('ok'); toast(`${nm}が${r.name}として働いてくれることになった！`, 'good'); World.refreshStaff(); paint();
     },
     fire: d => askConfirm('本当にやめてもらいますか？', 'やめてもらう', () => { S.staff = S.staff.filter(s => s.id !== +d.id); World.refreshStaff(); paint(); }, true),
@@ -750,7 +756,7 @@ const UI = (function () {
       <small class="sub">営業時間は10:00〜19:00。お店にいないとき、店番がいないとお客さんは帰ってしまう。</small></div>
       <div class="row end"><button class="main" data-act="close">はじめる</button></div>`, {});
   }
-  return { open: openUI, close, paint, toast, openSocial, openPost, openLab, openSmith, auction: openAuction, openShop, openShelf, openOffice, openResult, bind, howto, isOpen: () => open };
+  return { reg: m => Object.assign(ACT, m), open: openUI, close, paint, toast, openSocial, openPost, openLab, openSmith, auction: openAuction, openShop, openShelf, openOffice, openResult, bind, howto, isOpen: () => open };
 })();
 
 // =====================================================

@@ -7,7 +7,7 @@ const Workshop = (function () {
   let H = null;            // 画面(HTML)の要素
   let hudT = 0, pourTilt = 0, lastLook = new T.Vector3(), camInit = false;
   const st = { active: false, hold: null, holdT: 0, shotT: 0, stirring: false, spoonA: 0,
-    solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0, sq: 0, sqv: 0, flow: 0, crunch: 0, glow: 0, hiyari: 0, hokaho: 0, piri: 0, shuwa: 0, mochi: 0 };
+    solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0, sq: 0, sqv: 0, flow: 0, crunch: 0, glow: 0, sara: 0, hiyari: 0, hokaho: 0, piri: 0, shuwa: 0, mochi: 0 };
   const hexC = h => new T.Color(h);
   const GEO_CYL = () => new T.CylinderGeometry(1, 1, 1, 10);
   const bowlCap = () => BOWL_CAP[S.up.bowl].v;
@@ -38,7 +38,7 @@ const Workshop = (function () {
   function rareSound() { const nm = Snd.rare(); UI.toast('✨ めずらしい音！「' + nm + '」', 'good'); S.dex.rare = (S.dex.rare || 0) + 1; }
   let hands = [], twoHand = false, snapBoost = 0, tearP = 0, lastLevel = 0, handMk = [], debris = [], grains = [], glowLight = null;
   const raycaster = new T.Raycaster(), tmpV = new T.Vector3();
-  const feelM = () => ({ hard: st.hard, bouncy: st.bouncy, foam: st.foam, ooze: st.ooze, sticky: st.sticky, crunch: st.crunch, hiyari: st.hiyari, hokaho: st.hokaho, piri: st.piri, shuwa: st.shuwa, mochi: st.mochi });
+  const feelM = () => ({ hard: st.hard, bouncy: st.bouncy, foam: st.foam, ooze: st.ooze, sticky: st.sticky, crunch: st.crunch, hiyari: st.hiyari, hokaho: st.hokaho + st.sara, piri: st.piri, shuwa: st.shuwa, mochi: st.mochi });
   function rayFrom(e) {
     const r = e.target.getBoundingClientRect();
     raycaster.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), World.camera);
@@ -372,7 +372,7 @@ const Workshop = (function () {
   function update(dt, t) {
     if (!ws || typeof S === 'undefined' || !S) return;
     // 目に見える変化（ボウルの中の状態をなめらかに追いかける）
-    const amt = S.bowl.amt, m = mixFromAmt(amt), R = ratios(m), L = limits(m.stab, S.env), stir = S.bowl.stir;
+    const amt = S.bowl.amt, m = mixFromAmt(amt), R = ratios(m), L = limits(m.stab, S.env, { b: m.edB, s: m.edS }), stir = S.bowl.stir;
     const tgt = { solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0 };
     if (m.glue > 0) {
       tgt.solid = clamp((R.b - (L.bMin - 1.5)) / 2.5, 0, 1) * clamp(stir / 0.5, 0, 1);
@@ -395,10 +395,13 @@ const Workshop = (function () {
     tgt.crunch = st.touch ? (st.touch.crunch || 0) : m.total > 0 ? clamp(m.snow / m.total * 100 / 5, 0, 1) : 0;
     tgt.glow = st.touch ? (st.touch.gl || 0) : m.total > 0 ? m.glow / m.total * 100 : 0;
     st.crunch += ((tgt.crunch || 0) - st.crunch) * k; st.glow += ((tgt.glow || 0) - st.glow) * k;
-    for (const key in FEEL2) {   // ほかほか・ひんやり・ぴりぴり・しゅわしゅわ・もちもち
-      const e = st.touch ? ((st.touch.ft || {})[key] || 0) : (m.total > 0 ? ((m.ex[FEEL2[key].ex] || 0) / m.total * 100 >= 0.15 ? clamp((m.ex[FEEL2[key].ex] || 0) / m.total * 100, 0.2, 1) : 0) : 0);
-      st[key] += (e - st[key]) * k;
+    const ev = {};
+    for (const key in FEEL2) {   // 感触：エキス・用品から
+      ev[key] = st.touch ? ((st.touch.ft || {})[key] || 0) : (m.total > 0 ? (FEEL2[key].ex ? ((m.ex[FEEL2[key].ex] || 0) / m.total * 100 >= 0.15 ? clamp((m.ex[FEEL2[key].ex] || 0) / m.total * 100, 0.2, 1) : 0) : ((m.fti[key] || 0) / m.total * 100 / 20 >= 0.15 ? clamp((m.fti[key] || 0) / m.total * 100 / 20, 0.2, 1) : 0)) : 0);
     }
+    ev.mochi = Math.min(1, ev.mochi + ev.kunyu); ev.piri = Math.min(1, ev.piri + ev.pachi * 0.8); ev.shuwa = Math.min(1, ev.shuwa + ev.pachi * 0.4);
+    for (const key of ['hiyari', 'hokaho', 'piri', 'shuwa', 'mochi']) st[key] += (ev[key] - st[key]) * k;
+    st.sara += (ev.sarasara - st.sara) * k; st.sticky = Math.max(st.sticky, st.sara * 0.45);
     const mtot = st.touch ? 1 : m.total;
     const frac = st.touch ? 0.62 : clamp(m.total / bowlCap(), 0, 1), cx = ws.x, cz = ws.z + 0.1;
     const colHex = st.touch ? st.touch.color : mixColor(amt); mixColorHex = colHex;
@@ -610,7 +613,7 @@ const Workshop = (function () {
       if (m.snow > 0 || m.glow > 0) h += `<div class="rd-h"><b>粉（100mlあたり）</b></div>${m.snow > 0 ? `<div class="rd"><span>スノー</span><b>${(m.snow / m.total * 100).toFixed(1)}回</b></div>` : ''}${m.glow > 0 ? `<div class="rd"><span>蓄光</span><b>${(m.glow / m.total * 100).toFixed(1)}回</b></div>` : ''}`;
       h += `<div class="rd-h"><b>ノリ100mlあたり</b></div><div class="rd"><span>ホウ砂水（水・泡で補正）</span><b>${R.b.toFixed(1)}</b></div><div class="rd"><span>水</span><b>${R.w.toFixed(1)}</b></div><div class="rd"><span>泡</span><b>${R.s.toFixed(1)}</b></div>`;
       if (lv >= 3) {
-        const L = limits(m.stab, S.env), RED = '#ff7b7b', YEL = '#ffd95e', GRN = '#8be0a0';
+        const L = limits(m.stab, S.env, { b: m.edB, s: m.edS }), RED = '#ff7b7b', YEL = '#ffd95e', GRN = '#8be0a0';
         h += `<div class="rd-h"><b>ギリギリセンサー</b><span class="sub">赤=失敗 黄=個性が出る</span></div>`;
         h += `<div class="sub">固まり具合</div>` + gauge(R.b, 50, [[0, L.bMin, RED], [L.bMin, L.bMin + L.bEdgeLo, YEL], [L.bMin + L.bEdgeLo, L.bMax - L.bEdgeHi, GRN], [L.bMax - L.bEdgeHi, L.bMax, YEL], [L.bMax, 50, RED]]);
         h += `<div class="sub">水分</div>` + gauge(R.w, 360, [[0, 100, '#d8ecb0'], [100, L.wMax - L.wEdge, GRN], [L.wMax - L.wEdge, L.wMax, YEL], [L.wMax, 360, RED]]);

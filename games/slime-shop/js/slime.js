@@ -10,10 +10,12 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // 材料ID→量 の辞書から、判定に必要な数字をまとめる
 function mixFromAmt(amt) {
-  const m = { glue: 0, borax: 0, water: 0, soap: 0, glitter: 0, paint: 0, snow: 0, glow: 0, ex: {}, stabSum: 0 };
+  const m = { glue: 0, borax: 0, water: 0, soap: 0, glitter: 0, paint: 0, snow: 0, glow: 0, ex: {}, fti: {}, stabSum: 0, edBs: 0, edSs: 0 };
   for (const id in amt) {
     const q = amt[id]; if (!(q > 0)) continue;
     const it = ITEMS[id]; if (!it) continue;
+    if (it.ft) for (const k in it.ft) m.fti[k] = (m.fti[k] || 0) + q * it.ft[k];
+    if (it.kind === 'borax') m.edBs += q * (it.edge || 1); else if (it.kind === 'soap') m.edSs += q * (it.edge || 1);
     if (it.kind === 'glue') { m.glue += q; m.stabSum += q * it.stab; }
     else if (it.kind === 'borax') m.borax += q;
     else if (it.kind === 'water') m.water += q;
@@ -25,19 +27,20 @@ function mixFromAmt(amt) {
     else if (it.kind === 'extract') { m.ex[it.ex] = (m.ex[it.ex] || 0) + q; if (it.ex === 'secret') m.glitter += q * 2; }   // 秘伝のエキスは金色にキラキラする
   }
   m.stab = m.glue > 0 ? m.stabSum / m.glue : 0.8;
+  m.edB = m.borax > 0 ? m.edBs / m.borax : 1; m.edS = m.soap > 0 ? m.edSs / m.soap : 1;
   m.total = m.glue + m.borax + m.water + m.soap;
   return m;
 }
 
 // 今日の環境と材料の銘柄で、失敗ラインがずれる
-function limits(stab, env) {
+function limits(stab, env, ed) {
   const e = env || { b: 0, w: 0, s: 0 };
   const wob = 1.5 - stab;                       // 安いノリほど環境でぶれやすい
-  const band = 0.5 + 0.5 * stab;                // 安いノリほど「ギリギリ帯」がせまい
+  const band = 0.5 + 0.5 * stab, eb = (ed && ed.b) || 1, es = (ed && ed.s) || 1;                // 安いノリほど「ギリギリ帯」がせまい
   const sh = { b: e.b * wob, w: e.w * wob * 6, s: e.s * wob };   // 水は量が多いので、ぶれ幅も大きい
   return {
-    bMin: LIM.bMin + sh.b, bMax: LIM.bMax + sh.b, bEdgeLo: LIM.bEdgeLo * band, bEdgeHi: LIM.bEdgeHi * band,
-    wMax: LIM.wMax + sh.w, wEdge: LIM.wEdge * band, sMax: LIM.sMax + sh.s, sEdge: LIM.sEdge * band,
+    bMin: LIM.bMin + sh.b, bMax: LIM.bMax + sh.b, bEdgeLo: LIM.bEdgeLo * band * eb, bEdgeHi: LIM.bEdgeHi * band * eb,
+    wMax: LIM.wMax + sh.w, wEdge: LIM.wEdge * band, sMax: LIM.sMax + sh.s, sEdge: LIM.sEdge * band * es,
   };
 }
 
@@ -52,7 +55,7 @@ function ratios(m) {
 // 入れたラメの色（量に応じて）。レインボーは 'rainbow'（キラキラごとに色がちがう）
 function glitterCols(amt) {
   const out = [];
-  for (const id in amt) { const it = ITEMS[id]; if (it && it.kind === 'glitter' && amt[id] > 0) out.push({ c: id === 'glitter_rainbow' ? 'rainbow' : it.color, w: amt[id] }); if (id === 'extract_secret' && amt[id] > 0) out.push({ c: '#ffd24a', w: amt[id] * 3 }); }
+  for (const id in amt) { const it = ITEMS[id]; if (it && it.kind === 'glitter' && amt[id] > 0) out.push({ c: id === 'glitter_rainbow' || id === 'glitter_holo' ? 'rainbow' : it.color, w: amt[id] }); if (id === 'extract_secret' && amt[id] > 0) out.push({ c: '#ffd24a', w: amt[id] * 3 }); }
   return out;
 }
 
@@ -103,7 +106,7 @@ function slimeName(traits, hex, hasPaint, sp, crunch, gl, sec, ft) {
 function judge(amt, stir, env) {
   const m = mixFromAmt(amt);
   if (m.glue <= 0) return { ok: false, fail: 'noglue' };
-  const L = limits(m.stab, env), R = ratios(m);
+  const L = limits(m.stab, env, { b: m.edB, s: m.edS }), R = ratios(m);
   const out = { m, L, R };
   if (R.s > L.sMax) return { ...out, ok: false, fail: 'melted' };
   if (R.w > L.wMax) return { ...out, ok: false, fail: 'sticky' };
@@ -129,7 +132,7 @@ function judge(amt, stir, env) {
   const color = mixColor(amt), hs = hsl(color);
   const sn = m.snow / m.total * 100, gl = (m.glow + 0.8 * (m.ex.hikari || 0)) / m.total * 100;   // 100mlあたりの回数
   const exp = {}; for (const k in m.ex) exp[k] = m.ex[k] / m.total * 100;
-  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100, gcols: glitterCols(amt), ex: exp, sec: exp.secret || 0, ft: (() => { const o = {}; for (const k in FEEL2) { const e = exp[FEEL2[k].ex] || 0; if (e >= 0.15) o[k] = clamp(e / 1.0, 0.2, 1); } return o; })() };
+  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100, gcols: glitterCols(amt), ex: exp, sec: exp.secret || 0, ft: (() => { const o = {}; for (const k in FEEL2) { const e = exp[FEEL2[k].ex] || 0; if (e >= 0.15) o[k] = clamp(e / 1.0, 0.2, 1); } for (const k in m.fti) { const e = m.fti[k] / m.total * 100 / 20; if (e >= 0.15) o[k] = clamp(e, 0.2, 1); } return o; })() };
   sl.name = slimeName(traits, color, m.paint > 0, sp, sl.crunch, gl, sl.sec, sl.ft);
   sl.fair = fairPrice(sl);
   return { ...out, ok: true, slime: sl, jars: Math.floor(m.total / JAR_ML) };

@@ -210,6 +210,7 @@ const World = (function () {
     sph(0.22, 0x103020, -0.6, 8.9, -11.1, my); sph(0.22, 0x103020, 0.6, 8.9, -11.1, my);
     a.blob = blob;
     a.fixRoad = true;
+    pad(a, -20, 10, () => 'テレポーター（ほかの町へ）', () => Biz.openTeleport());
     building('hyakkin', -36, -26, 12, 9, 5, 0xffe08a, 0xe8a02a, 'S', '100円ショップ まるえん', { label: () => '100円ショップに入る', act: () => go('hyakkin') });
     building('home', 38, -26, 16, 10, 6, 0xb9d3ee, 0x4a76b0, 'S', 'ホームセンター ガッツ', { label: () => 'ホームセンターに入る', act: () => go('home') });
     building('art', -36, 28, 12, 9, 5, 0xf3c6e6, 0xc84fa0, 'N', '画材屋 いろどり', { label: () => '画材屋に入る', act: () => go('art') });
@@ -239,7 +240,7 @@ const World = (function () {
     addHot(a, gx - 4.2, 0, 3.8, () => '山へ冒険に出る（魔物がいるよ！）', () => go('mountain'), 3.4);
     // 木・街灯
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const free = (x, z, r) => !a.obst.some(o => x > o.x0 - r - 2 && x < o.x1 + r + 2 && z > o.z0 - r - 2 && z < o.z1 + r + 2) && !(Math.abs(z) < 8) && !(Math.abs(x + 36) < 6 && z > -20 && z < 28) && !(Math.abs(x - 38) < 6 && z > -20 && z < 28) && !(Math.abs(x) < 5 && z > -9) && !(Math.abs(x) < 8 && z < -30);
+    const free = (x, z, r) => !a.obst.some(o => x > o.x0 - r - 2 && x < o.x1 + r + 2 && z > o.z0 - r - 2 && z < o.z1 + r + 2) && !(Math.abs(z) < 8) && !(Math.abs(x + 36) < 6 && z > -20 && z < 28) && !(Math.abs(x - 38) < 6 && z > -20 && z < 28) && !(Math.abs(x) < 5 && z > -9) && !(Math.abs(x) < 8 && z < -30) && !(Math.hypot(x + 20, z - 10) < 5);
     for (let i = 0, n = 0; n < 60 && i < 600; i++) {
       const x = (rnd() - 0.5) * 140, z = -42 + rnd() * 98;
       if (!free(x, z, 1.2)) continue; n++;
@@ -281,8 +282,8 @@ const World = (function () {
     a.ox = ox; const g = a.group;
     const outside = new T.Mesh(new T.PlaneGeometry(90, 90), m(0x24352e)); outside.rotation.x = -Math.PI / 2; outside.position.set(ox, -0.03, 0); g.add(outside);
     const ftex = name === 'shop' ? woodTex(floorC) : tileTex(floorC); ftex.repeat.set(w / 4.5, d / 4.5);
-    const fl = new T.Mesh(new T.PlaneGeometry(w, d), texMat(ftex, { roughness: name === 'shop' ? 0.55 : 0.4 })); fl.rotation.x = -Math.PI / 2; fl.position.set(ox, 0.01, 0); fl.receiveShadow = true; g.add(fl);
-    const H = 5.5, wm = m(wallC, { side: T.FrontSide });
+    const fl = new T.Mesh(new T.PlaneGeometry(w, d), texMat(ftex, { roughness: name === 'shop' ? 0.55 : 0.4 })); fl.rotation.x = -Math.PI / 2; fl.position.set(ox, 0.01, 0); fl.receiveShadow = true; a.floorMesh = fl; a.floorSize = [w, d]; g.add(fl);
+    const H = 5.5, wm = name === 'shop' ? new T.MeshStandardMaterial({ color: wallC, roughness: 0.85 }) : m(wallC, { side: T.FrontSide }); a.wallMat = wm;
     const wall = (pw, x, z, ry) => { const p = new T.Mesh(new T.PlaneGeometry(pw, H), wm); p.receiveShadow = true; p.position.set(x, H / 2, z); p.rotation.y = ry; g.add(p); };
     wall(w, ox, -d / 2, 0); wall(w, ox, d / 2, Math.PI); wall(d, ox - w / 2, 0, Math.PI / 2); wall(d, ox + w / 2, 0, -Math.PI / 2);
     box(w, 0.25, 0.1, 0xffffff, ox, 0.13, -d / 2 + 0.06, g);
@@ -298,7 +299,7 @@ const World = (function () {
       cyl(0.02, 1.2, 0x333333, ox + lx, 4.9, -1, g).castShadow = false;
       const lp = sph(0.26, 0xfff3c8, ox + lx, 4.4, -1, g, { emissive: 0xffe3a0, emissiveIntensity: 0.9 }); lp.scale.y = 0.75; lp.castShadow = false;
     }
-    if (name === 'shop') { cyl(3.6, 0.03, 0xf0709a, ox, 0.03, 0.5, g).castShadow = false; cyl(2.8, 0.035, 0xffa8c4, ox, 0.035, 0.5, g).castShadow = false; }
+    if (name === 'shop') { const r1 = cyl(3.6, 0.03, 0xf0709a, ox, 0.03, 0.5, g), r2 = cyl(2.8, 0.035, 0xffa8c4, ox, 0.035, 0.5, g); r1.castShadow = r2.castShadow = false; r1.material = new T.MeshStandardMaterial({ color: 0xf0709a }); r2.material = new T.MeshStandardMaterial({ color: 0xffa8c4 }); a.rugs = [r1, r2]; }
     // ドア（南壁）
     const door = new T.Mesh(new T.PlaneGeometry(2.4, 3.3), m(0x5a3a24, { side: T.FrontSide })); door.position.set(ox, 1.65, d / 2 - 0.03); door.rotation.y = Math.PI; g.add(door);
     addHot(a, ox, d / 2 - 1.5, 1.8, () => '外に出る', () => go('town'), 2.6);
@@ -382,9 +383,57 @@ const World = (function () {
     wallObst(a, ox + 11.8, ox + 13, -2, 6);
     // 観葉植物など
     cyl(0.4, 0.5, 0xc86a3a, ox + 11.5, 0.25, -7, g); sph(0.6, 0x3fae5a, ox + 11.5, 1.1, -7, g);
+    // 家具屋で買えるかざり
+    const dc = a.decor = {}, mk = (id, fn) => { const dg = new T.Group(); dg.visible = false; g.add(dg); fn(dg); dc[id] = dg; };
+    mk('plant', dg => { cyl(0.45, 0.6, 0xe0a070, ox - 11.6, 0.3, 6.4, dg); sph(0.8, 0x3fae5a, ox - 11.6, 1.3, 6.4, dg); sph(0.55, 0x57c470, ox - 11.2, 1.9, 6.6, dg); });
+    mk('poster', dg => { sign('SLIME!', 2.2, 3, '#ff9bb5', '#ffffff', dg, ox + 3.2, 3.2, -7.93, 0); sign('♡ぷにぷに♡', 2.2, 3, '#9ad0ff', '#ffffff', dg, ox + 12.9, 3.2, 1.5, -Math.PI / 2); });
+    mk('neon', dg => { const nm = new T.Mesh(new T.PlaneGeometry(7, 1.6), new T.MeshBasicMaterial({ map: labelTex('SLIME SHOP', 512, 116, '#1a1030', '#ff6ad5', 70) })); nm.position.set(ox - 5.4, 4.8, -7.9); dg.add(nm); const pl = new T.PointLight(0xff6ad5, 0.8, 12); pl.position.set(ox - 5.4, 4.2, -6.5); dg.add(pl); });
+    mk('sofa', dg => { rbox(3.4, 0.8, 1.3, 0.3, 0xff9bb5, ox - 8.4, 0.4, 5.6, dg); rbox(3.4, 0.9, 0.35, 0.15, 0xff8aa8, ox - 8.4, 1.0, 6.1, dg); rbox(0.35, 0.8, 1.3, 0.15, 0xff8aa8, ox - 10, 0.7, 5.6, dg); rbox(0.35, 0.8, 1.3, 0.15, 0xff8aa8, ox - 6.8, 0.7, 5.6, dg); });
+    mk('chandelier', dg => { cyl(0.04, 1.2, 0x666666, ox, 5.0, 3.5, dg); for (let i = 0; i < 6; i++) { const q = i / 6 * 6.28; sph(0.2, 0xfff3c8, ox + Math.cos(q) * 0.9, 4.2, 3.5 + Math.sin(q) * 0.9, dg, { emissive: 0xffe3a0, emissiveIntensity: 1 }).castShadow = false; } sph(0.35, 0xffe9a8, ox, 4.5, 3.5, dg, { emissive: 0xffe3a0, emissiveIntensity: 1 }).castShadow = false; });
+    mk('aquarium', dg => { rbox(2.8, 1.5, 1.1, 0.12, 0x6fc4ff, ox - 11.8, 0.9, -1.5, dg, { transparent: true, opacity: 0.5 }); rbox(3, 0.8, 1.3, 0.1, 0x7a5a3a, ox - 11.8, 0.4, -1.5, dg); [0xff9a4a, 0xffe36a, 0xff6a8a].forEach((c, i) => { const f = sph(0.14, c, ox - 12.6 + i * 0.9, 1.0 + (i % 2) * 0.3, -1.5, dg); f.scale.set(0.25, 0.14, 0.12); }); });
     return a;
   }
 
+  function applyInterior(I) {
+    const a = areas.shop; if (!a || !a.floorMesh) return;
+    const fo = DECO.floor.find(o => o.id === I.floor) || DECO.floor[0], wa = DECO.wall.find(o => o.id === I.wall) || DECO.wall[0], ru = DECO.rug.find(o => o.id === I.rug) || DECO.rug[0];
+    const tex = fo.type === 'tile' ? tileTex(fo.c) : woodTex(fo.c); tex.repeat.set(a.floorSize[0] / 4.5, a.floorSize[1] / 4.5);
+    a.floorMesh.material = texMat(tex, { roughness: fo.type === 'tile' ? 0.4 : 0.55 }); a.wallMat.color.set(wa.c);
+    a.rugs[0].material.color.set(ru.c); a.rugs[1].material.color.set(ru.c).lerp(new T.Color(0xffffff), 0.5);
+    for (const id in a.decor) a.decor[id].visible = !!(I.decor && I.decor[id]);
+  }
+  function pad(a, x, z, label, act) {   // テレポーターの台
+    const g = a.group; cyl(1.7, 0.2, 0x6fd8ff, x, 0.1, z, g, { emissive: 0x3aa8ff, emissiveIntensity: 0.9 }).castShadow = false;
+    const ring = new T.Mesh(new T.TorusGeometry(1.5, 0.08, 8, 28), new T.MeshBasicMaterial({ color: 0xbff0ff })); ring.rotation.x = Math.PI / 2; ring.position.set(x, 0.3, z); g.add(ring);
+    const beam = new T.Mesh(new T.CylinderGeometry(1.3, 1.3, 7, 20, 1, true), new T.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.22, side: T.DoubleSide, depthWrite: false, fog: false })); beam.position.set(x, 3.6, z); g.add(beam);
+    const tag = new T.Sprite(new T.SpriteMaterial({ map: labelTex('🌀 テレポーター', 384, 96, '#16304a', '#bff0ff', 48), depthTest: false })); tag.scale.set(4, 1, 1); tag.position.set(x, 5.4, z); tag.renderOrder = 25; g.add(tag);
+    a.obst.push({ c: true, x, z, r: 0.5 }); return addHot(a, x, z + 2.2, 2.8, label, act, 4.5);
+  }
+  function buildPlaza(name, ox, cfg) {
+    const a = newArea(name, [ox - 44, ox + 44, -40, 40], false), g = a.group;
+    const gr = new T.Mesh(new T.PlaneGeometry(300, 300), m(cfg.ground, { roughness: 1 })); gr.rotation.x = -Math.PI / 2; gr.position.set(ox, 0, 0); gr.receiveShadow = true; g.add(gr);
+    const asph = asphaltTex(), road = (x, z, w, d) => { const r = new T.Mesh(new T.PlaneGeometry(w, d), texMat(asph, { roughness: 1 })); r.rotation.x = -Math.PI / 2; r.position.set(x, 0.02, z); r.receiveShadow = true; g.add(r); };
+    road(ox, 0, 90, 8); road(ox, 22, 6, 36);
+    const bld = (b) => {
+      const gb = new T.Group(); g.add(gb); const s = b.face === 'N' ? -1 : 1, fz = b.z + s * b.d / 2;
+      rbox(b.w, b.h, b.d, 0.6, b.color, ox + b.x, b.h / 2, b.z, gb); rbox(b.w + 0.8, 0.6, b.d + 0.8, 0.28, b.roof, ox + b.x, b.h + 0.25, b.z, gb);
+      const rg = new T.ConeGeometry(0.7071, 1, 4); rg.rotateY(Math.PI / 4); const rf = new T.Mesh(rg, m(b.roof)); rf.scale.set(b.w + 1.4, 2.6, b.d + 1.4); rf.position.set(ox + b.x, b.h + 0.5 + 1.3, b.z); rf.castShadow = true; gb.add(rf);
+      rbox(2.2, 3.2, 0.2, 0.09, 0x5a3a24, ox + b.x, 1.6, fz + s * 0.05, gb);
+      sign(b.label, b.w * 0.85, 1.4, b.neon ? '#1a1030' : '#fff8e8', b.neon ? '#ff6ad5' : '#3b2a1c', gb, ox + b.x, b.h - 0.95, fz + s * 0.06, s > 0 ? 0 : Math.PI);
+      for (const wx of [-1, 1]) { box(2.2, 1.6, 0.12, 0xffffff, ox + b.x + wx * b.w * 0.3, 2.6, fz + s * 0.05, gb); box(1.8, 1.2, 0.1, b.neon ? 0xffd0f0 : 0xbfe6ff, ox + b.x + wx * b.w * 0.3, 2.6, fz + s * 0.1, gb, { emissive: b.neon ? 0xff6ad5 : 0x335577, emissiveIntensity: b.neon ? 0.7 : 0.35 }); }
+      a.obst.push({ x0: ox + b.x - b.w / 2, x1: ox + b.x + b.w / 2, z0: b.z - b.d / 2, z1: b.z + b.d / 2 });
+      if (b.act) addHot(a, ox + b.x, fz + s * 2.2, 2.6, () => b.hotLabel, b.act, 3.6);
+      return gb;
+    };
+    cfg.buildings.forEach(bld);
+    if (cfg.lots) a.lots = cfg.lots.map(l => { const gb = bld(Object.assign({ w: 10, d: 8, h: 5, color: 0xc9f0c0, roof: 0x4f8a45, face: 'S' }, l)); gb.visible = false; return gb; });
+    for (let x = -40; x <= 40; x += 16) { cyl(0.08, 3.6, 0x333a44, ox + x, 1.8, 5.4, g); sph(0.25, cfg.neon ? 0xff6ad5 : 0xfff2b0, ox + x, 3.7, 5.4, g, { emissive: cfg.neon ? 0xff4ac0 : 0xffe9a0, emissiveIntensity: 0.9 }).castShadow = false; }
+    let seed = 11; const rnd2 = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 40; i++) { const x = ox + (rnd2() - 0.5) * 84, z = 8 + rnd2() * 30; if (Math.abs(x - ox) < 6 || a.obst.some(o => !o.c && x > o.x0 - 3 && x < o.x1 + 3 && z > o.z0 - 3 && z < o.z1 + 3)) continue; const s = 0.8 + rnd2() * 0.6; cyl(0.25 * s, 1.6 * s, 0x7a5233, x, 0.8 * s, z, g); sph(1.3 * s, cfg.tree, x, 2.4 * s, z, g); a.obst.push({ c: true, x, z, r: 0.5 * s }); }
+    pad(a, ox, 14, () => 'テレポーター（ほかの町へ）', () => Biz.openTeleport());
+    a.spawn = { x: ox, z: 10.5, rot: Math.PI }; return a;
+  }
+  function refreshBranches(n) { const a = areas.biz; if (a && a.lots) a.lots.forEach((l, i) => { l.visible = i < n; }); }
   const jarGeo = new T.CylinderGeometry(0.29, 0.29, 0.46, 20);
   function makeJar(color, sparkle, st) {
     const g = new T.Group(), tr = (st && st.traits) || {};
@@ -540,6 +589,15 @@ const World = (function () {
     buildTown(); buildMyShop();
     buildSupplier('hyakkin', 1100); buildSupplier('home', 1200); buildSupplier('art', 1300); buildSupplier('wholesale', 1400);
     buildFriend('lab', 1500); buildFriend('smith', 1600);
+    buildPlaza('neon', 7000, { ground: 0x3a3f5e, tree: 0x6a5acd, neon: true, buildings: [
+      { x: -8, z: -12, w: 11, d: 8, h: 6, color: 0xff7a9a, roof: 0x4a2a5a, label: 'のみ処 スラ吉', neon: true, act: () => Biz.openParty(), hotLabel: '居酒屋に入る（社員と飲み会）' },
+      { x: 14, z: -12, w: 10, d: 8, h: 5, color: 0x6ad8ff, roof: 0x2a3a6a, label: 'ゲームセンター', neon: true }, { x: -26, z: -12, w: 9, d: 8, h: 5, color: 0xffd23f, roof: 0x6a4a2a, label: 'ラーメン ぷるぷる', neon: true }] });
+    buildPlaza('deco', 8000, { ground: 0xd4ecc4, tree: 0xf5a3c0, buildings: [
+      { x: -8, z: -12, w: 12, d: 8, h: 6, color: 0xffe3b0, roof: 0xc9722a, label: '家具屋 ホームデコ', act: () => Biz.openDeco(), hotLabel: '家具屋に入る（お店の模様がえ）' },
+      { x: 14, z: -12, w: 10, d: 8, h: 5, color: 0xf3c6e6, roof: 0xc84fa0, label: 'ブティック' }, { x: -26, z: -12, w: 9, d: 8, h: 5, color: 0xcfe9ff, roof: 0x4a76b0, label: 'カフェ ふわふわ' }] });
+    buildPlaza('biz', 9000, { ground: 0xbac6d2, tree: 0x4a9a6a, buildings: [
+      { x: -8, z: -12, w: 12, d: 8, h: 8, color: 0xcfe3f5, roof: 0x4a6a8a, label: '不動産 ビルドホーム', act: () => Biz.openRealtor(), hotLabel: '不動産屋に入る（支店を建てる）' }],
+      lots: [{ x: 14, z: -12, label: 'スライム商店 2号店' }, { x: 28, z: -12, label: 'スライム商店 3号店' }] });
     Adventure.build({ T, newArea, addHot, makePerson, animPerson, box, rbox, cyl, sph, capsule, m, labelTex, sign, collide, canvasTex, grassTex, rr, go, P, scene, get camera() { return cam; } });
     Workshop.build(scene, areas.shop, { mats: m, box, cyl, sph });
     P.mesh = makePerson(0x62d6a8, 0x553322, 0xffffff); scene.add(P.mesh);
@@ -728,6 +786,6 @@ const World = (function () {
       area = name; for (const k in areas) areas[k].group.visible = k === name;
       const sp = areas[name].spawn; P.x = sp.x; P.z = sp.z; P.rot = sp.rot; C.yaw = 0; C.pitch = areas[name].indoor ? 0.9 : 0.36; C.dist = areas[name].indoor ? 10 : 15;
     },
-    get camera() { return cam; }, get scene() { return scene; }, get env() { return envTex; }, get tint() { return 0; }, get dark() { return Math.max(darkV, (1 - dayK) * 0.55); }, get darkOn() { return !!manualDark; }, setDark(on) { manualDark = on ? 1 : 0; },
+    get camera() { return cam; }, get scene() { return scene; }, get env() { return envTex; }, applyInterior, refreshBranches, get tint() { return 0; }, get dark() { return Math.max(darkV, (1 - dayK) * 0.55); }, get darkOn() { return !!manualDark; }, setDark(on) { manualDark = on ? 1 : 0; },
   };
 })();
