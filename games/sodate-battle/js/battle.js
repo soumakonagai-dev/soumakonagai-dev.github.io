@@ -5,6 +5,7 @@ const Battle = (() => {
   const R = 14;                       // アリーナの半径
   const TIME_LIMIT = 240;           // 敵の体力が多いので、制限時間も長くしてある
 const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
+  const CHAMPION_HP_MUL = 4;        // ラスボス（チャンピオン）だけの倍率
   const INTRO = 2.6;
   let renderer, scene, camera, root, canvas, hemi, sun, parts;
   let running = false, raf = 0, last = 0, inited = false;
@@ -240,7 +241,7 @@ const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
     const f = {
       side, name: def.name, type: def.type, elem: def.elem, color: def.color, stats: st,
       atkT: ATK_TYPES[def.type],
-      maxHp: (100 + st.HP * 2) * (side === 'e' ? ENEMY_HP_MUL : 1), hp: 0, gauge: 0,
+      maxHp: (100 + st.HP * 2) * (side === 'e' ? (def.champion ? CHAMPION_HP_MUL : ENEMY_HP_MUL) : 1), hp: 0, gauge: 0,
       pos: new THREE.Vector3(side === 'p' ? -7 : 7, 0, 0), yaw: side === 'p' ? Math.PI / 2 : -Math.PI / 2,
       busy: 0, atkCd: 0, stun: 0, inv: 0, stepT: 0, stepCd: 0, stepV: null, dash: null, kb: new THREE.Vector3(),
       guard: false, wantGuard: false, guardHp: 0, guardBroke: 0,

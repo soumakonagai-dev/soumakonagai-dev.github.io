@@ -142,7 +142,7 @@ function startBattle(e) {
   const c = CHARS[S.charId];
   const stats = statsFromTotal(e.type, e.total);
   const pdef = { name: c.name, type: c.type, elem: c.elem, color: c.color, stats: effStats(S), skills: S.equipped.slice(), ult: 'ult_' + S.charId, atkElem: weaponElem(S), powMul: PLAYER_POW, normMul: PLAYER_NORM, hpMul: PLAYER_HP };
-  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: enemySkillIds(e, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, rank: rankOf(e.total) };
+  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: enemySkillIds(e, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, champion: e.champion, rank: rankOf(e.total) };
   Battle.start({ player: pdef, enemy: edef, area: e.area, onEnd: r => battleEnd(r, sel) });
 }
 function battleEnd(r, s) {
