@@ -27,6 +27,8 @@ addItem('borax', { name: 'ホウ砂水', kind: 'borax', unit: 'ml', rate: 24, co
 addItem('water', { name: '水', kind: 'water', unit: 'ml', rate: 60, color: '#bfe3ff', icon: '💧', w: 1, free: true, note: '水道の水。いくらでも使える' });
 addItem('soap', { name: 'ハンドソープ（泡）', kind: 'soap', unit: 'ml', rate: 36, color: '#ffffff', icon: '🫧', w: 1, note: '泡を入れる' });
 for (const k in PAINTS) addItem('paint_' + k, { name: `絵具（${PAINTS[k][0]}）`, kind: 'paint', unit: '回', rate: 4, color: PAINTS[k][1], icon: '🎨', w: 5, note: '色をつける' });
+addItem('snow_powder', { name: 'スノーパウダー', kind: 'snow', unit: '回', rate: 4, color: '#ffffff', icon: '❄️', w: 5, note: 'シャリシャリになる。入れすぎてもOKだけど、そのぶん高くなる' });
+addItem('glow_powder', { name: '蓄光パウダー', kind: 'glow', unit: '回', rate: 4, color: '#c8ff8a', icon: '🌙', w: 5, note: '暗いところで光る。入れるほど強く光るけど、とても高くなる' });
 for (const k in GLITTERS) addItem('glitter_' + k, { name: `ラメ（${GLITTERS[k][0]}）`, kind: 'glitter', unit: '回', rate: 4, color: GLITTERS[k][1], icon: '✨', w: 5, note: 'キラキラ' });
 
 // stock: [材料ID, 1パックの量, 値段]
@@ -34,7 +36,7 @@ const SHOPS = {
   hyakkin: {
     name: '100円ショップ「まるえん」', short: '100均', floor: 0xf1e3c4, wall: 0xffe08a,
     stock: [['glue_cheap', 500, 110], ['borax', 150, 130], ['soap', 250, 110],
-      ['glitter_gold', 10, 110], ['glitter_silver', 10, 110],
+      ['glitter_gold', 10, 110], ['glitter_silver', 10, 110], ['snow_powder', 10, 130], ['glow_powder', 10, 180],
       ['paint_red', 10, 110], ['paint_blue', 10, 110], ['paint_yellow', 10, 110], ['paint_white', 10, 110]],
   },
   home: {
@@ -49,18 +51,19 @@ const SHOPS = {
     name: '問屋「どんどん商会」', short: '問屋', floor: 0xd9d2c4, wall: 0xc9e6c0, needRep: 3,
     stock: [['glue_cheap', 5000, 850], ['glue_pro', 5000, 1800], ['borax', 2000, 900], ['soap', 2000, 700],
       ...['red', 'blue', 'yellow', 'white'].map(k => ['paint_' + k, 100, 650]),
-      ...['gold', 'silver'].map(k => ['glitter_' + k, 100, 600])],
+      ...['gold', 'silver'].map(k => ['glitter_' + k, 100, 600]), ['snow_powder', 100, 1100], ['glow_powder', 100, 1600]],
   },
 };
 
 // ---- お客さん ----
 // like(スライム) = その人が「定価の何倍まで出すか」の目安
+const glowLike = (sl, k) => (sl.gl || 0) >= 0.5 ? k * Math.min(1, (sl.gl || 0) / 3) + 0.3 : 0;   // 光るスライムが好きな人向け
 const hasTrait = (sl, t, min = 0.25) => (sl.traits[t] || 0) >= min;
 const CUSTOMERS = {
   kid: {
     name: 'こども', icon: '🧒', budget: 260, w: (r, rain) => 5 * (rain ? 0.5 : 1),
-    desc: 'ふつうのスライムとカラフルなラメ入りが好き。お金は少なめ',
-    like: sl => 0.95 + (sl.sp >= 2 ? 0.3 : 0) + (sl.sat > 0.55 ? 0.15 : 0) - (TRAITS.some(t => sl.traits[t] > 0) ? 0.1 : 0),
+    desc: 'ふつうのスライムとカラフルなラメ入り、暗いところで光るスライムが好き。お金は少なめ',
+    like: sl => 0.95 + (sl.sp >= 2 ? 0.3 : 0) + (sl.sat > 0.55 ? 0.15 : 0) - (TRAITS.some(t => sl.traits[t] > 0) ? 0.1 : 0) + glowLike(sl, 0.55),
   },
   student: {
     name: '学生', icon: '👩‍🎓', budget: 450, w: () => 3,
@@ -79,9 +82,14 @@ const CUSTOMERS = {
   },
   asmr: {
     name: 'ASMR配信者', icon: '🎙️', budget: 1600, needRep: 2, w: (r, rain) => 0.6 * r * (rain ? 2 : 1),
-    desc: '音がいい「とろとろ」「ふわふわ」を探している。高く買う',
-    like: sl => 0.45 + (hasTrait(sl, 'torotoro', 0.05) ? 0.9 + sl.traits.torotoro : 0) + (hasTrait(sl, 'fuwafuwa', 0.05) ? 0.6 + sl.traits.fuwafuwa * 0.6 : 0),
+    desc: '音がいい「とろとろ」「ふわふわ」「シャリシャリ」を探している。高く買う',
+    like: sl => 0.45 + (hasTrait(sl, 'torotoro', 0.05) ? 0.9 + sl.traits.torotoro : 0) + (hasTrait(sl, 'fuwafuwa', 0.05) ? 0.6 + sl.traits.fuwafuwa * 0.6 : 0) + 1.1 * (sl.crunch || 0),
     multi: true,
+  },
+  family: {
+    name: '子連れ', icon: '👨‍👧', budget: 1300, needRep: 2, w: (r, rain) => (0.7 + 0.35 * r) * (rain ? 0.6 : 1), multi: true,
+    desc: 'お子さんが喜ぶ「暗いところで光る」スライムが大好き。ちょっと高くても買う',
+    like: sl => 0.6 + glowLike(sl, 1.5) + (sl.sp >= 2 ? 0.2 : 0) + (sl.sat > 0.55 ? 0.1 : 0),
   },
   collector: {
     name: 'コレクター', icon: '🧐', budget: 3500, needRep: 3, w: r => 0.45 * (r - 2),

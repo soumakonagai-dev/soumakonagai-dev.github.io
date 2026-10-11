@@ -7,7 +7,7 @@ const Workshop = (function () {
   let H = null;            // 画面(HTML)の要素
   let hudT = 0, pourTilt = 0, lastLook = new T.Vector3(), camInit = false;
   const st = { active: false, hold: null, holdT: 0, shotT: 0, stirring: false, spoonA: 0,
-    solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0, sq: 0, sqv: 0, flow: 0 };
+    solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0, sq: 0, sqv: 0, flow: 0, crunch: 0, glow: 0 };
   const hexC = h => new T.Color(h);
   const GEO_CYL = () => new T.CylinderGeometry(1, 1, 1, 10);
   const bowlCap = () => BOWL_CAP[S.up.bowl].v;
@@ -25,8 +25,11 @@ const Workshop = (function () {
   };
   let strand, drips = [], bounceT = 0, rimM = null;
   // さわる（やわらかい体のシミュレーション）：頂点ごとのずれ disp とそのはやさ vel
-  let disp = null, vel = null, grab = null, touchExit = null, tapInfo = null;
+  let disp = null, vel = null, tgtD = null, kw = null, touchExit = null, tapInfo = null;
+  const grainMat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
+  let hands = [], twoHand = false, snapBoost = 0, tearP = 0, lastLevel = 0, handMk = [], debris = [], grains = [], glowLight = null;
   const raycaster = new T.Raycaster(), tmpV = new T.Vector3();
+  const feelM = () => ({ hard: st.hard, bouncy: st.bouncy, foam: st.foam, ooze: st.ooze, sticky: st.sticky, crunch: st.crunch });
   function rayFrom(e) {
     const r = e.target.getBoundingClientRect();
     raycaster.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), World.camera);
@@ -38,42 +41,121 @@ const Workshop = (function () {
     const h = rayFrom(e).intersectObject(blob)[0];
     return h ? { world: h.point.clone(), local: blob.worldToLocal(h.point.clone()) } : null;
   }
-  const softK = () => clamp(35 + 100 * st.bouncy - 28 * st.ooze - 24 * st.sticky + 200 * st.hard, 6, 400);
-  const softC = () => clamp(5 - 2.6 * st.bouncy + 0.5 * st.ooze + 2 * st.sticky + 20 * st.hard, 1.1, 40);
+  // 質感ごとのばね・のびる量・ちぎれ方
+  const softK = () => clamp(35 + 100 * st.bouncy - 28 * st.ooze - 24 * st.sticky - 22 * st.foam + 200 * st.hard, 6, 400);
+  const softC = () => clamp(5 - 2.6 * st.bouncy + 0.5 * st.ooze + 2 * st.sticky + 2.5 * st.foam + 20 * st.hard, 1.1, 40);
   const maxStretch = () => clamp(0.55 + 2.6 * st.ooze + 0.6 * st.sticky - 0.2 * st.bouncy - 0.3 * st.foam - 2 * st.hard, 0.05, 3.2);
-  function poke(h) {   // つつく：へこんで、もどる
+  const pressDepth = () => 0.34 * (1 - 0.9 * st.hard) * (1 + 0.7 * st.foam + 0.4 * st.sticky - 0.25 * st.bouncy);
+  // ちぎれるまでの時間（かたい＝一瞬でパキッ、やわらかい＝ゆっくり細くなってちぎれる）
+  const tearTime = () => st.hard > 0.5 ? 0.08 : st.foam > 0.4 ? 0.55 : st.bouncy > 0.55 ? 1.0 : st.ooze > 0.4 ? 3.6 : st.sticky > 0.45 ? 2.6 : 1.6;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+
+  function poke(h) {   // ちょんとつつく：へこんで、もどる（やわらかいほど深く、広く）
     if (!disp) return;
-    const R = 0.55, str = 7 * (1 - 0.9 * st.hard);
+    const R = 0.5 + 0.2 * st.foam + 0.1 * st.sticky, str = 7 * (1 - 0.9 * st.hard) * (1 + 0.6 * st.foam + 0.4 * st.sticky - 0.3 * st.bouncy);
     for (let i = 0; i < disp.length / 3; i++) {
       const bx = blobBase[i * 3], by = blobBase[i * 3 + 1], bz = blobBase[i * 3 + 2];
       const d = Math.hypot(bx - h.local.x, by - h.local.y, bz - h.local.z), wgt = Math.exp(-(d * d) / (R * R * 0.5));
       if (wgt < 0.02) continue;
       vel[i * 3] -= bx * wgt * str; vel[i * 3 + 1] -= by * wgt * str; vel[i * 3 + 2] -= bz * wgt * str;
     }
-    sfx(st.hard > 0.5 ? 'tick' : 'pop');
+    Snd.squish(feelM(), clamp(str / 8, 0.25, 1));
   }
-  function stepSoft(dt) {   // ばね：ひっぱっている間は手に近づき、はなすと元にもどる
-    const n = disp.length / 3, kk = softK(), cc = softC();
-    let D = null, Hl = null, Rl = 0.7;
-    if (grab) {
-      D = grab.D; Hl = grab.local;
-      const len = D.length(), lim = maxStretch(); if (len > lim) D = D.clone().multiplyScalar(lim / len);
-      Rl = (0.62 - 0.1 * st.bouncy) / (1 + 0.9 * Math.min(len, lim) * (0.4 + st.ooze * 2));
-      grab.shown = D;
+  function tearNow(h0) {   // ちぎれた！
+    Snd.snap(feelM()); Snd.stretchStop();
+    const hard = st.hard > 0.5, n = hard ? 7 : 4, src = (h0 || hands[0] || { world: blob.position }).world;
+    for (let i = 0; i < n; i++) {
+      const d = debris[i]; if (!d) break;
+      d.visible = true; d.userData.life = hard ? 1.1 : 1.5; d.userData.s = hard ? 0.045 + Math.random() * 0.05 : 0.06 + Math.random() * 0.07;
+      d.position.copy(src).add(new T.Vector3((Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.15));
+      d.userData.v = new T.Vector3((Math.random() - 0.5) * (hard ? 2.4 : 0.9), 0.8 + Math.random() * (hard ? 2.2 : 1.0), (Math.random() - 0.5) * (hard ? 2.4 : 0.9));
+      d.userData.drop = !hard;
     }
+    hands = []; tearP = 0; snapBoost = 0.6;
+  }
+
+  // 手のうごきから「どこをどれだけひっぱるか」(tgtD) を決める
+  function computeTargets(dt) {
+    const n = disp.length / 3; tgtD.fill(0); kw.fill(0);
+    const hs = hands, lim = maxStretch(), tt = tearTime();
+    if (!hs.length) { tearP = Math.max(0, tearP - dt * 2); return 0; }
+    let level = 0;
+    if (hs.length === 1) {
+      const h = hs[0], len = h.D.length();
+      if (!h.pull) {   // おして、ずっとおさえている
+        const depth = pressDepth(), R = 0.55 + 0.15 * st.foam;
+        for (let i = 0; i < n; i++) {
+          const bx = blobBase[i * 3], by = blobBase[i * 3 + 1], bz = blobBase[i * 3 + 2];
+          const d = Math.hypot(bx - h.local.x, by - h.local.y, bz - h.local.z), w = Math.exp(-(d * d) / (R * R));
+          if (w < 0.01) continue; kw[i] = w; tgtD[i * 3] = -bx * depth * w; tgtD[i * 3 + 1] = -by * depth * w; tgtD[i * 3 + 2] = -bz * depth * w;
+        }
+        tearP = Math.max(0, tearP - dt * 2); return 0;
+      }
+      if (len > lim) tearP += dt / tt; else tearP = Math.max(0, tearP - dt * 0.8);
+      const D = len > lim ? h.D.clone().multiplyScalar(lim / len) : h.D, eff = Math.min(len, lim); level = eff;
+      const Rl = (0.62 - 0.1 * st.bouncy) / (1 + 0.9 * eff * (0.4 + st.ooze * 2)) * (1 - 0.75 * tearP);
+      for (let i = 0; i < n; i++) {
+        const bx = blobBase[i * 3], by = blobBase[i * 3 + 1], bz = blobBase[i * 3 + 2];
+        const d = Math.hypot(bx - h.local.x, by - h.local.y, bz - h.local.z), w = Math.exp(-(d * d) / (Rl * Rl));
+        if (w < 0.01) continue; kw[i] = w; tgtD[i * 3] = D.x * w; tgtD[i * 3 + 1] = D.y * w; tgtD[i * 3 + 2] = D.z * w;
+      }
+    } else {   // 両手：2つのつかんだ場所のあいだを、ぐーっとのばす
+      const A0 = hs[0].local, B0 = hs[1].local, A1 = A0.clone().add(hs[0].D), B1 = B0.clone().add(hs[1].D);
+      const ax = B0.clone().sub(A0), L0 = Math.max(ax.length(), 0.3), a0 = ax.length() > 1e-3 ? ax.clone().normalize() : new T.Vector3(1, 0, 0);
+      const ax1 = B1.clone().sub(A1), len1 = ax1.length(), s = len1 / L0, sLim = 1 + lim * 1.6;
+      if (s > sLim) tearP += dt / tt; else tearP = Math.max(0, tearP - dt);
+      const sEff = Math.min(s, sLim); level = Math.max(0, sEff - 1);
+      const dir1 = len1 > 1e-4 ? ax1.clone().multiplyScalar(1 / len1) : a0, B1c = A1.clone().addScaledVector(dir1, L0 * sEff);
+      const thin = (1 / Math.sqrt(Math.max(sEff, 0.6))) * (1 - 0.82 * tearP), Rl = 0.66;
+      for (let i = 0; i < n; i++) {
+        const px = blobBase[i * 3] - A0.x, py = blobBase[i * 3 + 1] - A0.y, pz = blobBase[i * 3 + 2] - A0.z;
+        const qa = px * a0.x + py * a0.y + pz * a0.z, t = qa / L0;
+        const perpx = px - a0.x * qa, perpy = py - a0.y * qa, perpz = pz - a0.z * qa, pd = Math.hypot(perpx, perpy, perpz);
+        const g = smooth(-0.55, -0.15, t) * (1 - smooth(1.15, 1.55, t)), w = Math.exp(-(pd * pd) / (Rl * Rl)) * g;
+        if (w < 0.01) continue;
+        const nx = A1.x + (B1c.x - A1.x) * t + perpx * thin, ny = A1.y + (B1c.y - A1.y) * t + perpy * thin, nz = A1.z + (B1c.z - A1.z) * t + perpz * thin;
+        kw[i] = w; tgtD[i * 3] = (nx - (px + A0.x)) * w; tgtD[i * 3 + 1] = (ny - (py + A0.y)) * w; tgtD[i * 3 + 2] = (nz - (pz + A0.z)) * w;
+      }
+    }
+    if (tearP >= 1) tearNow(hs.find(h => !h.pinned) || hs[0]);
+    return level;
+  }
+  function stepSoft(dt) {   // ばね：ひっぱっている間は手に近づき、はなすと質感どおりにもどる
+    const n = disp.length / 3, kk = softK() * (snapBoost > 0 ? 2.3 : 1), cc = softC() * (snapBoost > 0 ? 1.5 : 1);
+    snapBoost = Math.max(0, snapBoost - dt);
+    const level = computeTargets(dt);
     const sub = Math.max(1, Math.ceil(dt / 0.008)), h = dt / sub;
     for (let s = 0; s < sub; s++) for (let i = 0; i < n; i++) {
-      let tx = 0, ty = 0, tz = 0, k2 = kk, c2 = cc;
-      if (grab) {
-        const bx = blobBase[i * 3], by = blobBase[i * 3 + 1], bz = blobBase[i * 3 + 2];
-        const d = Math.hypot(bx - Hl.x, by - Hl.y, bz - Hl.z), wgt = Math.exp(-(d * d) / (Rl * Rl));
-        if (wgt > 0.01) { tx = D.x * wgt; ty = D.y * wgt; tz = D.z * wgt; k2 = Math.max(kk, 70 * wgt); c2 = Math.max(cc, 8 * wgt); }
-      }
-      for (let a = 0; a < 3; a++) {
-        const j = i * 3 + a, tg = a === 0 ? tx : a === 1 ? ty : tz;
-        vel[j] += (-k2 * (disp[j] - tg) - c2 * vel[j]) * h; disp[j] += vel[j] * h;
-      }
+      const w = kw[i], k2 = w > 0.01 ? Math.max(kk, 70 * w) : kk, c2 = w > 0.01 ? Math.max(cc, 8 * w) : cc;
+      for (let a = 0; a < 3; a++) { const j = i * 3 + a; vel[j] += (-k2 * (disp[j] - tgtD[j]) - c2 * vel[j]) * h; disp[j] += vel[j] * h; }
     }
+    // のばしている間の音
+    const pulling = hands.length >= 2 || (hands.length === 1 && hands[0].pull);
+    if (pulling) { Snd.stretchStart(feelM()); Snd.stretchUpdate(level, Math.abs(level - lastLevel) / Math.max(dt, 0.001) * 0.35); } else Snd.stretchStop();
+    lastLevel = level;
+  }
+  function softExtras(dt, t, cx, cz) {   // 手のしるし・ちぎれたかけら・粒・光
+    for (let i = 0; i < 2; i++) {
+      const h = hands[i], m = handMk[i]; m.visible = !!h && st.touch;
+      if (h && st.touch) { blob.updateMatrixWorld(); m.position.copy(h.world).add(new T.Vector3(h.D.x * blob.scale.x, h.D.y * blob.scale.y, h.D.z * blob.scale.z)); m.material.color.set(h.pinned ? 0xffd23f : 0xffffff); m.scale.setScalar(h.pinned ? 0.07 : 0.055 + 0.01 * Math.sin(t * 8)); }
+    }
+    for (const d of debris) if (d.visible) {
+      const u = d.userData; u.life -= dt; u.v.y -= 6 * dt; d.position.addScaledVector(u.v, dt);
+      if (d.position.y < bowlBottom + 0.02) { d.position.y = bowlBottom + 0.02; u.v.multiplyScalar(0.3); u.v.y = Math.abs(u.v.y) * 0.3; }
+      const s = u.s * clamp(u.life / 0.4, 0, 1); d.scale.set(s, s * (u.drop ? 1.3 : 1), s); if (u.life <= 0) d.visible = false;
+    }
+    const dk = World.dark, gEm = clamp(st.glow / 1.2, 0, 1) * dk;
+    grainMat.emissive.set(0x9dff9a).multiplyScalar(gEm * 0.9);
+    // シャリシャリの粒
+    const ng = Math.round(st.crunch * grains.length);
+    grains.forEach((g, i) => {
+      g.visible = i < ng && blob.visible; if (!g.visible) return;
+      const u = g.userData, sn = Math.sin(u.ph), sx = blob.scale.x, sy = blob.scale.y;
+      g.position.set(cx + sn * Math.cos(u.th) * sx * 1.01, blob.position.y + Math.cos(u.ph) * sy * 1.01, cz + sn * Math.sin(u.th) * sx * 1.01);
+    });
+    // 蓄光：暗いところで光る
+    glowLight.intensity = 2.6 * gEm; glowLight.position.set(cx, blob.position.y + 0.5, cz);
+    return gEm;
   }
 
   function build(scene, shopArea, h) {
@@ -109,7 +191,11 @@ const Workshop = (function () {
     // ヘラ
     spoon = new T.Group(); h.box(0.06, 1.1, 0.06, 0xc79a5c, 0, 0.55, 0, spoon); const hd = h.sph(0.16, 0xc79a5c, 0, 0.0, 0, spoon); hd.scale.set(0.16, 0.05, 0.1);
     spoon.visible = false; grp.add(spoon);
-    disp = new Float32Array(bg.attributes.position.count * 3); vel = new Float32Array(disp.length);
+    disp = new Float32Array(bg.attributes.position.count * 3); vel = new Float32Array(disp.length); tgtD = new Float32Array(disp.length); kw = new Float32Array(disp.length / 3);
+    for (let i = 0; i < 2; i++) { const m = new T.Mesh(new T.SphereGeometry(1, 12, 10), new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false })); m.visible = false; m.renderOrder = 20; grp.add(m); handMk.push(m); }
+    for (let i = 0; i < 8; i++) { const d = new T.Mesh(new T.SphereGeometry(1, 12, 10), blob.material); d.visible = false; d.castShadow = true; d.userData = { life: 0, v: new T.Vector3() }; grp.add(d); debris.push(d); }
+    for (let i = 0; i < 44; i++) { const g = new T.Mesh(new T.SphereGeometry(0.03 + Math.random() * 0.025, 6, 5), grainMat); g.userData = { th: Math.random() * Math.PI * 2, ph: Math.acos(Math.random() * 1.7 - 0.85) }; g.visible = false; grp.add(g); grains.push(g); }
+    glowLight = new T.PointLight(0xa8ffb0, 0, 6); grp.add(glowLight);
     strand = new T.Mesh(GEO_CYL(), blob.material); strand.visible = false; grp.add(strand);
     for (let i = 0; i < 5; i++) { const d = new T.Group(), c = new T.Mesh(GEO_CYL(), blob.material), s = new T.Mesh(new T.SphereGeometry(1, 10, 8), blob.material); d.add(c, s); d.userData = { c, s, a: i * 1.26 + 0.3 }; d.visible = false; grp.add(d); drips.push(d); }
     grp.traverse(o => { if (o.isMesh && o !== bowlM) o.castShadow = o.castShadow || false; });
@@ -145,22 +231,28 @@ const Workshop = (function () {
     if (!rd._tog) { rd._tog = true; rd.addEventListener('click', () => { if (matchMedia('(max-width: 820px)').matches) rd.classList.toggle('mini'); }); }
   }
   function touch(sl, onExit) {      // できあがったスライムをさわる
-    st.touch = sl; touchExit = onExit || null; st.active = true; camInit = false; st.hold = null; st.stirring = false; grab = null;
-    disp.fill(0); vel.fill(0); st.solid = 0; st.sq = st.sqv = 0;
+    st.touch = sl; touchExit = onExit || null; st.active = true; camInit = false; st.hold = null; st.stirring = false; hands = [];
+    disp.fill(0); vel.fill(0); st.solid = 0; st.sq = st.sqv = 0; hands = []; tearP = 0; twoHand = false; updateTouchBtns();
     document.getElementById('ws').style.display = 'none';
     const tr = sl.traits || {}, lines = [];
     if (tr.nettori) lines.push('🧶 よくのびる！ つかんで ひっぱってみよう');
     if (tr.danryoku) lines.push('🟢 つつくとぷるぷる、ぼよんと跳ね返る');
     if (tr.torotoro) lines.push('💦 とろとろ流れる。ひっぱるとゆっくりもどる');
     if (tr.fuwafuwa) lines.push('☁️ ふわふわ。ぎゅっと押すと、やわらかく沈む');
+    if ((sl.crunch || 0) > 0.1) lines.push('❄️ シャリシャリ。さわると音がする');
+    if ((sl.gl || 0) >= 0.5) lines.push('🌙 暗くすると光る！ 下の「🌙 暗くする」を押してみよう');
     if (!lines.length) lines.push('🙂 ふつうのやわらかさ。つついたり、ひっぱったり');
     const box = document.getElementById('wsTouch');
     box.querySelector('.tn').textContent = sl.name || 'スライム';
-    box.querySelector('.tl').innerHTML = lines.join('<br>') + '<br><small>つつく・つまんでのばす・ふりまわす</small>';
+    box.querySelector('.tl').innerHTML = lines.join('<br>') + '<br><small>つつく・つまんでのばす。<b>両手</b>で引っぱると、よくのびる（スマホは指2本／PCは「🖐 両手」をONにして、1回目でおさえ、2回目でひっぱる）。のばしすぎると…ちぎれる！</small>';
     box.style.display = 'flex';
   }
+  function updateDarkBtns() { const on = World.darkOn; for (const id of ['wsDark', 'wsDark2']) { const b = document.getElementById(id); if (b) { b.textContent = on ? '💡 明るくする' : '🌙 暗くする'; b.classList.toggle('on', on); } } }
+  function updateTouchBtns() { const b = document.getElementById('wsTwo'); if (b) { b.classList.toggle('on', twoHand); b.textContent = twoHand ? '🖐 両手モード：ON' : '🖐 両手モード'; } }
+  function toggleDark() { World.setDark(!World.darkOn); updateDarkBtns(); }
+  function toggleTwo() { twoHand = !twoHand; if (!twoHand) hands = hands.filter(h => !h.pinned); updateTouchBtns(); }
   function exitTouch(silent) {
-    st.touch = null; st.active = false; grab = null; disp.fill(0); vel.fill(0);
+    st.touch = null; st.active = false; hands = []; twoHand = false; Snd.stretchStop(); World.setDark(false); updateDarkBtns(); disp.fill(0); vel.fill(0);
     document.getElementById('wsTouch').style.display = 'none';
     World.place(World.areas.shop.ws.x, World.areas.shop.ws.z + 2.6, Math.PI);
     const cb = touchExit; touchExit = null; if (cb && !silent) cb();
@@ -168,6 +260,7 @@ const Workshop = (function () {
   function exit(force) {
     if (st.touch) { exitTouch(force); return; }
     if (!st.active) return;
+    World.setDark(false); updateDarkBtns();
     st.active = false; stopPour(); st.stirring = false;
     document.getElementById('ws').style.display = 'none'; bottle.visible = false; stream.visible = false; spoon.visible = false;
     World.place(World.areas.shop.ws.x, World.areas.shop.ws.z + 2.6, Math.PI);
@@ -217,21 +310,26 @@ const Workshop = (function () {
 
   // ---------- マウス ----------
   function pointer(e, type, dx, dy) {
-    if (st.touch) {                       // さわるモード：つかんで、のばす・つつく
+    if (st.touch) {                       // さわるモード：つかんで、のばす・つつく（両手OK）
+      const id = e.pointerId;
       if (type === 'down') {
-        const h = hitBlob(e);
-        if (h) { grab = { local: h.local, world: h.world, D: new T.Vector3(), moved: 0, x: e.clientX, y: e.clientY }; sfx('tick'); }
-      } else if (type === 'move' && grab) {
-        const rc = rayFrom(e), pl = new T.Plane().setFromNormalAndCoplanarPoint(World.camera.getWorldDirection(tmpV).clone(), grab.world);
-        const P = new T.Vector3(); if (rc.ray.intersectPlane(pl, P)) {
-          const dw = P.sub(grab.world); blob.updateMatrixWorld();
-          grab.D.set(dw.x / blob.scale.x, dw.y / blob.scale.y, dw.z / blob.scale.z);
+        const h = hitBlob(e); if (!h) return;
+        const moving = hands.filter(x => !x.pinned).length;
+        if (moving >= 2 || hands.length >= 2) return;
+        if ((twoHand || e.shiftKey) && !hands.some(x => x.pinned) && moving === 0) {   // 1回目：片手でおさえる
+          hands.push({ id, pinned: true, local: h.local, world: h.world, D: new T.Vector3(), moved: 0, pull: false }); Snd.squish(feelM(), 0.5); return;
         }
-        grab.moved += Math.hypot(dx || 0, dy || 0);
-      } else if (type === 'up' && grab) {
-        if (grab.moved < 8) { poke({ local: grab.local }); }
-        else if (grab.D.length() > 0.6) sfx('pop');
-        grab = null;
+        hands.push({ id, local: h.local, world: h.world, D: new T.Vector3(), moved: 0, pull: false, t0: performance.now(), x: e.clientX, y: e.clientY });
+        Snd.squish(feelM(), clamp(pressDepth() * 2.2, 0.3, 1));
+      } else if (type === 'move') {
+        const hd = hands.find(x => x.id === id && !x.pinned); if (!hd) return;
+        const rc = rayFrom(e), pl = new T.Plane().setFromNormalAndCoplanarPoint(World.camera.getWorldDirection(tmpV).clone(), hd.world), P = new T.Vector3();
+        if (rc.ray.intersectPlane(pl, P)) { const dw = P.sub(hd.world); blob.updateMatrixWorld(); hd.D.set(dw.x / blob.scale.x, dw.y / blob.scale.y, dw.z / blob.scale.z); }
+        hd.moved += Math.hypot(dx || 0, dy || 0); if (hd.moved > 8) hd.pull = true;
+      } else if (type === 'up') {
+        const i = hands.findIndex(x => x.id === id && !x.pinned); if (i < 0) return;
+        const hd = hands[i]; hands.splice(i, 1);
+        if (!hd.pull && performance.now() - hd.t0 < 260) poke({ local: hd.local }); else Snd.release(feelM());
       }
       return;
     }
@@ -267,6 +365,9 @@ const Workshop = (function () {
     const k = 1 - Math.exp(-4 * dt);
     for (const key in tgt) st[key] += (tgt[key] - st[key]) * k;
 
+    tgt.crunch = st.touch ? (st.touch.crunch || 0) : m.total > 0 ? clamp(m.snow / m.total * 100 / 5, 0, 1) : 0;
+    tgt.glow = st.touch ? (st.touch.gl || 0) : m.total > 0 ? m.glow / m.total * 100 : 0;
+    st.crunch += ((tgt.crunch || 0) - st.crunch) * k; st.glow += ((tgt.glow || 0) - st.glow) * k;
     const mtot = st.touch ? 1 : m.total;
     const frac = st.touch ? 0.62 : clamp(m.total / bowlCap(), 0, 1), cx = ws.x, cz = ws.z + 0.1;
     const colHex = st.touch ? st.touch.color : mixColor(amt); mixColorHex = colHex;
@@ -297,6 +398,9 @@ const Workshop = (function () {
       M.envMapIntensity = 0.5 - 0.35 * st.hard - 0.25 * st.foam;
       M.bumpScale = 0.02 * st.foam + 0.8 * st.hard;
       M.opacity = 1 - 0.22 * st.sticky - 0.08 * st.ooze;
+      M.roughness = clamp(M.roughness + 0.25 * st.crunch, 0.04, 1); M.bumpScale += 0.5 * st.crunch;
+      const gEm0 = clamp(st.glow / 1.2, 0, 1) * World.dark, glowCol = new T.Color(0x7dff9a).lerp(gc, 0.2);
+      M.emissive.copy(gc).multiplyScalar(0.03).lerp(glowCol, gEm0); M.emissiveIntensity = 1;
       // ぷにぷに：ときどき自分でぽよんと弾む
       bounceT -= dt; if (st.bouncy > 0.5 && st.hard < 0.5 && st.solid > 0.6 && bounceT <= 0) { st.sqv += 2.2; bounceT = 1.3; }
       stepSoft(dt);
@@ -310,6 +414,7 @@ const Workshop = (function () {
       }
       pos.needsUpdate = true; blob.geometry.computeVertexNormals(); blob.geometry.computeBoundingSphere();
     } else { st.sq *= 0.9; st.sqv *= 0.9; }
+    softExtras(dt, t, cx, cz);
     // あわ
     const nb = Math.round(st.foam * bubbles.length * (st.melt > 0.5 ? 1 : 0.85));
     bubbles.forEach((b, i) => {
@@ -374,7 +479,7 @@ const Workshop = (function () {
   }
 
   // ---------- 画面（HTML）----------
-  const KIND_ORDER = ['glue', 'borax', 'water', 'soap', 'paint', 'glitter'];
+  const KIND_ORDER = ['glue', 'borax', 'water', 'soap', 'paint', 'glitter', 'snow', 'glow'];
   function buildHUD() {
     const ids = Object.keys(ITEMS).filter(id => ITEMS[id].free || (S.stock[id] || 0) > 0.0001 || (S.bowl.amt[id] || 0) > 0).sort((a, b) => KIND_ORDER.indexOf(ITEMS[a].kind) - KIND_ORDER.indexOf(ITEMS[b].kind));
     const box = document.getElementById('wsItems');
@@ -417,6 +522,8 @@ const Workshop = (function () {
         if (st.ooze > 0.35) feel.push('🧶 ねっとり、糸を引く！');
         if (st.sticky > 0.45) feel.push('💦 トロトロ・ベタベタ流れる');
         if (st.foam > 0.35 && st.melt <= 0.5) feel.push('☁️ ふわふわ泡っぽい');
+        if (st.crunch > 0.2) feel.push('❄️ シャリシャリ');
+        if (st.glow > 0.5) feel.push('🌙 暗いところで光る（下の🌙で暗くできる）');
         if (!feel.length) feel.push('🙂 ふつうのやわらかさ');
       }
     }
@@ -431,6 +538,7 @@ const Workshop = (function () {
     }
     if (lv >= 2 && m.glue > 0) {
       const R = ratios(m);
+      if (m.snow > 0 || m.glow > 0) h += `<div class="rd-h"><b>粉（100mlあたり）</b></div>${m.snow > 0 ? `<div class="rd"><span>スノー</span><b>${(m.snow / m.total * 100).toFixed(1)}回</b></div>` : ''}${m.glow > 0 ? `<div class="rd"><span>蓄光</span><b>${(m.glow / m.total * 100).toFixed(1)}回</b></div>` : ''}`;
       h += `<div class="rd-h"><b>ノリ100mlあたり</b></div><div class="rd"><span>ホウ砂水（水・泡で補正）</span><b>${R.b.toFixed(1)}</b></div><div class="rd"><span>水</span><b>${R.w.toFixed(1)}</b></div><div class="rd"><span>泡</span><b>${R.s.toFixed(1)}</b></div>`;
       if (lv >= 3) {
         const L = limits(m.stab, S.env), RED = '#ff7b7b', YEL = '#ffd95e', GRN = '#8be0a0';
@@ -457,5 +565,5 @@ const Workshop = (function () {
   function clearBowl() { S.bowl = { amt: {}, stir: 0 }; st.sq = st.sqv = 0; st.solid = st.hard = st.sticky = st.foam = st.ooze = st.melt = 0; refreshHUD(); buildHUD(); }
   function dump() { if (total() <= 0) return; askConfirm('ボウルの中身を全部すてますか？<br>（材料はもどりません）', 'すてる', () => { clearBowl(); sfx('pop'); }, true); }
 
-  return { build, enter, exit, touch, update, camera, pointer, finish, dump, clearBowl, refreshHUD, buildHUD, get active() { return st.active; }, get touching() { return !!st.touch; } };
+  return { build, enter, exit, touch, toggleDark, toggleTwo, update, camera, pointer, finish, dump, clearBowl, refreshHUD, buildHUD, get active() { return st.active; }, get touching() { return !!st.touch; }, get _dbg() { return { hands: hands.map(h => ({ pinned: h.pinned, pull: h.pull, D: h.D.toArray().map(v => +v.toFixed(2)) })), tearP, st: { ooze: st.ooze, hard: st.hard, bouncy: st.bouncy } }; } };
 })();

@@ -10,7 +10,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // 材料ID→量 の辞書から、判定に必要な数字をまとめる
 function mixFromAmt(amt) {
-  const m = { glue: 0, borax: 0, water: 0, soap: 0, glitter: 0, paint: 0, stabSum: 0 };
+  const m = { glue: 0, borax: 0, water: 0, soap: 0, glitter: 0, paint: 0, snow: 0, glow: 0, stabSum: 0 };
   for (const id in amt) {
     const q = amt[id]; if (!(q > 0)) continue;
     const it = ITEMS[id]; if (!it) continue;
@@ -20,6 +20,8 @@ function mixFromAmt(amt) {
     else if (it.kind === 'soap') m.soap += q;
     else if (it.kind === 'glitter') m.glitter += q;
     else if (it.kind === 'paint') m.paint += q;
+    else if (it.kind === 'snow') m.snow += q;
+    else if (it.kind === 'glow') m.glow += q;
   }
   m.stab = m.glue > 0 ? m.stabSum / m.glue : 0.8;
   m.total = m.glue + m.borax + m.water + m.soap;
@@ -82,9 +84,10 @@ function colorName(hex, hasPaint) {
   return n;
 }
 
-function slimeName(traits, hex, hasPaint, sp) {
+function slimeName(traits, hex, hasPaint, sp, crunch, gl) {
   const ts = TRAITS.filter(t => traits[t] > 0).map(t => TRAIT_NAME[t]).join('');
-  return (sp >= 2 ? 'キラキラ' : '') + colorName(hex, hasPaint) + 'の' + (ts || 'ノーマル') + 'スライム';
+  const pre = gl >= 1 ? 'ひかる' : crunch >= 0.15 ? 'シャリシャリ' : sp >= 2 ? 'キラキラ' : '';
+  return pre + colorName(hex, hasPaint) + 'の' + (ts || 'ノーマル') + 'スライム';
 }
 
 // 判定。stir は混ぜ具合（0〜、1で十分）
@@ -115,8 +118,9 @@ function judge(amt, stir, env) {
   const q = qs >= 0.97 ? 'S' : qs >= 0.85 ? 'A' : qs >= 0.7 ? 'B' : 'C';
 
   const color = mixColor(amt), hs = hsl(color);
-  const sl = { traits, q, qs, color, sp, ps, sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100 };
-  sl.name = slimeName(traits, color, m.paint > 0, sp);
+  const sn = m.snow / m.total * 100, gl = m.glow / m.total * 100;   // 100mlあたりの回数
+  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100 };
+  sl.name = slimeName(traits, color, m.paint > 0, sp, sl.crunch, gl);
   sl.fair = fairPrice(sl);
   return { ...out, ok: true, slime: sl, jars: Math.floor(m.total / JAR_ML) };
 }
@@ -125,6 +129,8 @@ function fairPrice(sl) {
   let mult = 1, n = 0;
   for (const t of TRAITS) { const s = sl.traits[t] || 0; if (s > 0) { mult *= 1 + 1.6 * s; n++; } }
   if (n >= 2) mult *= 1.25;
+  mult *= 1 + 0.7 * (sl.crunch || 0);                            // スノーパウダー：入れるほど高くなる
+  const gl = sl.gl || 0; mult *= 1 + 0.15 * gl + 0.06 * gl * gl;  // 蓄光パウダー：入れすぎると、とんでもなく高くなる
   return Math.round(BASE_PRICE * mult * QMULT[sl.q] / 10) * 10;
 }
 

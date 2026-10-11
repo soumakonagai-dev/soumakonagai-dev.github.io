@@ -108,6 +108,7 @@ function customerBuy(typeId) {
     const st = sl.sid && S.slimes.find(x => x.id === sl.sid);
     if (!st || st.count <= 0) return;
     let like = type.like(st); if (S.trend && st.traits[S.trend] > 0) like *= 1.25;
+    if (typeId !== 'asmr') like *= 1 - 0.4 * (st.crunch || 0);   // シャリシャリは高くなるぶん、ふつうのお客さんには売れにくい
     const willing = st.fair * like * rnd(0.9, 1.2) * bonus;
     if (sl.price <= willing && sl.price <= type.budget) { const u = willing - sl.price; if (u > bu) { bu = u; best = { i, st, like, price: sl.price }; } }
   });
@@ -179,10 +180,10 @@ function buyerRun() {
 // ---------- スライムの登録 ----------
 function comboKey(traits) { return TRAITS.filter(t => traits[t] > 0).join('+') || 'normal'; }
 function addSlimeStack(sl, count) {
-  const sig = sl.name + sl.q + sl.color + TRAITS.map(t => Math.round((sl.traits[t] || 0) * 20)).join('');
+  const sig = sl.name + sl.q + sl.color + TRAITS.map(t => Math.round((sl.traits[t] || 0) * 20)).join('') + Math.round((sl.crunch || 0) * 10) + '|' + Math.round((sl.gl || 0) * 2);
   let st = S.slimes.find(x => x.sig === sig);
   if (st) st.count += count;
-  else { st = { id: S.nid++, sig, name: sl.name, traits: sl.traits, color: sl.color, sp: sl.sp, sat: sl.sat, light: sl.light, q: sl.q, fair: sl.fair, count }; S.slimes.push(st); }
+  else { st = { id: S.nid++, sig, name: sl.name, traits: sl.traits, color: sl.color, sp: sl.sp, sn: sl.sn || 0, gl: sl.gl || 0, crunch: sl.crunch || 0, sat: sl.sat, light: sl.light, q: sl.q, fair: sl.fair, count }; S.slimes.push(st); }
   S.dex.combos[comboKey(sl.traits)] = (S.dex.combos[comboKey(sl.traits)] || 0) + count;
   S.dex.made += count;
   return st;
@@ -344,7 +345,7 @@ const UI = (function () {
     sfx('ok'); const sl = res.slime;
     openUI(() => `<h2>🎉 スライムが完成！</h2>
       <div class="rescard">${swatch(sl.color, sl.sp).replace('class="sw"', 'class="sw big"')}
-        <div class="grow"><input id="slName" value="${esc(sl.name)}" maxlength="20"><br>${rankTag(sl.q)} ${tags(sl)}<br>
+        <div class="grow"><input id="slName" value="${esc(sl.name)}" maxlength="30"><br>${rankTag(sl.q)} ${tags(sl)}<br>
         <small class="sub">${sl.dry ? '水がノリより少なくて、ごわごわ…（水はノリより多めがうまくいく）　' : ''}${sl.rough ? 'ラメが多すぎてザラザラ…　' : ''}${sl.stained ? '絵具が多くて手に色がつきそう…　' : ''}</small></div></div>
       <div class="card"><div class="row between"><span>できた数</span><b>${res.jars}個（${JAR_ML}mlずつ）</b></div>
       <div class="row between"><span>目安の値段</span><b>${yen(sl.fair)}</b></div>
@@ -527,7 +528,8 @@ const UI = (function () {
       <li>洗濯ノリを基準に、ホウ砂水・水・泡の<b>割合</b>が大事。本物と同じで、<b>水はノリより多め</b>（ノリ1：水2くらい）がうまくいく。入れすぎると失敗、ギリギリを攻めると個性派スライムになって高く売れる。</li>
       <li>左のかべの<b>棚</b>に並べて値段をつける。お客さんは好みと値段で買っていく。</li>
       <li>材料がなくなったら、町の<b>お店</b>へ仕入れに行こう。</li>
-      <li>お金がたまったら<b>事務机</b>で設備を強化したり、従業員を雇おう。</li></ol>
+      <li>お金がたまったら<b>事務机</b>で設備を強化したり、従業員を雇おう。</li>
+      <li>100円ショップの<b>スノーパウダー</b>（シャリシャリ）と<b>蓄光パウダー</b>（暗いところで光る。子供・子連れに人気）は、入れすぎても失敗しないけど、そのぶん値段が高くなる。</li></ol>
       <small class="sub">営業時間は10:00〜19:00。お店にいないとき、店番がいないとお客さんは帰ってしまう。</small></div>
       <div class="row end"><button class="main" data-act="close">はじめる</button></div>`, {});
   }
@@ -565,6 +567,8 @@ function boot() {
   document.getElementById('wsDump').onclick = () => Workshop.dump();
   document.getElementById('wsExit').onclick = () => Workshop.exit();
   document.getElementById('wsTouchExit').onclick = () => Workshop.exit();
+  for (const id of ['wsDark', 'wsDark2']) document.getElementById(id).onclick = () => Workshop.toggleDark();
+  document.getElementById('wsTwo').onclick = () => Workshop.toggleTwo();
   document.getElementById('btnHelp').onclick = () => { if (started && !UI.isOpen()) UI.howto(); };
   let last = performance.now(), acc = 0, sec = 0, saveT = 0;
   function loop(now) {

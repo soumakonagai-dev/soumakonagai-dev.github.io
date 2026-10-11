@@ -91,7 +91,10 @@
   #wsTouch{position:fixed;inset:0;display:none;z-index:12;pointer-events:none;flex-direction:column;justify-content:space-between;align-items:center;padding:56px 10px 14px}
   #wsTouch>*{pointer-events:auto}
   #wsTouch .tcard{background:#fffaf0ec;border:2px solid var(--line);border-radius:16px;padding:8px 14px;text-align:center;max-width:min(520px,94vw);line-height:1.6}
-  #wsTouch .tn{font-size:18px}#wsTouch #wsTouchExit{font-size:18px;padding:10px 34px;border-radius:30px}
+  #wsTouch .tn{font-size:18px}#wsTouch #wsTouchExit{font-size:18px;padding:10px 30px;border-radius:30px}
+  #wsTouch .tbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+  #wsTouch .tbar button.on,#wsBottom button.on{background:#2b3358;color:#fff;border-color:#8fa0ff}
+  body.touch #wsTwo{display:none}
   /* スマホ・タッチ操作 */
   #touchUI{display:none}
   body.touch #touchUI{display:block}
@@ -158,6 +161,7 @@
     <div id="wsStir"></div>
     <button class="main" id="wsFinish">✅ 完成！</button>
     <button class="danger" id="wsDump">🗑 すてる</button>
+    <button id="wsDark">🌙 暗くする</button>
     <button id="wsExit">もどる</button>
   </div>
 </div>
@@ -169,7 +173,7 @@
 </div>
 <div id="wsTouch">
   <div class="tcard"><b class="tn"></b><div class="tl"></div></div>
-  <button class="main" id="wsTouchExit">✔ もどる</button>
+  <div class="tbar"><button id="wsTwo">🖐 両手モード</button><button id="wsDark2">🌙 暗くする</button><button class="main" id="wsTouchExit">✔ もどる</button></div>
 </div>
 <div id="modal"></div>
 
@@ -184,11 +188,11 @@
 <script>(function(){var l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
 <script id="noctx">addEventListener('contextmenu', function (e) { e.preventDefault(); });</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=86261d63"></script>
-<script src="js/slime.js?v=86261d63"></script>
-<script src="js/audio.js?v=86261d63"></script>
-<script src="js/world.js?v=86261d63"></script>
-<script src="js/workshop.js?v=86261d63"></script>
-<script src="js/game.js?v=86261d63"></script>
+<script src="js/data.js?v=b6e7e8a7"></script>
+<script src="js/slime.js?v=b6e7e8a7"></script>
+<script src="js/audio.js?v=b6e7e8a7"></script>
+<script src="js/world.js?v=b6e7e8a7"></script>
+<script src="js/workshop.js?v=b6e7e8a7"></script>
+<script src="js/game.js?v=b6e7e8a7"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ const World = (function () {
   const C = { yaw: 0, pitch: 0.55, dist: 9 };
   const keys = {};
   const joyV = { x: 0, z: 0 }; let runOn = false;
+  let manualDark = 0, darkV = 0, dayK = 1; const lt = { sun: 1, hemi: 1, lamp: 0 }, glowMats = [];
   const mats = {};
   const GEO = { box: new T.BoxGeometry(1, 1, 1), cyl: new T.CylinderGeometry(1, 1, 1, 20), sph: new T.SphereGeometry(1, 20, 14) };
   const mat = (c, o) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85 }, o || {}));
@@ -349,6 +350,7 @@ const World = (function () {
     const glass = new T.Mesh(jarGeo, new T.MeshPhysicalMaterial({ color: 0xeaf8ff, transparent: true, opacity: 0.14, roughness: 0.05, envMap: envTex, envMapIntensity: 0.35, depthWrite: false }));
     glass.position.y = 0.23; g.add(glass);
     const sm = new T.MeshPhysicalMaterial({ color, roughness: tr.fuwafuwa ? 0.65 : 0.12, clearcoat: tr.fuwafuwa ? 0 : 0.7, clearcoatRoughness: 0.12, envMap: envTex, envMapIntensity: 0.3, emissive: color, emissiveIntensity: 0.22 });
+    if (st && (st.gl || 0) >= 0.3) { sm.emissive.set(0x9dff9a).lerp(new T.Color(color), 0.25); sm.emissiveIntensity = 0.05; glowMats.push({ mat: sm, lv: Math.min(1, st.gl / 1.2) }); }
     const sl = new T.Mesh(new T.CylinderGeometry(0.26, 0.26, tr.torotoro ? 0.3 : 0.34, 20), sm); sl.position.y = 0.2; sl.castShadow = true; g.add(sl);
     const top = (sx, sy, sz, y, mat) => { const t = new T.Mesh(GEO.sph, mat || sm); t.scale.set(sx, sy, sz); t.position.y = y; t.castShadow = true; g.add(t); return t; };
     if (tr.fuwafuwa) { const wm = sm.clone(); wm.color = new T.Color(color).lerp(new T.Color(0xffffff), 0.45); top(0.27, 0.2, 0.27, 0.38, wm); for (let i = 0; i < 6; i++) top(0.05, 0.05, 0.05, 0.36, wm).position.set(Math.cos(i * 1.1) * 0.13, 0.37 + (i % 3) * 0.03, Math.sin(i * 1.1) * 0.13); }
@@ -356,6 +358,7 @@ const World = (function () {
     else if (tr.nettori) { const c = new T.Mesh(new T.ConeGeometry(0.13, 0.42, 12), sm); c.position.y = 0.56; c.castShadow = true; g.add(c); }
     else if (tr.torotoro) { top(0.2, 0.05, 0.2, 0.3); const d1 = new T.Mesh(new T.CylinderGeometry(0.035, 0.035, 0.22, 8), sm); d1.position.set(0.15, 0.22, 0.1); g.add(d1); top(0.045, 0.05, 0.045, 0.1).position.set(0.15, 0.1, 0.1); }
     else top(0.26, 0.08, 0.26, 0.36);
+    for (let i = 0; i < Math.round(((st && st.crunch) || 0) * 12); i++) { const a = i * 2.1; sph(0.018, 0xffffff, Math.cos(a) * 0.2, 0.12 + (i % 5) * 0.06, Math.sin(a) * 0.2, g).castShadow = false; }
     if (!(tr.nettori || tr.fuwafuwa)) { const lid = box(0.52, 0.07, 0.52, 0xffffff, 0, 0.46, 0, g); lid.scale.set(0.56, 0.07, 0.56); lid.position.y = 0.5; }
     for (let i = 0; i < Math.min(10, Math.round(sparkle * 2)); i++) {
       const a = i * 2.4; sph(0.022, 0xffffff, Math.cos(a) * 0.16, 0.08 + (i % 5) * 0.055, Math.sin(a) * 0.16, g, { emissive: 0xfff2b0, emissiveIntensity: 1 }).castShadow = false;
@@ -368,6 +371,7 @@ const World = (function () {
   }
   function refreshShelf() {
     if (!shelfG) return;
+    glowMats.length = 0;
     while (shelfG.children.length) { const c = shelfG.children.pop(); c.traverse(o => { if (o.material && o.material.map) o.material.map.dispose(); }); }
     const ox = areas.shop.slotBase;
     S.shelf.forEach((sl, i) => {
@@ -501,19 +505,22 @@ const World = (function () {
     canvas.addEventListener('pointerdown', e => {
       try { canvas.setPointerCapture(e.pointerId); } catch (_) { }
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (Workshop.touching) { Workshop.pointer(e, 'down'); return; }
       if (ptrs.size === 2) { const [p, q] = [...ptrs.values()]; pinch0 = Math.hypot(p.x - q.x, p.y - q.y) || 1; zoom0 = C.dist; if (Workshop.active) Workshop.pointer(e, 'up'); drag = null; return; }
       if (ptrs.size > 2) return;
       drag = { x: e.clientX, y: e.clientY }; if (Workshop.active) Workshop.pointer(e, 'down');
     });
     canvas.addEventListener('pointermove', e => {
+      const prev = ptrs.get(e.pointerId);
       if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (Workshop.touching) { Workshop.pointer(e, 'move', prev ? e.clientX - prev.x : 0, prev ? e.clientY - prev.y : 0); return; }
       if (ptrs.size >= 2) { const [p, q] = [...ptrs.values()]; C.dist = clamp(zoom0 * pinch0 / (Math.hypot(p.x - q.x, p.y - q.y) || 1), 4, 22); return; }
       if (!drag) { if (Workshop.active) Workshop.pointer(e, 'hover'); return; }
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY };
       if (Workshop.active) { Workshop.pointer(e, 'move', dx, dy); return; }
       C.yaw -= dx * 0.006; C.pitch = clamp(C.pitch + dy * 0.004, 0.12, 1.25);
     });
-    const up = e => { const was = ptrs.size; ptrs.delete(e.pointerId); if (was >= 2) { drag = null; return; } drag = null; if (Workshop.active) Workshop.pointer(e, 'up'); };
+    const up = e => { if (Workshop.touching) { ptrs.delete(e.pointerId); Workshop.pointer(e, 'up'); return; } const was = ptrs.size; ptrs.delete(e.pointerId); if (was >= 2) { drag = null; return; } drag = null; if (Workshop.active) Workshop.pointer(e, 'up'); };
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('wheel', e => { C.dist = clamp(C.dist + e.deltaY * 0.01, 4, 22); e.preventDefault(); }, { passive: false });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -548,7 +555,7 @@ const World = (function () {
     skyMat.uniforms.top.value.copy(top); skyMat.uniforms.hor.value.copy(col);
     cloudMat.color.set(0x2a2f48).lerp(new T.Color(0xffffff), d).lerp(new T.Color(0xb9c0c9), wet * 0.6 * d).lerp(new T.Color(0xffc9a8), dusk * 0.4);
     lamp.intensity = areas[area] && areas[area].indoor ? 0.1 + 0.5 * (1 - d) : 0;
-    rainOn = weather === 'rain';
+    rainOn = weather === 'rain'; dayK = d; lt.sun = sun.intensity; lt.hemi = hemi.intensity; lt.lamp = lamp.intensity;
   }
 
   // ---------- 影・空・タイトル ----------
@@ -643,6 +650,9 @@ const World = (function () {
       p.needsUpdate = true; rain.position.set(cam.position.x, 0, cam.position.z);
     }
     Workshop.update(dt, tNow);
+    darkV += (manualDark - darkV) * Math.min(1, dt * 4);
+    sun.intensity = lt.sun * (1 - 0.93 * darkV); hemi.intensity = lt.hemi * (1 - 0.9 * darkV); lamp.intensity = lt.lamp * (1 - 0.95 * darkV);
+    const dk = Math.max(darkV, (1 - dayK) * 0.55); for (const g of glowMats) g.mat.emissiveIntensity = 0.05 + 1.1 * g.lv * dk;
     followSun(P.x, P.z); skyDome.position.copy(cam.position); driftClouds(dt);
     renderer.render(scene, cam);
   }
@@ -654,6 +664,6 @@ const World = (function () {
       area = name; for (const k in areas) areas[k].group.visible = k === name;
       const sp = areas[name].spawn; P.x = sp.x; P.z = sp.z; P.rot = sp.rot; C.yaw = 0; C.pitch = areas[name].indoor ? 0.9 : 0.36; C.dist = areas[name].indoor ? 10 : 15;
     },
-    get camera() { return cam; }, get scene() { return scene; }, get env() { return envTex; },
+    get camera() { return cam; }, get scene() { return scene; }, get env() { return envTex; }, get dark() { return Math.max(darkV, (1 - dayK) * 0.55); }, get darkOn() { return !!manualDark; }, setDark(on) { manualDark = on ? 1 : 0; },
   };
 })();
