@@ -543,7 +543,7 @@ const Workshop = (function () {
   }
 
   function camera(cam, dt) {
-    const port = cam.aspect < 0.9, tp = new T.Vector3(ws.x, port ? 3.5 : 3.2, ws.z + (port ? 4.6 : 4.1)), lk = new T.Vector3(ws.x, port ? 1.05 : 1.2, ws.z - 0.1);
+    const port = cam.aspect < 0.9, tp = new T.Vector3(ws.x, st.touch && port ? 2.7 : port ? 3.5 : 3.2, ws.z + (st.touch && port ? 3.1 : port ? 4.6 : 4.1)), lk = new T.Vector3(ws.x, port ? 1.05 : 1.2, ws.z - 0.1);
     if (!camInit) { camInit = true; lastLook.copy(lk).setY(1.3); }
     const k = 1 - Math.exp(-5 * dt);
     cam.position.lerp(tp, k); lastLook.lerp(lk, k); cam.lookAt(lastLook);

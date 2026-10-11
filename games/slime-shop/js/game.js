@@ -94,7 +94,7 @@ function tickMinute() {
     if (Math.random() < rate / 60) arrival();
   }
   if (open && Math.random() < 1.2 / 60) vipVisit();
-  snsTick();
+  snsTick(); Biz.festTick();
   if (S.min >= 540 && S.min < 1140) crafterTick();
   if (S.min >= 1440) endDay();
 }
@@ -371,6 +371,7 @@ function startGame(state) {
 function onAreaChange(name, prev) {
   if (Adventure.isAdv(prev) && !Adventure.isAdv(name)) Adventure.end();
   if (Adventure.isAdv(name)) Adventure.enter(name, prev);
+  if (name === 'fest') Biz.enterFest();
   if (name === 'shop') {
     const moved = stowBag(); World.refreshShelf(); World.refreshStaff();
     if (moved > 0) UI.toast('持ち帰った材料を棚にしまった');
@@ -493,12 +494,12 @@ const UI = (function () {
       const head = `<div class="hd"><h2>📱 スラグラム</h2><button data-act="close">× とじる</button></div>
         <div class="prof"><div class="avatar">🧴</div><div class="pstats"><div><b>${sn.posts.length}</b><small>投稿</small></div><div><b>${sn.followers}</b><small>フォロワー</small></div><div><b>${sn.likesTotal}</b><small>いいね</small></div></div></div>
         <div class="sub">スライム商店　＠slime_shoten　${boost ? `｜ 🎯 今日の注目：${boost}（お客さん増）` : ''}${sn.viralDay === S.day ? '｜ 🔥バズり中！' : ''}</div>
-        <div class="tabs"><button class="${snsTab === 'feed' ? 'on' : ''}" data-act="stab" data-t="feed">投稿</button><button class="${snsTab === 'new' ? 'on' : ''}" data-act="stab" data-t="new">＋ 新しい投稿（あと${left}回）</button><button class="${snsTab === 'ugc' ? 'on' : ''}" data-act="stab" data-t="ugc">お客さんの反応</button><button class="${snsTab === 'sp' ? 'on' : ''}" data-act="stab" data-t="sp">スポンサー</button><button class="${snsTab === 'nt' ? 'on' : ''}" data-act="stab" data-t="nt">通知${sn.unread ? '(' + sn.unread + ')' : ''}</button></div>`;
+        <div class="tabs"><button class="${snsTab === 'feed' ? 'on' : ''}" data-act="stab" data-t="feed">投稿</button><button class="${snsTab === 'new' ? 'on' : ''}" data-act="stab" data-t="new">＋ 新しい投稿（あと${left}回）</button><button class="${snsTab === 'ugc' ? 'on' : ''}" data-act="stab" data-t="ugc">お客さんの反応</button><button class="${snsTab === 'sp' ? 'on' : ''}" data-act="stab" data-t="sp">スポンサー</button><button class="${snsTab === 'nt' ? 'on' : ''}" data-act="stab" data-t="nt">通知${sn.unread ? '(' + sn.unread + ')' : ''}</button><button class="${snsTab === 'ev' ? 'on' : ''}" data-act="stab" data-t="ev">🎪イベント</button></div>`;
       let body = '';
       if (snsTab === 'feed') {
         body = sn.posts.length ? `<div class="sgrid">${sn.posts.map(p => `<div class="stile" data-act="postopen" data-id="${p.id}"><img src="${p.img}" alt=""><span class="lk">❤ ${p.likes}</span>${p.viral ? '<span class="vr">🔥</span>' : ''}${p.done ? '' : '<span class="pg">…</span>'}</div>`).join('')}</div>` : '<p class="sub">まだ投稿がありません。「＋ 新しい投稿」からスライムを紹介しよう！ いいねがつくと、フォロワーが増えて、お客さんも増えるよ。</p>';
       } else if (snsTab === 'new') body = composerHTML(left);
-      else if (snsTab === 'sp') body = Biz.sponsorHTML(); else if (snsTab === 'nt') body = Biz.notifHTML();
+      else if (snsTab === 'sp') body = Biz.sponsorHTML(); else if (snsTab === 'nt') body = Biz.notifHTML(); else if (snsTab === 'ev') body = Biz.eventsHTML();
       else body = (sn.ugc.length ? sn.ugc.map(u => `<div class="ug ${u.good ? 'g' : ''}"><span class="ic2">${u.icon}</span><div class="grow"><b>${esc(u.user)}</b>${u.good ? '' : ' <span class="tag">ひとこと</span>'}<br>${esc(u.text)}<br><small class="sub">❤ ${u.likes}・${u.day}日目</small></div></div>`).join('') : '<p class="sub">お客さんの投稿はまだありません。お店で買い物をしてくれた人や、買わずに帰った人が、感想を書き込むことがあります。ここで反応を見て、値段や商品を考えよう。</p>');
       return head + `<div class="scroll">${body}</div>`;
     }, { cls: 'wide' });
@@ -745,7 +746,7 @@ const UI = (function () {
   function howto() {
     openUI(() => `<h2>⚔🧴 スラバト商店へようこそ！</h2>
       <div class="card"><b>あそびかた</b><ol>
-      <li><b>WASD</b>で歩く、<b>ドラッグ</b>で視点、<b>ホイール</b>でズーム、<b>Shift</b>でダッシュ。光る▼の近くで<b>Eキー</b>。</li>
+      ${document.body.classList.contains('touch') ? '<li>左下の<b>スティック</b>で歩く、画面を<b>ドラッグ</b>で視点、<b>2本指</b>でズーム。光る▼の近くで、右下の<b>黄色いボタン</b>。山では<b>⚔ボタン</b>で攻撃。</li>' : '<li><b>WASD</b>で歩く、<b>ドラッグ</b>で視点、<b>ホイール</b>でズーム、<b>Shift</b>でダッシュ。光る▼の近くで<b>Eキー</b>。</li>'}
       <li>お店の奥の<b>工房</b>でスライムを作る。材料のボタンを<b>長押し</b>で注ぎ、画面を<b>ドラッグ</b>してこねて、<b>完成</b>！</li>
       <li>洗濯ノリを基準に、ホウ砂水・水・泡の<b>割合</b>が大事。本物と同じで、<b>水はノリより多め</b>（ノリ1：水2くらい）がうまくいく。入れすぎると失敗、ギリギリを攻めると個性派スライムになって高く売れる。</li>
       <li>左のかべの<b>棚</b>に並べて値段をつける。お客さんは好みと値段で買っていく。</li>
@@ -769,7 +770,8 @@ function updateHUD() {
   document.getElementById('hud').innerHTML =
     `<span class="chip money">${yen(S.money)}</span><span class="chip">${S.day}日目 <b>${fmtTime(S.min)}</b> ${open ? '<em class="open">営業中</em>' : '<em>準備中</em>'}</span>
      <span class="chip">${WEATHERS[S.weather].icon}${WEATHERS[S.weather].name}</span><span class="chip">${'★'.repeat(rl)}${'☆'.repeat(5 - rl)}</span>
-     <span class="chip">🎒${bagW}/${bagCap()}</span>${S.trend ? `<span class="chip">📈${TRAIT_NAME[S.trend]}</span>` : ''}${warn}`;
+     <span class="chip">🎒${bagW}/${bagCap()}</span>${S.trend ? `<span class="chip">📈${TRAIT_NAME[S.trend]}</span>` : ''}${Biz.surgeOn() ? `<span class="chip surge">📣 配信効果！お客さん殺到中</span>` : ''}${Biz.eventToday() ? `<span class="chip surge">🎪 ${Biz.eventToday().name}開催中！${Biz.fireworksOn() ? ' 🎆' : ''}</span>` : ''}${Biz.boothStatus()}${warn}`;
+  document.getElementById('btnSns').dataset.n = S.sns.unread || 0;
 }
 function boot() {
   UI.bind();

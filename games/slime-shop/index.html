@@ -21,7 +21,7 @@
   h2{margin:0 0 8px;font-size:21px}h3{margin:14px 0 6px}
   .warn{color:var(--bad);font-weight:bold}
 
-  #hud{position:fixed;top:8px;left:8px;right:56px;display:flex;gap:6px;flex-wrap:wrap;z-index:20;pointer-events:none}
+  #hud{position:fixed;top:8px;left:8px;right:104px;display:flex;gap:6px;flex-wrap:wrap;z-index:20;pointer-events:none}
   .chip{background:#fffaf0e8;border:2px solid var(--line);border-radius:20px;padding:3px 12px;font-size:14px;box-shadow:0 2px 6px #0003}
   .chip.money{color:#b87800;font-weight:bold;font-size:16px}
   .chip em{font-style:normal;font-size:12px;border-radius:8px;padding:0 6px;background:#ddd;margin-left:4px}.chip em.open{background:#bff0d4;color:#0a6a3a}
@@ -55,10 +55,10 @@
   .gauge i{position:absolute;top:-4px;width:4px;height:22px;background:#222;border-radius:2px;transform:translateX(-2px)}
 
   /* モーダル */
-  #modal{position:fixed;inset:0;background:#0007;z-index:30;display:none;align-items:center;justify-content:center;padding:14px}
-  .win{background:var(--panel);border:3px solid var(--line);border-radius:20px;padding:16px 18px;width:min(560px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 10px 40px #0008;user-select:text;-webkit-user-select:text}
+  #modal{position:fixed;inset:0;background:#0007;z-index:30;display:none;align-items:center;justify-content:center;padding:14px;max-height:100dvh}
+  .win{background:var(--panel);border:3px solid var(--line);border-radius:20px;padding:16px 18px;width:min(560px,100%);max-height:94vh;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;box-shadow:0 10px 40px #0008;user-select:text;-webkit-user-select:text}
   .win.wide{width:min(760px,100%)}
-  .win .scroll{overflow:auto;margin-top:8px;padding-right:4px}
+  .win .scroll{overflow:auto;margin-top:8px;padding-right:4px;min-height:0;flex:0 1 auto}
   .hd{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}.row.between{justify-content:space-between}.row.end{justify-content:flex-end;margin-top:12px}
   .grow{flex:1;min-width:0}
@@ -108,16 +108,20 @@
   #btnAct{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(40px,calc(env(safe-area-inset-bottom) + 16px));z-index:25;display:none;border-radius:34px;padding:16px 20px;font-size:16px;font-weight:bold;max-width:60vw;background:linear-gradient(#ffe36a,#f0b824);border-color:#fff1a8;touch-action:none;box-shadow:0 6px 16px #0006}
   @media (max-width:820px),(pointer:coarse){
     .chip{font-size:12px;padding:2px 9px}.chip.money{font-size:14px}
-    #hud{gap:4px;right:50px}
-    #wsItems{left:0;right:0;top:auto;bottom:60px;width:auto;max-height:none;flex-direction:row;overflow-x:auto;overflow-y:hidden;border-radius:16px 16px 0 0;padding:6px;gap:6px}
+    #hud{gap:4px;right:100px}
+    #wsItems{left:0;right:0;top:auto;bottom:108px;width:auto;max-height:none;flex-direction:row;overflow-x:auto;overflow-y:hidden;border-radius:16px 16px 0 0;padding:6px;gap:6px}
     .ing{flex:none;min-width:128px;padding:5px 7px;touch-action:pan-x}.ing .nm{font-size:12px}
     #wsRead{left:6px;right:6px;top:42px;width:auto;max-height:38vh;padding:8px 10px}
     #wsRead.mini{max-height:96px;overflow:hidden;position:fixed}
     #wsRead.mini:after{content:"▼ タップでひらく";display:block;text-align:center;font-size:11px;color:var(--sub)}
     #wsBottom{left:6px;right:6px;bottom:6px;transform:none;justify-content:space-between;padding:6px 8px;gap:6px}
     #wsStir{min-width:0;flex:1}#wsStir small{display:none}#wsStir span{white-space:nowrap;font-size:12px}
-    #wsBottom{flex-wrap:nowrap}
+    #wsBottom{flex-wrap:wrap;justify-content:center}
+    #wsStir{flex:1 1 100%}
+    #wsBottom button{flex:1 1 auto}
     body.in-ws #hud .chip:nth-child(n+3){display:none}
+    body.in-adv #hud .chip:nth-child(n+4),body.in-adv #hud .warn{display:none}
+    #advHUD{top:52px}
     #wsBottom button{padding:8px 10px;font-size:14px}
     .win{padding:12px 13px;border-radius:16px}
     .item{flex-wrap:wrap;gap:6px}.item .price{margin-left:auto}
@@ -217,13 +221,14 @@
 <script>(function(){var l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
 <script id="noctx">addEventListener('contextmenu', function (e) { e.preventDefault(); });</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=c2c5704f"></script>
-<script src="js/slime.js?v=c2c5704f"></script>
-<script src="js/audio.js?v=c2c5704f"></script>
-<script src="js/world.js?v=c2c5704f"></script>
-<script src="js/workshop.js?v=c2c5704f"></script>
-<script src="js/adventure.js?v=c2c5704f"></script>
-<script src="js/game.js?v=c2c5704f"></script>
-<script src="js/biz.js?v=c2c5704f"></script>
+<script src="js/data.js?v=3a2db5a0"></script>
+<script src="js/slime.js?v=3a2db5a0"></script>
+<script src="js/audio.js?v=3a2db5a0"></script>
+<script src="js/world.js?v=3a2db5a0"></script>
+<script src="js/workshop.js?v=3a2db5a0"></script>
+<script src="js/adventure.js?v=3a2db5a0"></script>
+<script src="js/game.js?v=3a2db5a0"></script>
+<script src="js/minigames.js?v=3a2db5a0"></script>
+<script src="js/biz.js?v=3a2db5a0"></script>
 </body>
 </html>

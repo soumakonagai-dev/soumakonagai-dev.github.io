@@ -130,6 +130,7 @@ const Snd = (function () {
     const r = list[(Math.random() * list.length) | 0]; r[1](); return r[0];
   }
   function chime() { [660, 880, 1320].forEach((f, i) => tone({ f0: f, f1: f, dur: 0.4, vol: 0.1, at: i * 0.1 })); }
+  function boom() { tone({ f0: 110, f1: 38, dur: 0.5, vol: 0.2 }); burst({ f0: 900, f1: 90, dur: 0.45, vol: 0.18 }); for (let i = 0; i < 7; i++) burst({ type: 'highpass', f0: rnd(3000, 8000), f1: 2500, dur: 0.05, vol: 0.06, at: 0.12 + i * 0.05 + Math.random() * 0.05 }); }
   function swoosh(v) { burst({ type: 'bandpass', f0: 500, f1: 2600, q: 1.2, dur: 0.14, vol: 0.1 * (v || 1) }); }
-  return { squish, release, snap, rare, chime, swoosh, stretchStart, stretchUpdate, stretchStop, kindOf };
+  return { squish, release, snap, rare, chime, boom, swoosh, stretchStart, stretchUpdate, stretchStop, kindOf };
 })();
