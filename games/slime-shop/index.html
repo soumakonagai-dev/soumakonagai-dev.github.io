@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#2fae7a">
-<title>スライムショップ</title>
+<title>スラバト商店</title>
 <style>
   :root{--bg:#10241c;--panel:#fffaf0;--panel2:#f1ead8;--line:#e3d8bd;--text:#3b2a1c;--sub:#8a7a63;--accent:#2fae7a;--accent2:#ff8fb8;--ok:#2fae7a;--bad:#e5525a;--gold:#f0a824}
   *{box-sizing:border-box}
@@ -68,6 +68,7 @@
   .price{color:#b87800;white-space:nowrap}
   .tag{display:inline-block;border-radius:8px;padding:0 8px;font-size:12px;background:var(--panel2);border:1px solid var(--line);margin:1px 3px 1px 0}
   .tag.sale{background:#ffe3e3;border-color:#f0a0a0;color:#b02a32}
+  .t-ft{background:#f1e6ff}
   .t-nettori{background:#e5f3ff}.t-danryoku{background:#ffe9e9}.t-torotoro{background:#e8f9ee}.t-fuwafuwa{background:#fff2d9}
   .sw{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;border:2px solid #0002;vertical-align:middle;font-size:12px}.sw.big{width:64px;height:64px;font-size:26px;flex:none}
   .rank{display:inline-block;min-width:22px;text-align:center;border-radius:8px;font-weight:bold;padding:0 5px;color:#fff}
@@ -127,6 +128,28 @@
   }
   #ask{position:fixed;inset:0;z-index:90;background:#000a;display:flex;align-items:center;justify-content:center;padding:14px}
   #ask .win{width:min(420px,100%)}#ask .askmsg{font-size:16px;line-height:1.7;margin:4px 0 8px}
+  #btnSns{position:fixed;top:8px;right:54px;z-index:21;width:40px;height:40px;border-radius:50%;padding:0;font-size:20px}
+  .prof{display:flex;align-items:center;gap:14px;margin:6px 0}.avatar{width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,#ff8fb8,#ffd23f,#62d6a8);display:grid;place-items:center;font-size:30px;border:3px solid #fff;box-shadow:0 0 0 2px #e3d8bd}
+  .pstats{display:flex;gap:18px;flex:1;justify-content:space-around;text-align:center}.pstats b{display:block;font-size:18px}.pstats small{color:var(--sub)}
+  .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.stile{position:relative;aspect-ratio:1;cursor:pointer;overflow:hidden;border-radius:6px;background:#eee}.stile img{width:100%;height:100%;object-fit:cover;display:block}
+  .stile .lk{position:absolute;left:4px;bottom:4px;background:#000a;color:#fff;border-radius:10px;padding:0 7px;font-size:12px}.stile .vr{position:absolute;right:4px;top:2px}.stile .pg{position:absolute;right:6px;bottom:4px;color:#fff;text-shadow:0 1px 3px #000}
+  .comp{display:flex;gap:12px;align-items:flex-start;margin:8px 0}.cimg{width:130px;height:130px;border-radius:12px;object-fit:cover;border:2px solid var(--line)}.bigimg{width:100%;max-height:46vh;object-fit:contain;border-radius:12px;background:#eee}
+  .chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.chips .mini.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .ug{display:flex;gap:8px;align-items:flex-start;background:#fff;border:2px solid var(--line);border-radius:12px;padding:6px 10px;margin:5px 0}.ug.g{border-color:#7fdcae}.ic2{font-size:24px}
+  @media (max-width:820px),(pointer:coarse){#btnSns{right:50px}.comp{flex-direction:column}.cimg{width:100%;height:auto;aspect-ratio:1}}
+  /* 冒険 */
+  #advHUD{position:fixed;left:50%;top:50px;transform:translateX(-50%);z-index:18;display:none;text-align:center;pointer-events:none}
+  #advHP{position:relative;width:min(360px,70vw);height:22px;background:#2a1a1a;border:2px solid #fff;border-radius:12px;overflow:hidden;margin:0 auto}
+  #advHP i{display:block;height:100%;background:linear-gradient(#ff8a8a,#e5525a);width:100%}
+  #advHP span{position:absolute;inset:0;font-size:13px;font-weight:bold;color:#fff;text-shadow:0 1px 3px #000;line-height:20px}
+  #advInfo{margin-top:4px;font-size:13px;color:#fff;text-shadow:0 1px 4px #000;font-weight:bold}
+  #advBoss{position:fixed;left:50%;top:104px;transform:translateX(-50%);z-index:18;display:none;width:min(420px,80vw);text-align:center;color:#fff;text-shadow:0 1px 4px #000;pointer-events:none}
+  #advBoss .bar{height:14px;background:#2a2a1a;border-color:#fff}#advBoss .bar i{background:linear-gradient(#ffe36a,#f0a824)}
+  #btnAtk{display:none;position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(150px,calc(env(safe-area-inset-bottom) + 130px));width:86px;height:86px;border-radius:50%;font-size:38px;padding:0;background:linear-gradient(#ff8a8a,#e5525a);border-color:#fff;z-index:26;touch-action:none;box-shadow:0 6px 16px #0007}
+  body.touch.in-adv #btnAtk{display:block}
+  body.touch.in-adv #btnRun{bottom:max(244px,calc(env(safe-area-inset-bottom) + 226px))}
+  body.touch.in-ui #btnAtk,body.touch.in-ws #btnAtk{display:none}
+  body.hurt:after{content:"";position:fixed;inset:0;box-shadow:inset 0 0 110px 36px #ff2a2aaa;z-index:35;pointer-events:none}
   /* タイトル */
   #title{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
     background:radial-gradient(ellipse 42% 58% at 50% 52%,rgba(6,66,44,.62) 0,rgba(6,66,44,.34) 55%,rgba(6,66,44,0) 100%);text-align:center;backdrop-filter:saturate(1.1)}
@@ -149,9 +172,10 @@
 <canvas id="c"></canvas>
 <div id="hud"></div>
 <button id="btnHelp" title="あそびかた">?</button>
+<button id="btnSns" title="スラグラム">📱</button>
 <div id="prompt"></div>
 <div id="toasts"></div>
-<div id="controls">WASD:歩く　ドラッグ:視点　ホイール:ズーム　Shift:ダッシュ　E:調べる</div>
+<div id="controls">WASD:歩く　ドラッグ:視点　ホイール:ズーム　Shift:ダッシュ　E:調べる　山の中 Space/F:こうげき</div>
 <div id="fade"></div>
 
 <div id="ws">
@@ -173,14 +197,17 @@
 </div>
 <div id="wsTouch">
   <div class="tcard"><b class="tn"></b><div class="tl"></div></div>
-  <div class="tbar"><button id="wsTwo">🖐 両手モード</button><button id="wsDark2">🌙 暗くする</button><button class="main" id="wsTouchExit">✔ もどる</button></div>
+  <div class="tbar"><button id="wsPhoto">📸 撮影して投稿</button><button id="wsTwo">🖐 両手モード</button><button id="wsDark2">🌙 暗くする</button><button class="main" id="wsTouchExit">✔ もどる</button></div>
 </div>
+<div id="advHUD"><div id="advHP" class="hpbar"><i></i><span></span></div><div id="advInfo"></div></div>
+<div id="advBoss"><b>👑 キングスライム</b><div class="bar"><i></i></div></div>
+<button id="btnAtk">⚔</button>
 <div id="modal"></div>
 
 <div id="title">
   <div class="blob"></div>
-  <h1>スライムショップ</h1>
-  <p>分量をはかってスライムを作り、お店で売ろう。入れすぎは失敗、でも<b>ギリギリ</b>を攻めると個性派スライムに！</p>
+  <h1>スラバト商店</h1>
+  <p>いろんな武器で山を冒険して<b>スライムエキス</b>を集め、分量をはかって作ったスライムをお店で売ろう！</p>
   <button class="main" id="btnContinue">つづきから</button>
   <button id="btnNew">はじめから</button>
 </div>
@@ -188,11 +215,12 @@
 <script>(function(){var l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
 <script id="noctx">addEventListener('contextmenu', function (e) { e.preventDefault(); });</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=68cab7c4"></script>
-<script src="js/slime.js?v=68cab7c4"></script>
-<script src="js/audio.js?v=68cab7c4"></script>
-<script src="js/world.js?v=68cab7c4"></script>
-<script src="js/workshop.js?v=68cab7c4"></script>
-<script src="js/game.js?v=68cab7c4"></script>
+<script src="js/data.js?v=e1eb016d"></script>
+<script src="js/slime.js?v=e1eb016d"></script>
+<script src="js/audio.js?v=e1eb016d"></script>
+<script src="js/world.js?v=e1eb016d"></script>
+<script src="js/workshop.js?v=e1eb016d"></script>
+<script src="js/adventure.js?v=e1eb016d"></script>
+<script src="js/game.js?v=e1eb016d"></script>
 </body>
 </html>

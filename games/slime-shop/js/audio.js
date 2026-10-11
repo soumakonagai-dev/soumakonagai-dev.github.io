@@ -51,10 +51,20 @@ const Snd = (function () {
     os.connect(g); g.connect(c.destination); os.start(t); os.stop(t + dur + 0.05);
   }
   // m: 質感 { hard, bouncy, foam, ooze, sticky, crunch }  depth: 0〜1（押した強さ）
-  function kindOf(m) { return m.hard > 0.5 ? 'hard' : m.bouncy > 0.55 && m.foam < 0.4 ? 'boing' : m.foam > 0.4 ? 'puff' : m.sticky > 0.45 ? 'gloop' : m.ooze > 0.4 ? 'stringy' : 'wet'; }
+  function kindOf(m) { if ((m.piri || 0) > 0.45) return 'zap'; if ((m.hiyari || 0) > 0.45) return 'ice'; if ((m.shuwa || 0) > 0.45) return 'fizz'; if ((m.mochi || 0) > 0.45) return 'mochi'; if ((m.hokaho || 0) > 0.45) return 'warm'; return kindBase(m); }
+  function kindBase(m) { return m.hard > 0.5 ? 'hard' : m.bouncy > 0.55 && m.foam < 0.4 ? 'boing' : m.foam > 0.4 ? 'puff' : m.sticky > 0.45 ? 'gloop' : m.ooze > 0.4 ? 'stringy' : 'wet'; }
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function squishFt(k, d) {   // エキスで生まれた新しい感触の音
+    if (k === 'ice') { tone({ f0: 2400, f1: 1500, dur: 0.06, vol: 0.1, type: 'triangle' }); burst({ type: 'bandpass', f0: 5200, f1: 2600, q: 4, dur: 0.09, vol: 0.1 }); tone({ f0: 3300, f1: 3100, dur: 0.2, vol: 0.045, at: 0.03 }); return true; }
+    if (k === 'warm') { burst({ f0: 700, f1: 170, dur: 0.32, vol: 0.1 * d }); tone({ f0: 140, f1: 80, dur: 0.26, vol: 0.1 }); return true; }
+    if (k === 'zap') { burst({ type: 'highpass', f0: 4000, f1: 7500, dur: 0.07, vol: 0.14 }); tone({ f0: 200, f1: 1900, dur: 0.11, vol: 0.08, type: 'sawtooth' }); for (let i = 0; i < 4; i++) burst({ type: 'bandpass', f0: rnd(3000, 8000), f1: 3000, q: 5, dur: 0.02, vol: 0.09, at: 0.05 + i * 0.03 + Math.random() * 0.03 }); return true; }
+    if (k === 'fizz') { burst({ type: 'highpass', f0: 3500, f1: 2000, dur: 0.35, vol: 0.05 }); for (let i = 0; i < 9; i++) burst({ type: 'highpass', f0: rnd(4000, 7000), f1: 3000, dur: 0.03, vol: 0.06, at: i * 0.03 + Math.random() * 0.04 }); return true; }
+    if (k === 'mochi') { tone({ f0: 230, f1: 130, dur: 0.38, vol: 0.14, vib: 7, vibDepth: 0.15 }); burst({ f0: 500, f1: 150, dur: 0.26, vol: 0.08 }); return true; }
+    return false;
+  }
   function squish(m, depth) {
     const k = kindOf(m), d = Math.max(0.2, Math.min(1, depth || 0.6));
-    if (k === 'hard') { tone({ f0: 900, f1: 500, dur: 0.04, vol: 0.1, type: 'triangle' }); burst({ type: 'bandpass', f0: 2500, f1: 800, q: 2, dur: 0.05, vol: 0.12 }); tone({ f0: 140, f1: 90, dur: 0.1, vol: 0.12 * d }); }
+    if (squishFt(k, d)) { /* 新しい感触 */ } else if (k === 'hard') { tone({ f0: 900, f1: 500, dur: 0.04, vol: 0.1, type: 'triangle' }); burst({ type: 'bandpass', f0: 2500, f1: 800, q: 2, dur: 0.05, vol: 0.12 }); tone({ f0: 140, f1: 90, dur: 0.1, vol: 0.12 * d }); }
     else if (k === 'boing') { burst({ f0: 1400, f1: 300, dur: 0.12, vol: 0.12 * d }); tone({ f0: 150 + 80 * d, f1: 420, dur: 0.5, vol: 0.16, vib: 13, vibDepth: 0.22, at: 0.02 }); }
     else if (k === 'puff') { burst({ type: 'highpass', f0: 1800, f1: 700, dur: 0.22, vol: 0.1 * d }); for (let i = 0; i < 3; i++) tone({ f0: 1400 + Math.random() * 1500, f1: 700, dur: 0.03, vol: 0.05, at: 0.04 + i * 0.05 + Math.random() * 0.04 }); }
     else if (k === 'gloop') { burst({ f0: 800, f1: 160, dur: 0.3, vol: 0.14 * d }); tone({ f0: 260, f1: 90, dur: 0.22, vol: 0.14, vib: 22, vibDepth: 0.3 }); tone({ f0: 420, f1: 160, dur: 0.12, vol: 0.08, at: 0.1 }); }
@@ -64,14 +74,24 @@ const Snd = (function () {
   }
   function release(m) {   // はなしたとき
     const k = kindOf(m);
-    if (k === 'boing') tone({ f0: 320, f1: 160, dur: 0.35, vol: 0.14, vib: 15, vibDepth: 0.25 });
+    if (k === 'ice') tone({ f0: 2000, f1: 1200, dur: 0.1, vol: 0.08, type: 'triangle' });
+    else if (k === 'zap') burst({ type: 'highpass', f0: 5000, f1: 8000, dur: 0.05, vol: 0.1 });
+    else if (k === 'fizz') for (let i = 0; i < 5; i++) burst({ type: 'highpass', f0: rnd(4000, 7000), f1: 3000, dur: 0.03, vol: 0.05, at: i * 0.04 });
+    else if (k === 'mochi') tone({ f0: 260, f1: 150, dur: 0.4, vol: 0.13, vib: 9, vibDepth: 0.2 });
+    else if (k === 'warm') burst({ f0: 600, f1: 200, dur: 0.18, vol: 0.07 });
+    else if (k === 'boing') tone({ f0: 320, f1: 160, dur: 0.35, vol: 0.14, vib: 15, vibDepth: 0.25 });
     else if (k === 'hard') tone({ f0: 500, f1: 300, dur: 0.03, vol: 0.08, type: 'triangle' });
     else if (k === 'puff') burst({ type: 'highpass', f0: 1200, f1: 600, dur: 0.12, vol: 0.05 });
     else { burst({ f0: 900, f1: 200, dur: 0.14, vol: 0.09 }); tone({ f0: 240, f1: 110, dur: 0.1, vol: 0.08 }); }
   }
   function snap(m) {      // ちぎれた音
     const k = kindOf(m);
-    if (k === 'hard') { burst({ type: 'highpass', f0: 3500, f1: 1500, dur: 0.07, vol: 0.2 }); tone({ f0: 1100, f1: 300, dur: 0.06, vol: 0.14, type: 'square' }); tone({ f0: 120, f1: 60, dur: 0.12, vol: 0.14, at: 0.01 }); }
+    if (k === 'ice') { for (let i = 0; i < 6; i++) tone({ f0: rnd(1800, 4200), f1: rnd(900, 2000), dur: 0.08, vol: 0.08, type: 'triangle', at: i * 0.025 }); burst({ type: 'highpass', f0: 4000, f1: 1500, dur: 0.14, vol: 0.14 }); }
+    else if (k === 'zap') { burst({ type: 'highpass', f0: 3000, f1: 9000, dur: 0.1, vol: 0.2 }); tone({ f0: 900, f1: 60, dur: 0.18, vol: 0.14, type: 'sawtooth' }); }
+    else if (k === 'fizz') { tone({ f0: 700, f1: 200, dur: 0.08, vol: 0.14 }); burst({ type: 'highpass', f0: 3000, f1: 1500, dur: 0.12, vol: 0.1 }); }
+    else if (k === 'mochi') { tone({ f0: 300, f1: 760, dur: 0.11, vol: 0.13, vib: 10, vibDepth: 0.2 }); tone({ f0: 760, f1: 300, dur: 0.15, vol: 0.1, at: 0.1 }); }
+    else if (k === 'warm') { burst({ f0: 900, f1: 200, dur: 0.18, vol: 0.12 }); tone({ f0: 180, f1: 90, dur: 0.16, vol: 0.1 }); }
+    else if (k === 'hard') { burst({ type: 'highpass', f0: 3500, f1: 1500, dur: 0.07, vol: 0.2 }); tone({ f0: 1100, f1: 300, dur: 0.06, vol: 0.14, type: 'square' }); tone({ f0: 120, f1: 60, dur: 0.12, vol: 0.14, at: 0.01 }); }
     else if (k === 'boing') { tone({ f0: 900, f1: 220, dur: 0.12, vol: 0.14 }); burst({ f0: 2000, f1: 400, dur: 0.1, vol: 0.12 }); }
     else if (k === 'puff') { burst({ type: 'highpass', f0: 2500, f1: 900, dur: 0.12, vol: 0.1 }); }
     else { tone({ f0: 420, f1: 1100, dur: 0.06, vol: 0.12 }); burst({ f0: 1500, f1: 300, dur: 0.16, vol: 0.14, at: 0.02 }); tone({ f0: 300, f1: 120, dur: 0.14, vol: 0.1, at: 0.04, vib: 20, vibDepth: 0.2 }); }
@@ -80,15 +100,15 @@ const Snd = (function () {
   function stretchStart(m) {
     const c = ctx(); if (!c || muted() || loop) return;
     const k = kindOf(m), src = c.createBufferSource(); src.buffer = nb(); src.loop = true;
-    const f = c.createBiquadFilter(); f.type = k === 'puff' ? 'highpass' : 'bandpass'; f.Q.value = k === 'boing' ? 7 : k === 'hard' ? 9 : k === 'gloop' ? 3 : 5;
+    const f = c.createBiquadFilter(); f.type = k === 'puff' || k === 'fizz' ? 'highpass' : 'bandpass'; f.Q.value = k === 'boing' ? 7 : k === 'hard' || k === 'ice' ? 9 : k === 'gloop' || k === 'mochi' || k === 'warm' ? 3 : 5;
     const g = c.createGain(); g.gain.value = 0.0001; src.connect(f); f.connect(g); g.connect(c.destination); src.start(0, Math.random());
     let lfo = null;
-    if (k === 'gloop' || k === 'stringy') { lfo = c.createOscillator(); const lg = c.createGain(); lfo.frequency.value = k === 'gloop' ? 17 : 6; lg.gain.value = 0.03; lfo.connect(lg); lg.connect(g.gain); lfo.start(); }
+    if (k === 'gloop' || k === 'stringy' || k === 'mochi' || k === 'zap') { lfo = c.createOscillator(); const lg = c.createGain(); lfo.frequency.value = k === 'gloop' ? 17 : k === 'zap' ? 38 : k === 'mochi' ? 5 : 6; lg.gain.value = 0.03; lfo.connect(lg); lg.connect(g.gain); lfo.start(); }
     loop = { src, f, g, k, lfo, ac: c };
   }
   function stretchUpdate(level, speed) {
     if (!loop) return; const { f, g, k, ac: c } = loop, t = c.currentTime;
-    const base = { wet: 500, stringy: 420, gloop: 260, boing: 900, puff: 3000, hard: 600 }[k], span = { wet: 900, stringy: 1800, gloop: 600, boing: 1500, puff: 2500, hard: 1500 }[k];
+    const base = { wet: 500, stringy: 420, gloop: 260, boing: 900, puff: 3000, hard: 600, ice: 1400, zap: 2500, fizz: 3500, mochi: 250, warm: 300 }[k], span = { wet: 900, stringy: 1800, gloop: 600, boing: 1500, puff: 2500, hard: 1500, ice: 2400, zap: 3000, fizz: 2500, mochi: 500, warm: 400 }[k];
     f.frequency.setTargetAtTime(base + span * Math.min(1, level / 2.5), t, 0.05);
     const vol = (k === 'hard' ? 0.12 : 0.1) * Math.min(1, speed * 0.8 + level * 0.25);
     g.gain.setTargetAtTime(Math.max(0.0001, vol), t, 0.04);
@@ -97,5 +117,19 @@ const Snd = (function () {
     if (!loop) return; const { src, g, lfo, ac: c } = loop; g.gain.setTargetAtTime(0.0001, c.currentTime, 0.03);
     setTimeout(() => { try { src.stop(); if (lfo) lfo.stop(); } catch (e) { } }, 160); loop = null;
   }
-  return { squish, release, snap, stretchStart, stretchUpdate, stretchStop, kindOf };
+  // めずらしい音（ときどき鳴る）。名前を返す
+  function rare() {
+    const list = [
+      ['ちりーん', () => [880, 1175, 1568, 2093].forEach((f, i) => tone({ f0: f, f1: f, dur: 0.5, vol: 0.09, at: i * 0.09 }))],
+      ['ぽこん', () => tone({ f0: 500, f1: 1100, dur: 0.12, vol: 0.18 })],
+      ['ぷぎゅっ', () => { tone({ f0: 500, f1: 1200, dur: 0.09, vol: 0.14, type: 'square' }); tone({ f0: 1000, f1: 450, dur: 0.1, vol: 0.12, type: 'square', at: 0.09 }); }],
+      ['ぽこぽこ', () => [0, 1, 2, 3, 4].forEach(i => tone({ f0: 400 + i * 90, f1: 900 + i * 90, dur: 0.07, vol: 0.12, at: i * 0.08 }))],
+      ['ぴよっ', () => { tone({ f0: 1300, f1: 1900, dur: 0.08, vol: 0.12 }); tone({ f0: 1500, f1: 2100, dur: 0.08, vol: 0.1, at: 0.1 }); }],
+      ['ぽわーん', () => tone({ f0: 330, f1: 660, dur: 0.6, vol: 0.14, vib: 6, vibDepth: 0.1 })],
+    ];
+    const r = list[(Math.random() * list.length) | 0]; r[1](); return r[0];
+  }
+  function chime() { [660, 880, 1320].forEach((f, i) => tone({ f0: f, f1: f, dur: 0.4, vol: 0.1, at: i * 0.1 })); }
+  function swoosh(v) { burst({ type: 'bandpass', f0: 500, f1: 2600, q: 1.2, dur: 0.14, vol: 0.1 * (v || 1) }); }
+  return { squish, release, snap, rare, chime, swoosh, stretchStart, stretchUpdate, stretchStop, kindOf };
 })();

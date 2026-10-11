@@ -7,7 +7,7 @@ const Workshop = (function () {
   let H = null;            // 画面(HTML)の要素
   let hudT = 0, pourTilt = 0, lastLook = new T.Vector3(), camInit = false;
   const st = { active: false, hold: null, holdT: 0, shotT: 0, stirring: false, spoonA: 0,
-    solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0, sq: 0, sqv: 0, flow: 0, crunch: 0, glow: 0 };
+    solid: 0, hard: 0, sticky: 0, foam: 0, ooze: 0, bouncy: 0, melt: 0, sq: 0, sqv: 0, flow: 0, crunch: 0, glow: 0, hiyari: 0, hokaho: 0, piri: 0, shuwa: 0, mochi: 0 };
   const hexC = h => new T.Color(h);
   const GEO_CYL = () => new T.CylinderGeometry(1, 1, 1, 10);
   const bowlCap = () => BOWL_CAP[S.up.bowl].v;
@@ -28,9 +28,17 @@ const Workshop = (function () {
   let disp = null, vel = null, tgtD = null, kw = null, touchExit = null, tapInfo = null;
   const grainMat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
   let sparkles = [], sparkKey = '';
+  let twT = 0, fizzB = [], fizzPop = 0, rareT = 0;
+  const rr = (a, b) => a + Math.random() * (b - a);
+  function twitch() {
+    const n = disp.length / 3, c = (Math.random() * n) | 0, cx0 = blobBase[c * 3], cy0 = blobBase[c * 3 + 1], cz0 = blobBase[c * 3 + 2], dir = new T.Vector3(rr(-1, 1), rr(-0.3, 1), rr(-1, 1)).normalize();
+    for (let i = 0; i < n; i++) { const d = Math.hypot(blobBase[i * 3] - cx0, blobBase[i * 3 + 1] - cy0, blobBase[i * 3 + 2] - cz0), w = Math.exp(-d * d / 0.5); if (w < 0.05) continue; vel[i * 3] += dir.x * w * 4; vel[i * 3 + 1] += dir.y * w * 4; vel[i * 3 + 2] += dir.z * w * 4; }
+    Snd.squish({ piri: 1 }, 0.5);
+  }
+  function rareSound() { const nm = Snd.rare(); UI.toast('✨ めずらしい音！「' + nm + '」', 'good'); S.dex.rare = (S.dex.rare || 0) + 1; }
   let hands = [], twoHand = false, snapBoost = 0, tearP = 0, lastLevel = 0, handMk = [], debris = [], grains = [], glowLight = null;
   const raycaster = new T.Raycaster(), tmpV = new T.Vector3();
-  const feelM = () => ({ hard: st.hard, bouncy: st.bouncy, foam: st.foam, ooze: st.ooze, sticky: st.sticky, crunch: st.crunch });
+  const feelM = () => ({ hard: st.hard, bouncy: st.bouncy, foam: st.foam, ooze: st.ooze, sticky: st.sticky, crunch: st.crunch, hiyari: st.hiyari, hokaho: st.hokaho, piri: st.piri, shuwa: st.shuwa, mochi: st.mochi });
   function rayFrom(e) {
     const r = e.target.getBoundingClientRect();
     raycaster.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), World.camera);
@@ -43,9 +51,9 @@ const Workshop = (function () {
     return h ? { world: h.point.clone(), local: blob.worldToLocal(h.point.clone()) } : null;
   }
   // 質感ごとのばね・のびる量・ちぎれ方
-  const softK = () => clamp(35 + 100 * st.bouncy - 28 * st.ooze - 24 * st.sticky - 22 * st.foam + 200 * st.hard, 6, 400);
-  const softC = () => clamp(5 - 2.6 * st.bouncy + 0.5 * st.ooze + 2 * st.sticky + 2.5 * st.foam + 20 * st.hard, 1.1, 40);
-  const maxStretch = () => clamp(0.55 + 2.6 * st.ooze + 0.6 * st.sticky - 0.2 * st.bouncy - 0.3 * st.foam - 2 * st.hard, 0.05, 3.2);
+  const softK = () => clamp(35 + 100 * st.bouncy - 28 * st.ooze - 24 * st.sticky - 22 * st.foam + 200 * st.hard + 60 * st.hiyari - 8 * st.hokaho - 24 * st.mochi, 6, 400);
+  const softC = () => clamp(5 - 2.6 * st.bouncy + 0.5 * st.ooze + 2 * st.sticky + 2.5 * st.foam + 20 * st.hard + 3 * st.hokaho - 1.5 * st.mochi, 1.1, 40);
+  const maxStretch = () => clamp(0.55 + 2.6 * st.ooze + 0.6 * st.sticky - 0.2 * st.bouncy - 0.3 * st.foam - 2 * st.hard - 0.4 * st.hiyari + 1.8 * st.mochi, 0.05, 4.6);
   const pressDepth = () => 0.34 * (1 - 0.9 * st.hard) * (1 + 0.7 * st.foam + 0.4 * st.sticky - 0.25 * st.bouncy);
   // ちぎれるまでの時間（かたい＝一瞬でパキッ、やわらかい＝ゆっくり細くなってちぎれる）
   const tearTime = () => st.hard > 0.5 ? 0.08 : st.foam > 0.4 ? 0.55 : st.bouncy > 0.55 ? 1.0 : st.ooze > 0.4 ? 3.6 : st.sticky > 0.45 ? 2.6 : 1.6;
@@ -60,7 +68,7 @@ const Workshop = (function () {
       if (wgt < 0.02) continue;
       vel[i * 3] -= bx * wgt * str; vel[i * 3 + 1] -= by * wgt * str; vel[i * 3 + 2] -= bz * wgt * str;
     }
-    Snd.squish(feelM(), clamp(str / 8, 0.25, 1));
+    Snd.squish(feelM(), clamp(str / 8, 0.25, 1)); if (Math.random() < 0.07) rareSound();
   }
   function tearNow(h0) {   // ちぎれた！
     Snd.snap(feelM()); Snd.stretchStop();
@@ -201,6 +209,7 @@ const Workshop = (function () {
     for (let i = 0; i < 8; i++) { const d = new T.Mesh(new T.SphereGeometry(1, 12, 10), blob.material); d.visible = false; d.castShadow = true; d.userData = { life: 0, v: new T.Vector3() }; grp.add(d); debris.push(d); }
     for (let i = 0; i < 44; i++) { const g = new T.Mesh(new T.SphereGeometry(0.03 + Math.random() * 0.025, 6, 5), grainMat); g.userData = { th: Math.random() * Math.PI * 2, ph: Math.acos(Math.random() * 1.7 - 0.85) }; g.visible = false; grp.add(g); grains.push(g); }
     glowLight = new T.PointLight(0xa8ffb0, 0, 6); grp.add(glowLight);
+    for (let i = 0; i < 28; i++) { const b = new T.Mesh(new T.SphereGeometry(1, 8, 6), new T.MeshStandardMaterial({ color: 0xd8fff2, transparent: true, opacity: 0.7, roughness: 0.1 })); b.userData = { a: Math.random() * 6.3, r: 0.1 + Math.random() * 0.45, ph: Math.random(), sz: 0.025 + Math.random() * 0.04, sp: 0.4 + Math.random() * 0.5 }; b.visible = false; grp.add(b); fizzB.push(b); }
     for (let i = 0; i < 80; i++) {   // ラメ：入れた色でキラキラ光る
       const s = new T.Mesh(new T.SphereGeometry(1, 8, 6), new T.MeshBasicMaterial({ color: 0xffffff }));
       s.visible = false; s.userData = { vi: (Math.random() * bg.attributes.position.count) | 0, ph: Math.random() * 6.3, sz: 0.032 + Math.random() * 0.022, th: Math.random() * 6.3, r: Math.sqrt(Math.random()) * 0.55 }; grp.add(s); sparkles.push(s);
@@ -249,6 +258,7 @@ const Workshop = (function () {
     if (tr.torotoro) lines.push('💦 とろとろ流れる。ひっぱるとゆっくりもどる');
     if (tr.fuwafuwa) lines.push('☁️ ふわふわ。ぎゅっと押すと、やわらかく沈む');
     if ((sl.crunch || 0) > 0.1) lines.push('❄️ シャリシャリ。さわると音がする');
+    for (const k in (sl.ft || {})) lines.push({ hiyari: '🧊 ひんやり。シャキッと音がする', hokaho: '♨️ ほかほか。あったかく脈うつ', piri: '⚡ ぴりぴり。ときどき しびれる（ビリッ）', shuwa: '🥤 しゅわしゅわ。泡がはじける', mochi: '🍡 もちもち。ものすごく のびる！' }[k]);
     if ((sl.gl || 0) >= 0.5) lines.push('🌙 暗くすると光る！ 下の「🌙 暗くする」を押してみよう');
     if (!lines.length) lines.push('🙂 ふつうのやわらかさ。つついたり、ひっぱったり');
     const box = document.getElementById('wsTouch');
@@ -260,6 +270,14 @@ const Workshop = (function () {
   function updateTouchBtns() { const b = document.getElementById('wsTwo'); if (b) { b.classList.toggle('on', twoHand); b.textContent = twoHand ? '🖐 両手モード：ON' : '🖐 両手モード'; } }
   function toggleDark() { World.setDark(!World.darkOn); updateDarkBtns(); }
   function toggleTwo() { twoHand = !twoHand; if (!twoHand) hands = hands.filter(h => !h.pinned); updateTouchBtns(); }
+  function photo() {   // 3Dの画面を写真にして、スラグラムに投稿する
+    if (!st.touch) return; if (!st.touch.id) return UI.toast('まず「商品にする」で在庫に入れると、投稿できる');
+    World.frame(0.001);
+    const cv = document.getElementById('c'), v = blob.position.clone().project(World.camera), W = cv.width, H = cv.height, side = Math.min(W, H) * 0.36;
+    const cx = (v.x * 0.5 + 0.5) * W, cy = (-v.y * 0.5 + 0.5) * H, out = document.createElement('canvas'); out.width = out.height = 256;
+    out.getContext('2d').drawImage(cv, cx - side / 2, cy - side / 2, side, side, 0, 0, 256, 256);
+    sfx('pop'); UI.openPost(st.touch.id, out.toDataURL('image/jpeg', 0.82));
+  }
   function exitTouch(silent) {
     st.touch = null; st.active = false; hands = []; twoHand = false; Snd.stretchStop(); World.setDark(false); updateDarkBtns(); disp.fill(0); vel.fill(0);
     document.getElementById('wsTouch').style.display = 'none';
@@ -329,7 +347,7 @@ const Workshop = (function () {
           hands.push({ id, pinned: true, local: h.local, world: h.world, D: new T.Vector3(), moved: 0, pull: false }); Snd.squish(feelM(), 0.5); return;
         }
         hands.push({ id, local: h.local, world: h.world, D: new T.Vector3(), moved: 0, pull: false, t0: performance.now(), x: e.clientX, y: e.clientY });
-        Snd.squish(feelM(), clamp(pressDepth() * 2.2, 0.3, 1));
+        Snd.squish(feelM(), clamp(pressDepth() * 2.2, 0.3, 1)); if (Math.random() < 0.07) rareSound();
       } else if (type === 'move') {
         const hd = hands.find(x => x.id === id && !x.pinned); if (!hd) return;
         const rc = rayFrom(e), pl = new T.Plane().setFromNormalAndCoplanarPoint(World.camera.getWorldDirection(tmpV).clone(), hd.world), P = new T.Vector3();
@@ -377,6 +395,10 @@ const Workshop = (function () {
     tgt.crunch = st.touch ? (st.touch.crunch || 0) : m.total > 0 ? clamp(m.snow / m.total * 100 / 5, 0, 1) : 0;
     tgt.glow = st.touch ? (st.touch.gl || 0) : m.total > 0 ? m.glow / m.total * 100 : 0;
     st.crunch += ((tgt.crunch || 0) - st.crunch) * k; st.glow += ((tgt.glow || 0) - st.glow) * k;
+    for (const key in FEEL2) {   // ほかほか・ひんやり・ぴりぴり・しゅわしゅわ・もちもち
+      const e = st.touch ? ((st.touch.ft || {})[key] || 0) : (m.total > 0 ? ((m.ex[FEEL2[key].ex] || 0) / m.total * 100 >= 0.15 ? clamp((m.ex[FEEL2[key].ex] || 0) / m.total * 100, 0.2, 1) : 0) : 0);
+      st[key] += (e - st[key]) * k;
+    }
     const mtot = st.touch ? 1 : m.total;
     const frac = st.touch ? 0.62 : clamp(m.total / bowlCap(), 0, 1), cx = ws.x, cz = ws.z + 0.1;
     const colHex = st.touch ? st.touch.color : mixColor(amt); mixColorHex = colHex;
@@ -399,7 +421,7 @@ const Workshop = (function () {
       const ky = (0.62 - 0.22 * st.sticky - 0.12 * st.ooze + 0.2 * st.foam) * (1 - st.sq * 0.7);
       blob.scale.set(r * (1 + st.sq * 0.4), r * ky, r * (1 + st.sq * 0.4));
       blob.position.set(cx, bowlBottom + r * ky * 0.85, cz);
-      const gc = col.clone().lerp(new T.Color(0x8a8f93), st.hard * 0.45).lerp(new T.Color(0xffffff), st.foam * 0.35);
+      const gc = col.clone().lerp(new T.Color(0x8a8f93), st.hard * 0.45).lerp(new T.Color(0xffffff), st.foam * 0.35).lerp(new T.Color(0xbfeaff), st.hiyari * 0.4).lerp(new T.Color(0xffc890), st.hokaho * 0.25);
       const M = blob.material;
       M.color.copy(gc).multiplyScalar(0.72); M.emissive.copy(gc).multiplyScalar(0.03);
       M.roughness = clamp(0.1 + 0.6 * st.hard + 0.45 * st.foam - 0.04 * st.sticky, 0.04, 1);
@@ -410,6 +432,11 @@ const Workshop = (function () {
       M.roughness = clamp(M.roughness + 0.25 * st.crunch, 0.04, 1); M.bumpScale += 0.5 * st.crunch;
       const gEm0 = clamp(st.glow / 1.2, 0, 1) * World.dark, glowCol = new T.Color(0x7dff9a).lerp(gc, 0.2);
       M.emissive.copy(gc).multiplyScalar(0.03).lerp(glowCol, gEm0); M.emissiveIntensity = 1;
+      if (st.hokaho > 0.05) M.emissive.lerp(new T.Color(0xff8a3a), st.hokaho * (0.22 + 0.1 * Math.sin(t * 2)));   // ほかほか：あったかく、ゆっくり脈うつ
+      if (st.piri > 0.05) M.emissive.lerp(new T.Color(0xfff06a), st.piri * Math.max(0, Math.sin(t * 13)) * 0.4);   // ぴりぴり：ときどきパチッと光る
+      M.bumpScale += 0.5 * st.hiyari; M.roughness = clamp(M.roughness - 0.06 * st.hiyari, 0.04, 1); M.clearcoat = clamp(M.clearcoat + 0.3 * st.hiyari, 0, 1);
+      // ぴりぴり：ときどき、びくっとしびれる
+      twT -= dt; if (st.piri > 0.3 && st.solid > 0.5 && twT <= 0) { twT = rr(0.5, 1.2) / (0.5 + st.piri); twitch(); }
       // ぷにぷに：ときどき自分でぽよんと弾む
       bounceT -= dt; if (st.bouncy > 0.5 && st.hard < 0.5 && st.solid > 0.6 && bounceT <= 0) { st.sqv += 2.2; bounceT = 1.3; }
       stepSoft(dt);
@@ -425,8 +452,17 @@ const Workshop = (function () {
       pos.needsUpdate = true; blob.geometry.computeVertexNormals(); blob.geometry.computeBoundingSphere();
     } else { st.sq *= 0.9; st.sqv *= 0.9; }
     softExtras(dt, t, cx, cz);
+    {   // しゅわしゅわの泡
+      const nz = Math.round(st.shuwa * fizzB.length);
+      fizzB.forEach((b, i) => {
+        const on = i < nz && blob.visible; b.visible = on; if (!on) return; const u = b.userData, ph = (t * u.sp + u.ph) % 1, top = blob.position.y + blob.scale.y * 0.9;
+        b.position.set(cx + Math.cos(u.a) * u.r * blob.scale.x * 1.3, blob.position.y + (top - blob.position.y) * 0.2 + ph * 1.0, cz + Math.sin(u.a) * u.r * blob.scale.x * 1.3); b.scale.setScalar(u.sz * (1 - ph * 0.5));
+      });
+      fizzPop -= dt; if (st.shuwa > 0.3 && blob.visible && fizzPop <= 0) { fizzPop = rr(0.25, 0.7); Snd.squish({ shuwa: 1 }, 0.25); }
+    }
     {   // ラメ（色は入れたラメの色。レインボーは粒ごとに色がちがう）
-      const gcs = st.touch ? (st.touch.gcols || []) : glitterCols(amt), spv = st.touch ? (st.touch.sp || 0) : (m.total > 0 ? m.glitter / m.total * 100 : 0);
+      const gcs0 = st.touch ? (st.touch.gcols || []) : glitterCols(amt), gcs = gcs0.slice(); let spv = st.touch ? (st.touch.sp || 0) : (m.total > 0 ? m.glitter / m.total * 100 : 0);
+      if (st.hiyari > 0.2) { gcs.push({ c: '#e4f8ff', w: 3 }); spv += 2 * st.hiyari; } if (st.piri > 0.2) { gcs.push({ c: '#fff06a', w: 3 }); spv += 2 * st.piri; } if (st.hokaho > 0.2) { gcs.push({ c: '#ffb870', w: 2 }); spv += 1 * st.hokaho; }
       const key = gcs.map(g => g.c + ':' + Math.round(g.w)).join(',');
       if (key !== sparkKey) {
         sparkKey = key; const tot = gcs.reduce((a, x) => a + x.w, 0) || 1;
@@ -511,7 +547,7 @@ const Workshop = (function () {
   }
 
   // ---------- 画面（HTML）----------
-  const KIND_ORDER = ['glue', 'borax', 'water', 'soap', 'paint', 'glitter', 'snow', 'glow'];
+  const KIND_ORDER = ['glue', 'borax', 'water', 'soap', 'paint', 'glitter', 'snow', 'glow', 'extract'];
   function buildHUD() {
     const ids = Object.keys(ITEMS).filter(id => ITEMS[id].free || (S.stock[id] || 0) > 0.0001 || (S.bowl.amt[id] || 0) > 0).sort((a, b) => KIND_ORDER.indexOf(ITEMS[a].kind) - KIND_ORDER.indexOf(ITEMS[b].kind));
     const box = document.getElementById('wsItems');
@@ -555,6 +591,7 @@ const Workshop = (function () {
         if (st.sticky > 0.45) feel.push('💦 トロトロ・ベタベタ流れる');
         if (st.foam > 0.35 && st.melt <= 0.5) feel.push('☁️ ふわふわ泡っぽい');
         if (st.crunch > 0.2) feel.push('❄️ シャリシャリ');
+        if (st.hiyari > 0.25) feel.push('🧊 ひんやり、シャキッ'); if (st.hokaho > 0.25) feel.push('♨️ ほかほか、あったかい'); if (st.piri > 0.25) feel.push('⚡ ぴりぴり、しびれる'); if (st.shuwa > 0.25) feel.push('🥤 しゅわしゅわ、泡がはじける'); if (st.mochi > 0.25) feel.push('🍡 もちもち、よくのびる');
         if (st.glow > 0.5) feel.push('🌙 暗いところで光る（下の🌙で暗くできる）');
         if (!feel.length) feel.push('🙂 ふつうのやわらかさ');
       }
@@ -597,5 +634,5 @@ const Workshop = (function () {
   function clearBowl() { S.bowl = { amt: {}, stir: 0 }; st.sq = st.sqv = 0; st.solid = st.hard = st.sticky = st.foam = st.ooze = st.melt = 0; refreshHUD(); buildHUD(); }
   function dump() { if (total() <= 0) return; askConfirm('ボウルの中身を全部すてますか？<br>（材料はもどりません）', 'すてる', () => { clearBowl(); sfx('pop'); }, true); }
 
-  return { build, enter, exit, touch, toggleDark, toggleTwo, update, camera, pointer, finish, dump, clearBowl, refreshHUD, buildHUD, get active() { return st.active; }, get touching() { return !!st.touch; }, get _dbg() { return { hands: hands.map(h => ({ pinned: h.pinned, pull: h.pull, D: h.D.toArray().map(v => +v.toFixed(2)) })), tearP, st: { ooze: st.ooze, hard: st.hard, bouncy: st.bouncy } }; } };
+  return { build, enter, exit, touch, photo, toggleDark, toggleTwo, update, camera, pointer, finish, dump, clearBowl, refreshHUD, buildHUD, get active() { return st.active; }, get touching() { return !!st.touch; }, get _dbg() { return { hands: hands.map(h => ({ pinned: h.pinned, pull: h.pull, D: h.D.toArray().map(v => +v.toFixed(2)) })), tearP, st: { ooze: st.ooze, hard: st.hard, bouncy: st.bouncy } }; } };
 })();

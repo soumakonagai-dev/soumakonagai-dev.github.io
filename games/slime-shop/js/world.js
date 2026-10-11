@@ -169,7 +169,7 @@ const World = (function () {
 
   // ---------- 町 ----------
   function buildTown() {
-    const a = newArea('town', [-72, 72, -44, 58], false);
+    const a = newArea('town', [-72, 84, -44, 58], false);
     const g = a.group;
     const ground = new T.Mesh(new T.PlaneGeometry(500, 500), texMat(grassTex(), { roughness: 1 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; g.add(ground);
     const asph = asphaltTex(); const road = (x, z, w, d) => { const r = new T.Mesh(new T.PlaneGeometry(w, d), texMat(asph, { roughness: 1 })); r.rotation.x = -Math.PI / 2; r.position.set(x, 0.02, z); r.receiveShadow = true; g.add(r); };
@@ -205,10 +205,11 @@ const World = (function () {
       return gb;
     }
     // 自分のお店
-    const my = building('shop', 0, -13, 16, 10, 6.5, 0x8ee6b8, 0x2fae7a, 'S', 'スライムショップ', { label: () => '自分のお店に入る', act: () => go('shop') });
+    const my = building('shop', 0, -13, 16, 10, 6.5, 0x8ee6b8, 0x2fae7a, 'S', 'スライム商店', { label: () => '自分のお店に入る', act: () => go('shop') });
     const blob = sph(1.5, 0x6fe0a0, 0, 8.6, -13, my, { roughness: 0.25, transparent: true, opacity: 0.85 }); blob.scale.set(2.2, 1.5, 2.2);
     sph(0.22, 0x103020, -0.6, 8.9, -11.1, my); sph(0.22, 0x103020, 0.6, 8.9, -11.1, my);
     a.blob = blob;
+    a.fixRoad = true;
     building('hyakkin', -36, -26, 12, 9, 5, 0xffe08a, 0xe8a02a, 'S', '100円ショップ まるえん', { label: () => '100円ショップに入る', act: () => go('hyakkin') });
     building('home', 38, -26, 16, 10, 6, 0xb9d3ee, 0x4a76b0, 'S', 'ホームセンター ガッツ', { label: () => 'ホームセンターに入る', act: () => go('home') });
     building('art', -36, 28, 12, 9, 5, 0xf3c6e6, 0xc84fa0, 'N', '画材屋 いろどり', { label: () => '画材屋に入る', act: () => go('art') });
@@ -217,9 +218,28 @@ const World = (function () {
       act: () => { if (repLevel() >= SHOPS.wholesale.needRep) go('wholesale'); else UI.toast('ここはまだ開いていない。お店の評判が★3になると仕入れさせてくれるらしい'); },
     });
 
+    // 友達の家（科学オタク／エンジニア）
+    building('lab', -62, -14, 11, 8, 5, 0xe6f2ff, 0x5a8fd0, 'S', '科学オタクの家', { label: () => '科学オタクの友達の家に入る', act: () => go('lab') });
+    building('smith', 62, -14, 11, 8, 5, 0xffe2b0, 0xc9722a, 'S', 'エンジニアの工房', { label: () => 'エンジニアの友達の家に入る', act: () => go('smith') });
+    // 冒険の山への入口：道のいちばん東のはし。光の柱・大きな看板・矢印で、ひと目でわかる
+    const gx = 70;
+    for (const sz of [-1, 1]) {
+      rbox(1.8, 8, 1.8, 0.7, 0x8a8f96, gx, 4, sz * 4.6, g); a.obst.push({ x0: gx - 1, x1: gx + 1, z0: sz * 4.6 - 1, z1: sz * 4.6 + 1 });
+      sph(0.55, 0xffa030, gx, 8.6, sz * 4.6, g, { emissive: 0xff8a20, emissiveIntensity: 1 }).castShadow = false;
+    }
+    rbox(1.8, 1.6, 11.6, 0.55, 0x9aa0a8, gx, 7.7, 0, g);
+    sign('⚔ 冒険の山', 6.4, 1.4, '#3b2a1c', '#ffe27a', g, gx - 0.95, 7.7, 0, -Math.PI / 2);
+    road(gx + 3.5, 0, 9, 8);
+    const beam = new T.Mesh(new T.CylinderGeometry(0.9, 1.7, 70, 18, 1, true), new T.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.26, side: T.DoubleSide, depthWrite: false, fog: false }));
+    beam.position.set(gx, 35, 0); g.add(beam); a.beacon = beam;
+    const tag = new T.Sprite(new T.SpriteMaterial({ map: labelTex('⚔ 冒険はこっち！ →', 512, 128, '#3b2a1c', '#ffe27a', 62), depthTest: false })); tag.scale.set(8, 2, 1); tag.position.set(gx - 3, 11.5, 0); tag.renderOrder = 25; g.add(tag); a.tag = tag;
+    const arr = new T.Shape(); arr.moveTo(0, 0.7); arr.lineTo(1.4, 0); arr.lineTo(0, -0.7); arr.lineTo(0.4, 0);
+    for (let x = 14; x < 62; x += 7) { const am = new T.Mesh(new T.ShapeGeometry(arr), new T.MeshBasicMaterial({ color: 0xffd23f })); am.rotation.x = -Math.PI / 2; am.position.set(x, 0.05, -1.4); g.add(am); }
+    for (const px of [12, 40]) { box(0.2, 2.4, 0.2, 0x7a5233, px, 1.2, -4.8, g); sign('⚔ 冒険の山 →（東）', 4.2, 1.0, '#3b2a1c', '#ffe27a', g, px, 2.5, -4.66, 0); }
+    addHot(a, gx - 4.2, 0, 3.8, () => '山へ冒険に出る（魔物がいるよ！）', () => go('mountain'), 3.4);
     // 木・街灯
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const free = (x, z, r) => !a.obst.some(o => x > o.x0 - r - 2 && x < o.x1 + r + 2 && z > o.z0 - r - 2 && z < o.z1 + r + 2) && !(Math.abs(z) < 8) && !(Math.abs(x + 36) < 6 && z > -20 && z < 28) && !(Math.abs(x - 38) < 6 && z > -20 && z < 28) && !(Math.abs(x) < 5 && z > -9);
+    const free = (x, z, r) => !a.obst.some(o => x > o.x0 - r - 2 && x < o.x1 + r + 2 && z > o.z0 - r - 2 && z < o.z1 + r + 2) && !(Math.abs(z) < 8) && !(Math.abs(x + 36) < 6 && z > -20 && z < 28) && !(Math.abs(x - 38) < 6 && z > -20 && z < 28) && !(Math.abs(x) < 5 && z > -9) && !(Math.abs(x) < 8 && z < -30);
     for (let i = 0, n = 0; n < 60 && i < 600; i++) {
       const x = (rnd() - 0.5) * 140, z = -42 + rnd() * 98;
       if (!free(x, z, 1.2)) continue; n++;
@@ -296,6 +316,26 @@ const World = (function () {
     }
     box(0.12, tiers * 0.95 + 0.3, 0.8, 0x8a6238, x - len / 2, (tiers * 0.95 + 0.3) / 2, z, g); box(0.12, tiers * 0.95 + 0.3, 0.8, 0x8a6238, x + len / 2, (tiers * 0.95 + 0.3) / 2, z, g);
     wallObst(a, x - len / 2, x + len / 2, z - 0.45, z + 0.45);
+  }
+  function buildFriend(id, ox) {
+    const lab = id === 'lab', a = buildRoom(id, ox, 18, 13, lab ? 0xdfe8f0 : 0x8a8f96, lab ? 0xe6f2ff : 0xffe2b0), g = a.group;
+    sign(lab ? '科学研究所' : 'エンジニアの工房', 7, 1.2, '#fff8e8', '#3b2a1c', g, ox, 4.4, -6.15, 0);
+    if (lab) {
+      stockShelf(a, ox - 4, -5.6, 7, 3, [0xff7aa8, 0x7ae0a0, 0x7ab8ff, 0xffd95e, 0xd89cff]);
+      rbox(5, 1, 1.6, 0.25, 0xf5f8ff, ox + 3, 0.5, -3, g); wallObst(a, ox + 0.5, ox + 5.5, -3.8, -2.2);
+      [0xff6b8a, 0x62d6a8, 0x58a8ff, 0xffd23f].forEach((c, i) => { cyl(0.16, 0.38, c, ox + 1.4 + i * 0.9, 1.2, -3, g, { transparent: true, opacity: 0.8 }); sph(0.19, c, ox + 1.4 + i * 0.9, 1.45, -3, g, { transparent: true, opacity: 0.8 }); });
+      cyl(0.45, 0.9, 0x9fe8ff, ox + 6.2, 1.2, 1, g, { transparent: true, opacity: 0.6 });
+      const sc = makePerson(0xffffff, 0x222244, null); sc.position.set(ox + 3, 0, -1.6); g.add(sc);
+      for (const s of [-1, 1]) { const gl = new T.Mesh(new T.TorusGeometry(0.1, 0.014, 6, 14), m(0x333333)); gl.position.set(s * 0.125, 1.65, 0.33); sc.add(gl); }
+    } else {
+      stockShelf(a, ox - 4, -5.6, 7, 2, [0xcfd6dc, 0x9aa0a8, 0xff9a4a]);
+      WEAPONS.forEach((w, i) => { const x = ox + 1.5 + (i % 3) * 1.8, y = 2.2 + Math.floor(i / 3) * 1.4; rbox(0.14, 1.1, 0.06, 0.03, w.color, x, y, -6.3, g, { metalness: 0.4, roughness: 0.35 }); rbox(0.5, 0.1, 0.1, 0.04, 0x5a3a24, x, y - 0.4, -6.3, g); });
+      rbox(1.6, 0.8, 1.0, 0.2, 0x3a3f48, ox + 4.2, 0.4, -2.6, g); rbox(1.0, 0.25, 0.7, 0.1, 0x4a5058, ox + 4.2, 0.9, -2.6, g); wallObst(a, ox + 3.2, ox + 5.2, -3.2, -2);
+      cyl(0.5, 0.2, 0xb8c0c8, ox + 6.8, 0.2, 1.2, g); cyl(0.3, 0.3, 0xffd23f, ox + 6.8, 0.45, 1.2, g);
+      const en = makePerson(0xff9a3a, 0x553322, 0xffd23f); en.position.set(ox + 3.4, 0, -1.4); g.add(en);
+    }
+    addHot(a, ox + 2, -0.2, 3.2, () => lab ? '科学オタクの友達と話す' : 'エンジニアの友達と話す', () => lab ? UI.openLab() : UI.openSmith(), 2.8);
+    return a;
   }
   function buildSupplier(id, ox) {
     const sd = SHOPS[id];
@@ -407,36 +447,43 @@ const World = (function () {
 
   // ---------- お客さん（お店の中を歩く）----------
   const visitors = [];
+  const bubbles = [];
+  function bubble(mesh, text, good) {   // お客さんの頭の上のふきだし
+    const s = new T.Sprite(new T.SpriteMaterial({ map: labelTex(text, 384, 96, good ? '#fff6c8' : '#ffffff', good ? '#8a5a00' : '#3b2a1c', 44), transparent: true, depthTest: false }));
+    s.scale.set(3.2, 0.8, 1); s.position.set(0, 2.9, 0); s.renderOrder = 30; mesh.add(s); bubbles.push({ s, mesh, life: 2.6 });
+  }
   function spawnVisitor(type, decide) {
     const a = areas.shop, ox = a.slotBase;
     const cols = [0xff8a8a, 0x8ab8ff, 0xffd86a, 0xb18aff, 0x7ad9a0, 0xff9ad2];
     const mesh = makePerson(cols[(Math.random() * cols.length) | 0], [0x332211, 0x7a4a22, 0x111111][(Math.random() * 3) | 0]);
-    mesh.position.set(ox + (Math.random() - 0.5) * 2, 0, 6);
+    mesh.position.set(ox + 3 + Math.random() * 1.2, 0, 6.4);
     if (type === 'kid') mesh.scale.setScalar(0.75);
     visitG.add(mesh);
     const idx = (typeof S !== 'undefined' && S) ? S.shelf.map((s, i) => (s.sid ? i : -1)).filter(i => i >= 0) : [0, 1, 2, 3, 4, 5, 6, 7];
     const si = idx.length ? idx[(Math.random() * idx.length) | 0] : 0, sp = SLOT(si);
-    const v = { mesh, path: [[ox + sp.x, -6.2], [ox - 3 + (Math.random() - 0.5), 4.2], [ox + (Math.random() - 0.5), 6.6]], i: 0, decide, decided: false, type };
-    visitors.push(v);
+    // 道すじ：レジ（カウンター）をよけて、棚→レジの前→出口
+    const path = [{ x: ox + 1.8, z: 1.0 }, { x: ox + sp.x, z: -6.2, act: 'decide' }, { x: ox + 1.8, z: 1.0 }, { x: ox + 1.8, z: 4.4 }, { x: ox - 3 + (Math.random() - 0.5) * 1.5, z: 4.4, act: 'pay' }, { x: ox + 3, z: 6.8 }];
+    visitors.push({ mesh, path, i: 0, decide, type, wait: 0, res: null });
   }
   function stepVisitors(dt) {
     for (let k = visitors.length - 1; k >= 0; k--) {
       const v = visitors[k], tg = v.path[v.i];
-      const dx = tg[0] - v.mesh.position.x, dz = tg[1] - v.mesh.position.z, dd = Math.hypot(dx, dz);
+      const dx = tg.x - v.mesh.position.x, dz = tg.z - v.mesh.position.z, dd = Math.hypot(dx, dz);
       if (dd < 0.15) {
-        if (v.i === 0 && !v.decided) { v.wait = (v.wait || 0) + dt; if (v.wait < 1.4) { animPerson(v.mesh, false, dt); continue; } v.decided = true; v.decide(); }
-        if (v.i === 1 && !v.paid) { v.w2 = (v.w2 || 0) + dt; if (v.w2 < 0.7) { animPerson(v.mesh, false, dt); continue; } v.paid = true; }
+        if (tg.act === 'decide') { v.wait += dt; if (v.wait < 1.4) { animPerson(v.mesh, false, dt); continue; } v.wait = 0; v.res = v.decide(); if (v.res && v.res.msg) bubble(v.mesh, v.res.msg, v.res.sold); }
+        if (tg.act === 'pay') { if (!v.res || !v.res.sold) { v.i++; continue; } v.wait += dt; if (v.wait < 0.7) { animPerson(v.mesh, false, dt); continue; } v.wait = 0; }
         v.i++;
         if (v.i >= v.path.length) { visitG.remove(v.mesh); visitors.splice(k, 1); }
         continue;
       }
-      const sp = 2.4 * dt;
+      const sp = 2.6 * dt;
       v.mesh.position.x += dx / dd * Math.min(sp, dd); v.mesh.position.z += dz / dd * Math.min(sp, dd);
       v.mesh.rotation.y = Math.atan2(dx, dz); animPerson(v.mesh, true, dt);
     }
+    for (let i = bubbles.length - 1; i >= 0; i--) { const b = bubbles[i]; b.life -= dt; b.s.position.y = 2.9 + (2.6 - b.life) * 0.15; b.s.material.opacity = Math.min(1, b.life * 1.5); if (b.life <= 0) { b.mesh.remove(b.s); b.s.material.map.dispose(); bubbles.splice(i, 1); } }
   }
   function resolveVisitors() { // お店を出たとき、まだ決めていないお客さんの分をまとめて決める
-    for (const v of visitors) { if (!v.decided) { v.decided = true; v.decide(); } visitG.remove(v.mesh); }
+    for (const v of visitors) { if (!v.res && v.i <= 1) { v.res = v.decide(); } visitG.remove(v.mesh); }
     visitors.length = 0;
   }
 
@@ -452,12 +499,15 @@ const World = (function () {
       areas[name].group.visible = true;
       const sp = spawn || (name === 'town' ? townSpawnFor(prev) : areas[name].spawn);
       P.x = sp.x; P.z = sp.z; P.rot = sp.rot; C.yaw = name === 'town' ? (sp.rot === 0 ? 0 : Math.PI) : (sp.rot === Math.PI ? 0 : Math.PI); C.pitch = areas[name].indoor ? 0.9 : 0.36; C.dist = areas[name].indoor ? 10 : 15;
+      if (sp.yaw !== undefined) C.yaw = sp.yaw;
+      if (areas[name].cam) { C.pitch = areas[name].cam.pitch; C.dist = areas[name].cam.dist; }
       if (typeof onAreaChange === 'function') onAreaChange(name, prev);
       f.style.opacity = 0; setTimeout(() => { busy = false; }, 250);
     }, 260);
   }
   function townSpawnFor(prev) {
-    const t = { shop: [0, -3.6, 0], hyakkin: [-36, -16.6, 0], home: [38, -16.6, 0], art: [-36, 18.8, Math.PI], wholesale: [38, 18.6, Math.PI] }[prev] || [0, -3.6, 0];
+    if (Adventure.isAdv(prev)) return { x: 61, z: 0, rot: -Math.PI / 2, yaw: Math.PI / 2 };
+    const t = { shop: [0, -3.6, 0], hyakkin: [-36, -16.6, 0], home: [38, -16.6, 0], art: [-36, 18.8, Math.PI], wholesale: [38, 18.6, Math.PI], lab: [-62, -5.4, 0], smith: [62, -5.4, 0], mountain: [0, -35, 0] }[prev] || [0, -3.6, 0];
     return { x: t[0], z: t[1], rot: t[2] };
   }
 
@@ -489,6 +539,8 @@ const World = (function () {
     lamp = new T.PointLight(0xfff0d0, 0.0, 22); scene.add(lamp);
     buildTown(); buildMyShop();
     buildSupplier('hyakkin', 1100); buildSupplier('home', 1200); buildSupplier('art', 1300); buildSupplier('wholesale', 1400);
+    buildFriend('lab', 1500); buildFriend('smith', 1600);
+    Adventure.build({ T, newArea, addHot, makePerson, animPerson, box, rbox, cyl, sph, capsule, m, labelTex, sign, collide, canvasTex, grassTex, rr, go, P, scene, get camera() { return cam; } });
     Workshop.build(scene, areas.shop, { mats: m, box, cyl, sph });
     P.mesh = makePerson(0x62d6a8, 0x553322, 0xffffff); scene.add(P.mesh);
     const ap = sph(1, 0xffffff, 0, 0.92, 0.2, P.mesh); ap.scale.set(0.28, 0.34, 0.14);
@@ -502,7 +554,7 @@ const World = (function () {
     const rs = () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.fov = cam.aspect < 0.8 ? 74 : cam.aspect < 1.2 ? 62 : 55; cam.updateProjectionMatrix(); };
     addEventListener('resize', rs); rs();
 
-    addEventListener('keydown', e => { if (UI.isOpen() || e.target.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') { if (!Workshop.active) interact(); e.preventDefault(); } if (e.code === 'Escape' && Workshop.active) Workshop.exit(); if (e.code.startsWith('Arrow')) e.preventDefault(); });
+    addEventListener('keydown', e => { if (UI.isOpen() || e.target.tagName === 'INPUT') return; keys[e.code] = true; if (Adventure.isAdv(area) && (e.code === 'Space' || e.code === 'KeyF' || e.code === 'KeyJ')) { Adventure.attack(); e.preventDefault(); } else if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') { if (!Workshop.active) interact(); e.preventDefault(); } if (e.code === 'Escape' && Workshop.active) Workshop.exit(); if (e.code.startsWith('Arrow')) e.preventDefault(); });
     addEventListener('keyup', e => { keys[e.code] = false; });
     addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
     setupTouch();
@@ -551,6 +603,8 @@ const World = (function () {
     const col = new T.Color(0x0b1030).lerp(new T.Color(0x9fd8ff), d).lerp(new T.Color(0xff9a6a), dusk * 0.55);
     const wet = weather === 'rain' ? 1 : weather === 'cloudy' ? 0.5 : 0;
     col.lerp(new T.Color(0x8e9aa6), wet * 0.55 * d);
+    const af = Adventure.fog(area); if (af) col.lerp(new T.Color(af.c), af.k);
+    scene.fog.near = af ? af.near : 70; scene.fog.far = af ? af.far : 190;
     scene.background.copy(col); scene.fog.color.copy(col);
     sun.intensity = (0.1 + 0.7 * d) * (1 - wet * 0.4);
     sun.color.set(dusk > 0.1 ? 0xffc890 : 0xfff4e0);
@@ -560,7 +614,7 @@ const World = (function () {
     const top = new T.Color(0x0a1030).lerp(new T.Color(0x3f93ee), d).lerp(new T.Color(0xff8a6a), dusk * 0.25).lerp(new T.Color(0x7d8794), wet * 0.6 * d);
     skyMat.uniforms.top.value.copy(top); skyMat.uniforms.hor.value.copy(col);
     cloudMat.color.set(0x2a2f48).lerp(new T.Color(0xffffff), d).lerp(new T.Color(0xb9c0c9), wet * 0.6 * d).lerp(new T.Color(0xffc9a8), dusk * 0.4);
-    lamp.intensity = areas[area] && areas[area].indoor ? 0.1 + 0.5 * (1 - d) : 0;
+    lamp.intensity = af ? af.lamp : areas[area] && areas[area].indoor ? 0.1 + 0.5 * (1 - d) : 0;
     rainOn = weather === 'rain'; dayK = d; lt.sun = sun.intensity; lt.hemi = hemi.intensity; lt.lamp = lamp.intensity;
   }
 
@@ -619,19 +673,21 @@ const World = (function () {
       const l = Math.hypot(mx, mz); mag = Math.min(1, l); mx /= l; mz /= l;
       const sy = Math.sin(C.yaw), cy = Math.cos(C.yaw);
       const wx = mx * cy + mz * sy, wz = -mx * sy + mz * cy;   // カメラの向きに合わせる
-      const sp = (a.indoor ? Math.min(bagSpeed(), 6.5) : bagSpeed()) * (keys.ShiftLeft || keys.ShiftRight || runOn ? 1.5 : 1) * mag;
+      const sp = (a.indoor ? Math.min(bagSpeed(), 6.5) : Adventure.isAdv(area) ? Math.min(bagSpeed(), 7) : bagSpeed()) * (keys.ShiftLeft || keys.ShiftRight || runOn ? 1.5 : 1) * mag;
       const r = collide(a, P.x + wx * sp * dt, P.z + wz * sp * dt, 0.5);
       P.x = r[0]; P.z = r[1];
       let da = Math.atan2(wx, wz) - P.rot; da = Math.atan2(Math.sin(da), Math.cos(da)); P.rot += da * Math.min(1, dt * 14);
     }
     P.mesh.position.x = P.x; P.mesh.position.z = P.z; P.mesh.rotation.y = P.rot;
     const bob = P.mesh.position.y; animPerson(P.mesh, moving, dt); P.mesh.position.x = P.x; P.mesh.position.z = P.z;
+    if (Adventure.isAdv(area)) { Adventure.poseArm(P.mesh); Adventure.update(dt, tNow); }
+    if (a.beacon) { a.beacon.material.opacity = 0.22 + 0.08 * Math.sin(tNow * 2); a.tag.position.y = 11.5 + Math.sin(tNow * 2.2) * 0.35; }
     P.mesh.visible = !inWs;
 
     // 近くの調べられる場所
     cur = null; let best = 1e9;
-    if (!inWs && !busy) for (const h of a.hot) { const d = Math.hypot(h.x - P.x, h.z - P.z); if (d < h.r && d < best) { best = d; cur = h; } }
-    for (const h of a.hot) { h.marker.visible = !inWs; h.marker.rotation.y += dt * 2; h.marker.scale.setScalar(h === cur ? 1.3 : 1); h.marker.position.y += Math.sin(tNow * 3 + h.x) * 0.002; }
+    if (!inWs && !busy) for (const h of a.hot) { if (h.hide && h.hide()) continue; const d = Math.hypot(h.x - P.x, h.z - P.z); if (d < h.r && d < best) { best = d; cur = h; } }
+    for (const h of a.hot) { h.marker.visible = !inWs && !(h.hide && h.hide()); h.marker.rotation.y += dt * 2; h.marker.scale.setScalar(h === cur ? 1.3 : 1); h.marker.position.y += Math.sin(tNow * 3 + h.x) * 0.002; }
     const pe = document.getElementById('prompt');
     if (cur && !UI.isOpen()) { pe.textContent = `[E] ${cur.label()}`; pe.style.display = 'block'; } else pe.style.display = 'none';
     const ba = document.getElementById('btnAct'); if (ba) { const on = !!cur && !UI.isOpen() && !inWs; ba.style.display = on ? 'block' : 'none'; if (on) ba.textContent = cur.label(); }
@@ -658,7 +714,8 @@ const World = (function () {
     }
     Workshop.update(dt, tNow); twinkleJars();
     darkV += (manualDark - darkV) * Math.min(1, dt * 4);
-    sun.intensity = lt.sun * (1 - 0.93 * darkV); hemi.intensity = lt.hemi * (1 - 0.9 * darkV); lamp.intensity = lt.lamp * (1 - 0.95 * darkV);
+    const afl = Adventure.fog(area), lm = afl ? afl.light : 1;
+    sun.intensity = lt.sun * lm * (1 - 0.93 * darkV); hemi.intensity = lt.hemi * (afl && afl.lamp ? 0.5 : 1) * (1 - 0.9 * darkV); lamp.intensity = lt.lamp * (1 - 0.95 * darkV);
     const dk = Math.max(darkV, (1 - dayK) * 0.55); for (const g of glowMats) g.mat.emissiveIntensity = 0.05 + 1.1 * g.lv * dk;
     followSun(P.x, P.z); skyDome.position.copy(cam.position); driftClouds(dt);
     renderer.render(scene, cam);
@@ -671,6 +728,6 @@ const World = (function () {
       area = name; for (const k in areas) areas[k].group.visible = k === name;
       const sp = areas[name].spawn; P.x = sp.x; P.z = sp.z; P.rot = sp.rot; C.yaw = 0; C.pitch = areas[name].indoor ? 0.9 : 0.36; C.dist = areas[name].indoor ? 10 : 15;
     },
-    get camera() { return cam; }, get scene() { return scene; }, get env() { return envTex; }, get dark() { return Math.max(darkV, (1 - dayK) * 0.55); }, get darkOn() { return !!manualDark; }, setDark(on) { manualDark = on ? 1 : 0; },
+    get camera() { return cam; }, get scene() { return scene; }, get env() { return envTex; }, get tint() { return 0; }, get dark() { return Math.max(darkV, (1 - dayK) * 0.55); }, get darkOn() { return !!manualDark; }, setDark(on) { manualDark = on ? 1 : 0; },
   };
 })();

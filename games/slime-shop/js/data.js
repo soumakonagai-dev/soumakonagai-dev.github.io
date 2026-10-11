@@ -29,6 +29,22 @@ addItem('soap', { name: 'ハンドソープ（泡）', kind: 'soap', unit: 'ml',
 for (const k in PAINTS) addItem('paint_' + k, { name: `絵具（${PAINTS[k][0]}）`, kind: 'paint', unit: '回', rate: 4, color: PAINTS[k][1], icon: '🎨', w: 5, note: '色をつける' });
 addItem('snow_powder', { name: 'スノーパウダー', kind: 'snow', unit: '回', rate: 4, color: '#ffffff', icon: '❄️', w: 5, note: 'シャリシャリになる。入れすぎてもOKだけど、そのぶん高くなる' });
 addItem('glow_powder', { name: '蓄光パウダー', kind: 'glow', unit: '回', rate: 4, color: '#c8ff8a', icon: '🌙', w: 5, note: '暗いところで光る。入れるほど強く光るけど、とても高くなる' });
+// スライムエキス（冒険で魔物からとれる）。入れると価値が上がる
+const EXTRACTS = {
+  normal: ['スライムエキス', '#8fe8b8', '魔物からとれる。入れると少し価値が上がる', 0.10],
+  puni: ['ぷにぷにエキス', '#ff8fc0', 'ぷにぷに好きに人気。入れると価値が上がる', 0.16],
+  nobi: ['のびのびエキス', '#6fa8ff', 'のびのび好きに人気。入れると価値が上がる', 0.16],
+  toro: ['とろとろエキス', '#7be0ff', 'ASMR配信者に人気。入れると価値が上がる', 0.16],
+  fuwa: ['ふわふわエキス', '#ffffff', '学生とASMR配信者に人気。入れると価値が上がる', 0.16],
+  hikari: ['ヒカリエキス', '#d8ff6a', '暗いところで光る！ 入れると少し光る', 0.12],
+  fire: ['炎のエキス', '#ff8a4a', '入れると「ほかほか」あったかい感触になる', 0.35],
+  ice: ['氷のエキス', '#aee8ff', '入れると「ひんやり」つめたい感触になる', 0.35],
+  thunder: ['雷のエキス', '#ffee55', '入れると「ぴりぴり」しびれる感触になる', 0.35],
+  fizz: ['しゅわしゅわエキス', '#7fffd4', '入れると「しゅわしゅわ」泡がはじける感触になる', 0.3],
+  mochi: ['もちもちエキス', '#ffd6e8', '入れると「もちもち」のびてはずむ感触になる', 0.3],
+  secret: ['秘伝のスライムエキス', '#ffd24a', 'VIPが大金を出す伝説のエキス。入れすぎはもったいない', 14],
+};
+for (const k in EXTRACTS) addItem('extract_' + k, { name: EXTRACTS[k][0], kind: 'extract', ex: k, unit: '回', rate: 4, color: EXTRACTS[k][1], icon: k === 'secret' ? '🏺' : '🧪', w: 5, note: EXTRACTS[k][2] });
 for (const k in GLITTERS) addItem('glitter_' + k, { name: `ラメ（${GLITTERS[k][0]}）`, kind: 'glitter', unit: '回', rate: 4, color: GLITTERS[k][1], icon: '✨', w: 5, note: 'キラキラ' });
 
 // stock: [材料ID, 1パックの量, 値段]
@@ -58,43 +74,58 @@ const SHOPS = {
 // ---- お客さん ----
 // like(スライム) = その人が「定価の何倍まで出すか」の目安
 const glowLike = (sl, k) => (sl.gl || 0) >= 0.5 ? k * Math.min(1, (sl.gl || 0) / 3) + 0.3 : 0;   // 光るスライムが好きな人向け
+// エキスで生まれる新しい感触（スライムの手ざわり・音・見た目が変わる）
+const FEEL2 = {
+  hokaho: { name: 'ほかほか', ex: 'fire', desc: 'あったかくて、やさしい' },
+  hiyari: { name: 'ひんやり', ex: 'ice', desc: 'つめたくて、シャキッとしている' },
+  piri: { name: 'ぴりぴり', ex: 'thunder', desc: 'ときどき しびれて ビリッとする' },
+  shuwa: { name: 'しゅわしゅわ', ex: 'fizz', desc: '泡がしゅわしゅわはじける' },
+  mochi: { name: 'もちもち', ex: 'mochi', desc: 'ものすごくのびて、はずむ' },
+};
+const ftv = (sl, k) => ((sl.ft || {})[k]) || 0;
+const ftSum = (sl, ks) => ks.reduce((a, k) => a + ftv(sl, k), 0);
 const hasTrait = (sl, t, min = 0.25) => (sl.traits[t] || 0) >= min;
 const CUSTOMERS = {
   kid: {
     name: 'こども', icon: '🧒', budget: 260, w: (r, rain) => 5 * (rain ? 0.5 : 1),
     desc: 'ふつうのスライムとカラフルなラメ入り、暗いところで光るスライムが好き。お金は少なめ',
-    like: sl => 0.95 + (sl.sp >= 2 ? 0.3 : 0) + (sl.sat > 0.55 ? 0.15 : 0) - (TRAITS.some(t => sl.traits[t] > 0) ? 0.1 : 0) + glowLike(sl, 0.55),
+    like: sl => 1.1 + 0.4 * ftv(sl, 'shuwa') + 0.3 * ftv(sl, 'piri') + (sl.sp >= 2 ? 0.3 : 0) + (sl.sat > 0.55 ? 0.15 : 0) - (TRAITS.some(t => sl.traits[t] > 0) ? 0.1 : 0) + glowLike(sl, 0.55),
   },
   student: {
     name: '学生', icon: '👩‍🎓', budget: 450, w: () => 3,
     desc: 'ふわふわとパステルカラーが好き。流行に敏感',
-    like: sl => 0.8 + (hasTrait(sl, 'fuwafuwa', 0.05) ? 0.9 : 0) + (sl.light > 0.75 ? 0.35 : 0),
+    like: sl => 1.0 + (hasTrait(sl, 'fuwafuwa', 0.05) ? 0.9 : 0) + (sl.light > 0.75 ? 0.35 : 0),
   },
   nobi: {
     name: 'のびのび好き', icon: '🧑‍🎨', budget: 900, w: r => 1 + 0.5 * r,
     desc: 'よく伸びる「のびのび」が大好き。限界ギリギリほど高く買う',
-    like: sl => hasTrait(sl, 'nettori', 0.05) ? 1.3 + 1.2 * sl.traits.nettori : 0.5,
+    like: sl => hasTrait(sl, 'nettori', 0.05) ? 1.3 + 1.2 * sl.traits.nettori : 0.85,
   },
   puni: {
     name: 'ぷにぷに好き', icon: '🧑‍🔬', budget: 900, w: r => 1 + 0.5 * r,
     desc: '弾力のある「ぷにぷに」が大好き。限界ギリギリほど高く買う',
-    like: sl => hasTrait(sl, 'danryoku', 0.05) ? 1.3 + 1.2 * sl.traits.danryoku : 0.5,
+    like: sl => hasTrait(sl, 'danryoku', 0.05) ? 1.3 + 1.2 * sl.traits.danryoku : 0.85,
   },
   asmr: {
     name: 'ASMR配信者', icon: '🎙️', budget: 1600, needRep: 2, w: (r, rain) => 0.6 * r * (rain ? 2 : 1),
     desc: '音がいい「とろとろ」「ふわふわ」「シャリシャリ」を探している。高く買う',
-    like: sl => 0.45 + (hasTrait(sl, 'torotoro', 0.05) ? 0.9 + sl.traits.torotoro : 0) + (hasTrait(sl, 'fuwafuwa', 0.05) ? 0.6 + sl.traits.fuwafuwa * 0.6 : 0) + 1.1 * (sl.crunch || 0),
+    like: sl => 0.75 + (hasTrait(sl, 'torotoro', 0.05) ? 0.9 + sl.traits.torotoro : 0) + (hasTrait(sl, 'fuwafuwa', 0.05) ? 0.6 + sl.traits.fuwafuwa * 0.6 : 0) + 1.1 * (sl.crunch || 0) + 0.9 * ftSum(sl, ['shuwa', 'hiyari', 'piri', 'mochi']),
     multi: true,
   },
   family: {
     name: '子連れ', icon: '👨‍👧', budget: 1300, needRep: 2, w: (r, rain) => (0.7 + 0.35 * r) * (rain ? 0.6 : 1), multi: true,
     desc: 'お子さんが喜ぶ「暗いところで光る」スライムが大好き。ちょっと高くても買う',
-    like: sl => 0.6 + glowLike(sl, 1.5) + (sl.sp >= 2 ? 0.2 : 0) + (sl.sat > 0.55 ? 0.1 : 0),
+    like: sl => 0.85 + 0.4 * ftSum(sl, ['hiyari', 'shuwa']) + glowLike(sl, 1.5) + (sl.sp >= 2 ? 0.2 : 0) + (sl.sat > 0.55 ? 0.1 : 0),
+  },
+  vip: {
+    name: 'VIP', icon: '🎩', budget: 90000, special: true, w: () => 0,
+    desc: '「秘伝のスライムエキス」入りを探している大金持ち。見つけると、なんと競りが始まる！',
+    like: sl => (sl.sec || 0) > 0.2 ? 6 : 0.05,
   },
   collector: {
     name: 'コレクター', icon: '🧐', budget: 3500, needRep: 3, w: r => 0.45 * (r - 2),
     desc: '2つ以上の個性が混ざった珍しいスライムやSランクを集めている',
-    like: sl => 0.35 + (TRAITS.filter(t => sl.traits[t] > 0).length >= 2 ? 1.3 : 0) + (sl.q === 'S' ? 0.9 : sl.q === 'A' ? 0.3 : 0),
+    like: sl => 0.6 + 0.55 * Object.keys(sl.ft || {}).length + (TRAITS.filter(t => sl.traits[t] > 0).length >= 2 ? 1.3 : 0) + (sl.q === 'S' ? 0.9 : sl.q === 'A' ? 0.3 : 0),
     multi: true,
   },
 };
@@ -116,6 +147,51 @@ const BAG = [
 ];
 const SIGN = [{ name: 'なし', v: 1, cost: 0 }, { name: '手書き看板', v: 1.25, cost: 3000 }, { name: 'ネオン看板', v: 1.55, cost: 12000 }, { name: '巨大スライム像', v: 2, cost: 50000 }];
 const RENT = 500;
+
+// ---- 冒険：武器（エンジニアの友達の家）----
+const ELEMENTS = {
+  fire: { name: '炎', icon: '🔥', color: 0xff6a2a, desc: 'やけどで、じわじわダメージ' },
+  ice: { name: '氷', icon: '❄️', color: 0x8fe0ff, desc: '敵の動きがおそくなる' },
+  thunder: { name: '雷', icon: '⚡', color: 0xffe83a, desc: 'まわりの敵にもビリビリ走る' },
+  water: { name: '水', icon: '💧', color: 0x4aa0ff, desc: 'ふっとばす。ぬれた敵に雷が効く' },
+  poison: { name: '毒', icon: '☠', color: 0xa84fd8, desc: 'どくで、じわじわダメージ' },
+  light: { name: '光', icon: '✨', color: 0xfff2a0, desc: 'クリティカルが出やすい。かげに強い' },
+};
+// unlock: 解放の条件（S.flags）。king=ヌシ、ice/fire=洞窟のボス、secret=ひみつの洞窟、both=氷と火の洞窟
+const WEAPONS = [
+  { id: 'broom', name: 'ほうき', price: 0, atk: 4, reach: 2.0, arc: 110, cd: 0.45, color: 0xc8a070, desc: '最初からある。ちょっと頼りない' },
+  { id: 'wood', name: '木の剣', price: 800, atk: 7, reach: 2.3, arc: 100, cd: 0.4, color: 0xd9a86a, desc: 'ふつうに使いやすい' },
+  { id: 'iron', name: '鉄の剣', price: 2500, atk: 12, reach: 2.5, arc: 100, cd: 0.38, color: 0xcfd6dc, desc: 'しっかり斬れる' },
+  { id: 'spear', name: 'スライムやり', price: 4000, atk: 11, reach: 3.8, arc: 40, cd: 0.5, color: 0x9ad0ff, desc: '長いけど、正面しか届かない' },
+  { id: 'hammer', name: '大ハンマー', price: 6000, atk: 24, reach: 2.7, arc: 360, cd: 1.0, color: 0xff9a4a, desc: 'まわり全部を吹っ飛ばす。遅い' },
+  { id: 'venom', name: 'ベノムダガー', price: 7500, atk: 17, reach: 2.1, arc: 90, cd: 0.22, el: 'poison', color: 0xc77aff, unlock: 'king', desc: '毒。とにかく速い', need: 'キングスライムを倒す' },
+  { id: 'flame', name: 'フレイムブレード', price: 9000, atk: 30, reach: 2.7, arc: 110, cd: 0.38, el: 'fire', color: 0xff6a2a, unlock: 'fire', desc: '炎。やけどで燃やす', need: '火の洞窟のボスを倒す' },
+  { id: 'frost', name: 'アイスランス', price: 9000, atk: 27, reach: 4.0, arc: 45, cd: 0.5, el: 'ice', color: 0x8fe0ff, unlock: 'ice', desc: '氷。長くて、敵をおそくする', need: '氷の洞窟のボスを倒す' },
+  { id: 'tide', name: 'タイドロッド', price: 11000, atk: 32, reach: 3.0, arc: 120, cd: 0.4, el: 'water', color: 0x4aa0ff, unlock: 'ice', desc: '水。大きくふっとばす', need: '氷の洞窟のボスを倒す' },
+  { id: 'sun', name: 'ソーラーブレード', price: 12000, atk: 36, reach: 2.9, arc: 130, cd: 0.34, el: 'light', color: 0xffe36a, unlock: 'king', desc: '光。クリティカルが出やすい', need: 'キングスライムを倒す' },
+  { id: 'thunder', name: 'サンダーハンマー', price: 18000, atk: 52, reach: 3.0, arc: 360, cd: 0.9, el: 'thunder', color: 0xffee33, unlock: 'both', desc: '雷。まわり全部にビリビリ', need: '氷と火の洞窟のボスを倒す' },
+  { id: 'legend', name: 'エクスカリスライム', price: 0, atk: 85, reach: 3.5, arc: 170, cd: 0.3, el: 'light', color: 0xfff7c0, unlock: 'chest', desc: '伝説の剣。ひみつの洞窟の宝箱にねむる', need: 'ひみつの洞窟の宝箱' },
+];
+const unlockOk = (w) => !w.unlock || w.unlock === 'chest' || (w.unlock === 'both' ? (S.flags.fire && S.flags.ice) : !!S.flags[w.unlock]);
+// ---- 冒険：魔物 ----
+const MONSTERS = {
+  normal: { name: 'スライム', hp: 14, dmg: 5, spd: 1.9, color: '#7be8b2', size: 0.55, drop: [['extract_normal', 0.8]], feel: {} },
+  puni: { name: 'ぷにぷにスライム', hp: 20, dmg: 6, spd: 2.4, color: '#ff8fc0', size: 0.6, el: 'water', weak: ['thunder'], drop: [['extract_normal', 0.5], ['extract_puni', 0.7]], feel: { bouncy: 1 } },
+  nobi: { name: 'のびのびスライム', hp: 22, dmg: 6, spd: 1.7, color: '#6fa8ff', size: 0.6, el: 'poison', weak: ['fire'], drop: [['extract_normal', 0.5], ['extract_nobi', 0.7]], feel: { ooze: 1 } },
+  toro: { name: 'とろとろスライム', hp: 18, dmg: 6, spd: 2.1, color: '#7be0ff', size: 0.6, el: 'water', weak: ['thunder'], drop: [['extract_normal', 0.5], ['extract_toro', 0.7]], feel: { sticky: 1 } },
+  fuwa: { name: 'ふわふわスライム', hp: 16, dmg: 5, spd: 1.3, color: '#ffffff', size: 0.65, weak: ['fire'], drop: [['extract_normal', 0.5], ['extract_fuwa', 0.7]], feel: { foam: 1 } },
+  hikari: { name: 'ヒカリスライム', hp: 32, dmg: 9, spd: 2.2, color: '#d8ff6a', size: 0.65, glow: true, el: 'light', weak: ['poison'], drop: [['extract_normal', 0.6], ['extract_hikari', 0.8]], feel: { bouncy: 0.6 } },
+  fizz: { name: 'しゅわスライム', hp: 20, dmg: 6, spd: 2.2, color: '#7fffd4', size: 0.6, el: 'water', weak: ['thunder'], drop: [['extract_normal', 0.4], ['extract_fizz', 0.6]], feel: { foam: 0.7 }, fizz: true },
+  mochi: { name: 'もちスライム', hp: 46, dmg: 8, spd: 1.3, color: '#ffe6f0', size: 0.8, weak: ['fire'], drop: [['extract_mochi', 0.9]], feel: { ooze: 1, sticky: 0.5 } },
+  frost: { name: 'こおりスライム', hp: 28, dmg: 9, spd: 2.0, color: '#bfefff', size: 0.65, el: 'ice', weak: ['fire'], drop: [['extract_normal', 0.5], ['extract_ice', 0.6]], feel: { hard: 0.6 } },
+  flame: { name: 'ほのおスライム', hp: 30, dmg: 10, spd: 2.2, color: '#ff8a4a', size: 0.65, glow: true, el: 'fire', weak: ['water', 'ice'], drop: [['extract_normal', 0.5], ['extract_fire', 0.6]], feel: { ooze: 0.4 } },
+  volt: { name: 'かみなりスライム', hp: 26, dmg: 10, spd: 3.0, color: '#fff06a', size: 0.6, glow: true, el: 'thunder', weak: ['poison'], drop: [['extract_normal', 0.5], ['extract_thunder', 0.6]], feel: { bouncy: 0.8 } },
+  shade: { name: 'かげスライム', hp: 34, dmg: 12, spd: 2.4, color: '#7a5ac8', size: 0.7, el: 'dark', weak: ['light'], drop: [['extract_normal', 0.5], ['extract_thunder', 0.3], ['extract_secret', 0.04]], feel: { ooze: 0.5 } },
+  king: { name: 'キングスライム', hp: 360, dmg: 22, spd: 2.6, color: '#ffd24a', size: 2.3, boss: true, weak: ['thunder'], flag: 'king', drop: [['extract_secret', 1]], feel: { ooze: 0.6, bouncy: 0.4 } },
+  crystal: { name: 'クリスタルスライム', hp: 620, dmg: 26, spd: 2.4, color: '#9fe8ff', size: 2.4, boss: true, el: 'ice', weak: ['fire'], flag: 'ice', drop: [['extract_ice', 1], ['extract_ice', 1]], feel: { hard: 0.7 } },
+  magma: { name: 'マグマスライム', hp: 700, dmg: 30, spd: 2.6, color: '#ff7a3a', size: 2.4, boss: true, glow: true, el: 'fire', weak: ['water', 'ice'], flag: 'fire', drop: [['extract_fire', 1], ['extract_fire', 1]], feel: { ooze: 0.6 } },
+  phantom: { name: 'ファントムスライム', hp: 1000, dmg: 34, spd: 3.0, color: '#b08cff', size: 2.6, boss: true, glow: true, el: 'dark', weak: ['light'], flag: 'secret', drop: [['extract_thunder', 1], ['extract_secret', 1]], feel: { ooze: 0.5, bouncy: 0.5 } },
+};
 
 // ---- 従業員 ----
 const ROLES = {

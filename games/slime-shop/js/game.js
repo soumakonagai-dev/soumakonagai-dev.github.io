@@ -13,6 +13,7 @@ function askConfirm(msg, yesLabel, onYes, danger) {
   o.addEventListener('click', e => { const b = e.target.closest('button'); if (!b && e.target !== o) return; o.remove(); if (b && b.dataset.r === '1') onYes(); });
   document.body.appendChild(o);
 }
+const newSns = () => ({ followers: 8, posts: [], posted: { day: 0, n: 0 }, boost: { day: 0, segs: [] }, viralDay: 0, ugc: [], likesTotal: 0 });
 const yen = n => '¥' + Math.round(n).toLocaleString();
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -27,8 +28,10 @@ function newState() {
     recipes: [], staff: [], up: { tool: 0, bowl: 0, shelf: 0, store: 0, bag: 0, sign: 0 },
     bowl: { amt: {}, stir: 0 }, autoBuy: {}, dex: { combos: {}, cust: {}, made: 0 },
     weather: 'sunny', trend: null, env: { b: 0, w: 0, s: 0 }, pf: {}, sale: null,
-    today: { sold: 0, rev: 0, missed: 0, made: 0, failed: 0, empty: 0 }, debt: 0, nid: 1, mute: false, totalSold: 0,
+    today: { sold: 0, rev: 0, missed: 0, made: 0, failed: 0, empty: 0, high: 0, taste: 0, budget: 0, likes: 0, fol: 0 }, debt: 0, nid: 1, mute: false, totalSold: 0,
     area: 'shop', pos: null,
+    sns: { followers: 8, posts: [], posted: { day: 0, n: 0 }, boost: { day: 0, segs: [] }, viralDay: 0, ugc: [], likesTotal: 0 },
+    weapon: 'broom', weapons: { broom: true }, labUnlocked: false, bossDay: 0, bossDays: {}, flags: {}, hp: 100, maxHp: 100,
   };
 }
 
@@ -38,6 +41,8 @@ const bagSpeed = () => BAG[S.up.bag].speed;
 const bagCap = () => BAG[S.up.bag].v;
 const storeCap = () => STORE_CAP[S.up.store].v;
 const weightOf = d => Object.keys(d).reduce((a, id) => a + (ITEMS[id] ? ITEMS[id].w * d[id] : 0), 0);
+// 冒険で手に入れたものをバッグに入れる
+function giveItem(id, q) { const it = ITEMS[id]; if (weightOf(S.bag) + it.w * q > bagCap()) return false; S.bag[id] = (S.bag[id] || 0) + q; return true; }
 const hasStaff = role => S.staff.filter(s => s.role === role);
 const clerkBonus = () => { const c = hasStaff('clerk'); return c.length ? 0.95 + 0.2 * Math.max(...c.map(x => x.skill)) : 1.05; };
 
@@ -60,7 +65,7 @@ function stowBag() {
 
 // ---------- 日付・天気 ----------
 function newDay() {
-  S.today = { sold: 0, rev: 0, missed: 0, made: 0, failed: 0, empty: 0 };
+  S.today = { sold: 0, rev: 0, missed: 0, made: 0, failed: 0, empty: 0, high: 0, taste: 0, budget: 0, likes: 0, fol: 0 };
   const r = Math.random();
   S.weather = r < 0.45 ? 'sunny' : r < 0.7 ? 'cloudy' : r < 0.9 ? 'rain' : 'dry';
   const W = WEATHERS[S.weather].env;
@@ -83,9 +88,11 @@ function tickMinute() {
   S.min++;
   const open = S.min >= 600 && S.min < 1140;
   if (open) {
-    const rate = (2 + repLevel()) * SIGN[S.up.sign].v * WEATHERS[S.weather].cust;
+    const rate = (2 + repLevel()) * 1.35 * SIGN[S.up.sign].v * WEATHERS[S.weather].cust * snsMul();
     if (Math.random() < rate / 60) arrival();
   }
+  if (open && Math.random() < 1.2 / 60) vipVisit();
+  snsTick();
   if (S.min >= 540 && S.min < 1140) crafterTick();
   if (S.min >= 1440) endDay();
 }
@@ -93,7 +100,7 @@ function tickMinute() {
 // ---------- お客さん ----------
 function arrival() {
   const rl = repLevel(), rain = S.weather === 'rain', pool = [];
-  for (const id in CUSTOMERS) { const c = CUSTOMERS[id]; if (c.needRep && rl < c.needRep) continue; const w = c.w(rl, rain); if (w > 0) pool.push([id, w]); }
+  for (const id in CUSTOMERS) { const c = CUSTOMERS[id]; if (c.needRep && rl < c.needRep) continue; let w = c.w(rl, rain); if (w > 0 && S.sns.boost && S.sns.boost.day === S.day && S.sns.boost.segs.includes(id)) w *= 2.6; if (w > 0) pool.push([id, w]); }
   let t = Math.random() * pool.reduce((a, p) => a + p[1], 0), type = pool[0][0];
   for (const p of pool) { t -= p[1]; if (t <= 0) { type = p[0]; break; } }
   const inShop = World.area === 'shop', staffed = hasStaff('clerk').length > 0 || inShop;
@@ -101,22 +108,39 @@ function arrival() {
   const decide = () => customerBuy(type);
   if (inShop) World.spawnVisitor(type, decide); else decide();
 }
+// ---- VIPと競り ----
+function vipVisit() {
+  const cand = S.shelf.map(sl => { const st = sl.sid && S.slimes.find(x => x.id === sl.sid); return st && st.count > 0 && (st.sec || 0) >= 0.2 ? { sl, st } : null; }).filter(Boolean);
+  if (!cand.length) return;
+  if (!(hasStaff('clerk').length > 0 || World.area === 'shop')) { S.today.missed++; return; }
+  cand.sort((a, b) => b.st.fair - a.st.fair); const o = cand[0], fair = o.st.fair, n = 2 + ((Math.random() * 3) | 0);
+  const bids = Array.from({ length: n }, () => Math.min(CUSTOMERS.vip.budget, Math.round(fair * rnd(1.3, 3.6) / 100) * 100)).sort((a, b) => b - a);
+  if (bids[0] < o.sl.price) { UI.toast('🎩 VIPが秘伝のスライムを見に来たけど、値段が高すぎて帰った…', 'bad'); return; }
+  const final = Math.min(bids[0], Math.max(o.sl.price, Math.round(bids[1] * 1.05 / 100) * 100));
+  o.st.count--; S.money += final; S.today.sold++; S.today.rev += final; S.totalSold++; S.repPts += 12;
+  const d = S.dex.cust.vip || (S.dex.cust.vip = { n: 0, loved: 0 }); d.n++; d.loved++;
+  sfx('coin'); World.refreshShelf();
+  if (UI.isOpen()) UI.toast(`🎩 VIPが「${o.st.name}」を競り落とした！ +${yen(final)}`, 'good'); else UI.auction(o.st.name, o.sl.price, final, n);
+}
 function customerBuy(typeId) {
-  const type = CUSTOMERS[typeId], bonus = clerkBonus();
-  let best = null, bu = -1e9;
+  const type = CUSTOMERS[typeId], bonus = clerkBonus(), fans = 1 + Math.min(0.25, S.sns.followers / 800);   // フォロワーが多いと「人気のお店」でちょっと買いやすい
+  let best = null, bu = -1e9, seen = 0; const why = {};
   S.shelf.forEach((sl, i) => {
     const st = sl.sid && S.slimes.find(x => x.id === sl.sid);
-    if (!st || st.count <= 0) return;
+    if (!st || st.count <= 0) return; seen++;
     let like = type.like(st); if (S.trend && st.traits[S.trend] > 0) like *= 1.25;
-    if (typeId !== 'asmr') like *= 1 - 0.4 * (st.crunch || 0);   // シャリシャリは高くなるぶん、ふつうのお客さんには売れにくい
-    const willing = st.fair * like * rnd(0.9, 1.2) * bonus;
-    if (sl.price <= willing && sl.price <= type.budget) { const u = willing - sl.price; if (u > bu) { bu = u; best = { i, st, like, price: sl.price }; } }
+    if (typeId !== 'asmr') like *= 1 - 0.4 * (st.crunch || 0);
+    { const ex = st.ex || {}, want = { nobi: ['nobi'], puni: ['puni'], asmr: ['toro', 'fuwa'], student: ['fuwa'] }[typeId] || []; for (const k of want) like *= 1 + 0.4 * Math.min(1, ex[k] || 0); }
+    const willing = st.fair * like * rnd(0.95, 1.4) * bonus * fans;
+    if (sl.price > type.budget) { why.budget = 1; return; }
+    if (sl.price > willing) { why[like < 0.95 ? 'taste' : 'high'] = 1; return; }
+    const u = willing - sl.price; if (u > bu) { bu = u; best = { i, st, like, price: sl.price }; }
   });
   if (!best) {
-    const any = S.shelf.some(sl => sl.sid && (S.slimes.find(x => x.id === sl.sid) || {}).count > 0);
-    if (!any) S.today.empty++;
-    S.repPts = Math.max(0, S.repPts - 0.3);
-    return;
+    const reason = seen === 0 ? 'empty' : why.high ? 'high' : why.taste ? 'taste' : 'budget';
+    S.today[reason] = (S.today[reason] || 0) + 1; S.repPts = Math.max(0, S.repPts - 0.15);
+    snsUgc(typeId, false, null, reason);
+    return { sold: false, reason, msg: { high: '💭ちょっと高いなぁ…', taste: '💭好みのがないかも…', budget: '💭お金が足りない…', empty: '💭売り切れかぁ…' }[reason] };
   }
   const qty = type.multi && best.st.count >= 2 && Math.random() < 0.5 ? 2 : 1;
   best.st.count -= qty; S.money += best.price * qty; S.today.sold += qty; S.today.rev += best.price * qty; S.totalSold += qty;
@@ -126,8 +150,89 @@ function customerBuy(typeId) {
   d.n += qty; if (best.like > 1.4) d.loved++;
   sfx('coin'); UI.toast(`${type.icon} ${type.name}が「${best.st.name}」を買った！ +${yen(best.price * qty)}`, 'good');
   if (repLevel() > before) { UI.toast(`★お店の評判が${'★'.repeat(repLevel())}になった！`, 'good'); }
-  if (best.st.count <= 0) { /* 売り切れ */ }
+  snsUgc(typeId, true, best.st, null);
   World.refreshShelf();
+  return { sold: true, msg: ['😊 これください！', '✨ これがいい！', '💖 買います！'][(Math.random() * 3) | 0] };
+}
+
+// =====================================================
+//  スラグラム（お店のSNS：オフライン。自分の投稿・お客さんの反応・フォロワー）
+// =====================================================
+const SNS_USERS = ['ぷにちゃん', 'nobi_nobi', 'スラ子', 'mochi_77', 'asmr_hunter', 'キラキラ★', 'ぷるぷる大好き', 'ふわ太', 'ひんやり部', 'slime.kids', 'おさんぽママ', 'まるまる🎩', 'かりん', 'そうた@学生', 'ゆう'];
+const snsUser = () => SNS_USERS[(Math.random() * SNS_USERS.length) | 0];
+const SEGS = { kid: 'こども', student: 'がくせい', nobi: 'のびのび好き', puni: 'ぷにぷに好き', asmr: 'ASMR', family: '子連れ', collector: 'コレクター' };
+const snsMul = () => (1 + Math.min(2, S.sns.followers / 120)) * (S.sns.viralDay === S.day ? 1.8 : 1);
+function snsAppeal(sl) {
+  let a = 1; for (const t of TRAITS) a += 0.9 * ((sl.traits || {})[t] || 0);
+  a += 0.5 * Math.min(1, (sl.sp || 0) / 3) + 0.7 * Object.keys(sl.ft || {}).length + Math.min(1, (sl.gl || 0) / 1.2) + 0.5 * (sl.crunch || 0) + ({ C: 0, B: 0.2, A: 0.7, S: 1.3 }[sl.q] || 0) + 3 * Math.min(1, (sl.sec || 0) / 0.5);
+  return a;
+}
+function snsPredict(sl, photo3d, tags) {
+  let a = snsAppeal(sl) * (photo3d ? 1.25 : 1) * (1 + 0.12 * tags.length);
+  for (const g of tags) { const l = CUSTOMERS[g].like(sl); a *= l > 1.2 ? 1.25 : l < 0.8 ? 0.85 : 1; }
+  return { a, likes: Math.round((4 + S.sns.followers * 0.12) * a) };
+}
+function commentsFor(sl, n) {
+  const pool = ['かわいい！', 'ほしい…！', 'これ気になる〜', '写真きれい📷', 'お店に行きたい！'];
+  const tr = sl.traits || {}, ft = sl.ft || {};
+  if (tr.fuwafuwa) pool.push('ふわふわで気持ちよさそう☁️', 'ふわふわ好き！');
+  if (tr.danryoku) pool.push('ぷにぷに触りたい！', '弾力すごそう');
+  if (tr.nettori) pool.push('のびのび！ すごく伸びそう', 'ねっとり系だ！');
+  if (tr.torotoro) pool.push('とろとろ…最高', 'とろとろ動画も見たい');
+  if (ft.hiyari) pool.push('ひんやり？ 夏にいいね🧊');
+  if (ft.piri) pool.push('ぴりぴり！？ どんな感触なの⚡');
+  if (ft.shuwa) pool.push('しゅわしゅわ音が聞きたい🥤');
+  if (ft.mochi) pool.push('もちもち大好き🍡');
+  if (ft.hokaho) pool.push('ほかほかで癒やされそう♨️');
+  if ((sl.sp || 0) >= 2) pool.push('ラメきれい✨');
+  if ((sl.gl || 0) >= 0.5) pool.push('暗いところで光るの！？🌙', '子供が喜びそう！');
+  if ((sl.crunch || 0) > 0.1) pool.push('シャリシャリ！ ASMRにいいかも🎙️');
+  if ((sl.sec || 0) >= 0.2) pool.push('これって秘伝のエキス入り…？ すごい！', 'VIPが欲しがるやつだ🎩');
+  if (sl.q === 'S') pool.push('Sランク…さすがです');
+  const out = []; for (let i = 0; i < n; i++) out.push({ user: snsUser(), text: pool[(Math.random() * pool.length) | 0] }); return out;
+}
+function snsTile(sl, size) {   // 投稿の写真（自動で、かわいく加工）
+  const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d'), s = size;
+  const gr = g.createLinearGradient(0, 0, s, s); gr.addColorStop(0, '#fff6fb'); gr.addColorStop(1, '#d9f3e8'); g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  g.fillStyle = '#f2dcbc'; g.fillRect(0, s * 0.72, s, s * 0.28);
+  if ((sl.gl || 0) >= 0.4) { const h = g.createRadialGradient(s / 2, s * 0.6, s * 0.05, s / 2, s * 0.6, s * 0.5); h.addColorStop(0, 'rgba(150,255,170,.7)'); h.addColorStop(1, 'rgba(150,255,170,0)'); g.fillStyle = h; g.fillRect(0, 0, s, s); }
+  const tr = sl.traits || {}, w = s * (tr.torotoro ? 0.62 : tr.fuwafuwa ? 0.55 : 0.5), hgt = s * (tr.torotoro ? 0.2 : tr.danryoku ? 0.38 : 0.3), cx = s / 2, cy = s * 0.7;
+  g.fillStyle = 'rgba(0,0,0,.12)'; g.beginPath(); g.ellipse(cx, cy + 4, w * 0.5, hgt * 0.14, 0, 0, 7); g.fill();
+  const bg = g.createRadialGradient(cx - w * 0.2, cy - hgt * 0.8, 2, cx, cy - hgt * 0.4, w * 0.6); bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.25, sl.color || '#bfe8d0'); bg.addColorStop(1, sl.color || '#bfe8d0');
+  g.fillStyle = bg; g.beginPath(); g.ellipse(cx, cy - hgt * 0.4, w * 0.5, hgt * 0.6, 0, 0, 7); g.fill();
+  if (tr.nettori) { g.beginPath(); g.moveTo(cx - 8, cy - hgt); g.quadraticCurveTo(cx, cy - hgt * 1.9, cx + 22, cy - hgt * 2.2); g.lineTo(cx + 10, cy - hgt); g.fill(); }
+  if (tr.fuwafuwa) { g.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 7; i++) { g.beginPath(); g.arc(cx + Math.cos(i * 1.3) * w * 0.3, cy - hgt * 0.9 + Math.sin(i * 2.1) * hgt * 0.15, s * 0.03 + (i % 3) * 3, 0, 7); g.fill(); } }
+  const gc = (sl.gcols && sl.gcols.length ? sl.gcols : []);
+  for (let i = 0; i < Math.min(14, Math.round((sl.sp || 0) * 4)); i++) { const col = gc.length ? gc[i % gc.length].c : '#fff2b0'; g.fillStyle = col === 'rainbow' ? 'hsl(' + (i * 47) % 360 + ',100%,70%)' : col; const x = cx + (Math.random() - 0.5) * w * 0.8, y = cy - hgt * (0.2 + Math.random() * 0.7); g.beginPath(); g.arc(x, y, 2 + Math.random() * 2.5, 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(60,40,30,.75)'; g.font = 'bold ' + Math.round(s * 0.06) + 'px sans-serif'; g.textAlign = 'center'; g.fillText(String(sl.name).slice(0, 14), cx, s * 0.93);
+  return c.toDataURL('image/jpeg', 0.8);
+}
+function snsPost(st, img, caption, tags) {
+  const sns = S.sns, pr = snsPredict(st, !!img, tags); let likes = Math.max(1, Math.round(pr.likes * rnd(0.7, 1.4)));
+  const viral = Math.random() < Math.min(0.3, 0.015 * pr.a + (st.q === 'S' ? 0.05 : 0) + ((st.sec || 0) >= 0.2 ? 0.1 : 0)); if (viral) likes *= Math.round(rnd(6, 14));
+  const fGain = Math.round(likes * (viral ? 0.24 : 0.1)), nC = clamp(Math.round(likes / 6), 1, 12), cms = commentsFor(st, nC);
+  cms.forEach((c, i) => { c.at = (i + 1) / (nC + 1); });
+  const p = { id: S.nid++, day: S.day, min: S.min, t0: S.day * 1440 + S.min, name: st.name, snap: { name: st.name, color: st.color, traits: st.traits, ft: st.ft, sp: st.sp, gl: st.gl, crunch: st.crunch, sec: st.sec, q: st.q, gcols: st.gcols }, img: img || snsTile(st, 220), real: !!img, caption, tags, likes: 0, likesTarget: likes, fGain, viral, comments: [], cmtPlan: cms, done: false };
+  sns.posts.unshift(p); if (sns.posts.length > 24) sns.posts.length = 24;
+  if (sns.posted.day !== S.day) sns.posted = { day: S.day, n: 0 }; sns.posted.n++;
+  if (tags.length) sns.boost = { day: S.day, segs: tags.slice() };
+  return p;
+}
+function snsTick() {
+  const sns = S.sns, now = S.day * 1440 + S.min;
+  for (const p of sns.posts) {
+    if (p.done) continue; const pr = clamp((now - p.t0) / 300, 0, 1), ease = 1 - Math.pow(1 - pr, 2), want = Math.round(p.likesTarget * ease);
+    if (want > p.likes) { const d = want - p.likes; p.likes = want; sns.likesTotal += d; S.today.likes += d; }
+    while (p.cmtPlan.length && p.cmtPlan[0].at <= pr) p.comments.push(p.cmtPlan.shift());
+    if (pr >= 1) { p.done = true; sns.followers += p.fGain; S.today.fol += p.fGain; if (p.viral) { sns.viralDay = S.day; UI.toast(`🔥 バズった！！ 「${p.name}」に❤${p.likes}、フォロワー+${p.fGain}！ 今日はお客さんが大行列！`, 'good'); sfx('ok'); } else UI.toast(`📱 「${p.name}」の投稿に❤${p.likes}、フォロワー+${p.fGain}（今は ${sns.followers}人）`, 'good'); }
+  }
+}
+function snsUgc(typeId, sold, st, reason) {   // お客さんが自分で投稿・感想（反応を見る）
+  const sns = S.sns; if (Math.random() > (sold ? 0.12 : 0.07)) return;
+  const type = CUSTOMERS[typeId], ok = { kid: 'おうちで遊ぶ！', student: 'めっちゃかわいい✨', nobi: 'のびが最高！', puni: 'ぷにぷに最高', asmr: '音がいい…最高', collector: 'コレクションに追加！', family: '子供が大喜びでした！', vip: 'さすがの品質' }[typeId] || 'いい買い物！';
+  const neg = { high: 'ちょっと高かった💦', taste: '好みのスライムがなかった…', budget: '欲しかったけどお金が足りなかった', empty: '売り切れで買えなかった…' }[reason];
+  sns.ugc.unshift({ day: S.day, user: snsUser(), icon: type.icon, text: sold ? `スライム商店で「${st.name}」をGET！${ok}` : `スライム商店に行ってみた。${neg}`, likes: Math.round(sold ? rnd(3, 25) : rnd(0, 6)), good: !!sold }); sns.ugc.length = Math.min(sns.ugc.length, 30);
+  if (sold) { const g = Math.round(rnd(1, 3)); sns.followers += g; S.today.fol += g; UI.toast(`📱 ${type.icon}がお店のことを投稿！ フォロワー+${g}`); }
 }
 
 // ---------- 従業員 ----------
@@ -180,12 +285,12 @@ function buyerRun() {
 // ---------- スライムの登録 ----------
 function comboKey(traits) { return TRAITS.filter(t => traits[t] > 0).join('+') || 'normal'; }
 function addSlimeStack(sl, count) {
-  const sig = sl.name + sl.q + sl.color + TRAITS.map(t => Math.round((sl.traits[t] || 0) * 20)).join('') + Math.round((sl.crunch || 0) * 10) + '|' + Math.round((sl.gl || 0) * 2) + '|' + (sl.gcols || []).map(g => g.c + Math.round(g.w)).join(',');
+  const sig = sl.name + sl.q + sl.color + TRAITS.map(t => Math.round((sl.traits[t] || 0) * 20)).join('') + Math.round((sl.crunch || 0) * 10) + '|' + Math.round((sl.gl || 0) * 2) + '|' + (sl.gcols || []).map(g => g.c + Math.round(g.w)).join(',') + '|' + Object.keys(sl.ex || {}).map(k => k + Math.round(sl.ex[k] * 4)).join(',') + '|' + Object.keys(sl.ft || {}).join(',');
   let st = S.slimes.find(x => x.sig === sig);
   if (st) st.count += count;
-  else { st = { id: S.nid++, sig, name: sl.name, traits: sl.traits, color: sl.color, sp: sl.sp, gcols: sl.gcols || [], sn: sl.sn || 0, gl: sl.gl || 0, crunch: sl.crunch || 0, sat: sl.sat, light: sl.light, q: sl.q, fair: sl.fair, count }; S.slimes.push(st); }
+  else { st = { id: S.nid++, sig, name: sl.name, traits: sl.traits, color: sl.color, sp: sl.sp, ft: sl.ft || {}, ex: sl.ex || {}, sec: sl.sec || 0, gcols: sl.gcols || [], sn: sl.sn || 0, gl: sl.gl || 0, crunch: sl.crunch || 0, sat: sl.sat, light: sl.light, q: sl.q, fair: sl.fair, count }; S.slimes.push(st); }
   S.dex.combos[comboKey(sl.traits)] = (S.dex.combos[comboKey(sl.traits)] || 0) + count;
-  S.dex.made += count;
+  S.dex.made += count; S.dex.feels = S.dex.feels || {}; for (const k in (sl.ft || {})) S.dex.feels[k] = (S.dex.feels[k] || 0) + count;
   return st;
 }
 function makeRecipe(sl, amt) {
@@ -217,11 +322,14 @@ function endDay() {
       <tr><td>売れた数</td><td>${t.sold}個</td></tr><tr><td>売上</td><td class="g">+${yen(t.rev)}</td></tr>
       ${t.missed ? `<tr><td>店番がいなくて逃したお客さん</td><td class="r">${t.missed}人</td></tr>` : ''}
       ${t.empty ? `<tr><td>商品がなくて帰ったお客さん</td><td class="r">${t.empty}人</td></tr>` : ''}
+      ${t.high ? `<tr><td>値段が高くて帰ったお客さん</td><td class="r">${t.high}人</td></tr>` : ''}${t.taste ? `<tr><td>好みに合わず帰ったお客さん</td><td class="r">${t.taste}人</td></tr>` : ''}${t.budget ? `<tr><td>お金が足りなかったお客さん</td><td class="r">${t.budget}人</td></tr>` : ''}
+      ${(t.likes || t.fol) ? `<tr><td>📱 スラグラム ❤${t.likes || 0} / フォロワー+${t.fol || 0}</td><td>${S.sns.followers}人</td></tr>` : ''}
       <tr><td>家賃</td><td class="r">-${yen(RENT)}</td></tr>
       ${wages ? `<tr><td>従業員の給料（${S.staff.length}人）</td><td class="r">-${yen(wages)}</td></tr>` : ''}
       ${bu.spent ? `<tr><td>仕入れ係の購入<br><small class="sub">${bu.lines.join('、')}</small></td><td class="r">-${yen(bu.spent)}</td></tr>` : ''}
       <tr class="tot"><td>所持金</td><td>${yen(S.money)}</td></tr>
     </table></div>
+    ${t.high > 2 ? '<p class="sub">💡 値段が高くて帰った人が多い。棚の値段を下げるか、個性（ギリギリ・エキス）を強めてみよう。スラグラムに投稿すると、お客さんも増える！</p>' : ''}
     ${S.money < 0 ? `<p class="warn">⚠ お金が足りない！ このまま${3 - S.debt}日続くと、お店をたたむことになる…</p>` : ''}
     <div class="card"><b>明日</b>：${WEATHERS[S.weather].icon} ${WEATHERS[S.weather].name}　評判 ${'★'.repeat(rl)}${'☆'.repeat(5 - rl)}
       ${S.trend ? `<br>📈 流行：<b>${TRAIT_NAME[S.trend]}</b>スライムが人気になりそう` : ''}
@@ -247,7 +355,8 @@ function saveGame() {
 function loadSave() { try { const j = localStorage.getItem(SAVE_KEY); return j ? JSON.parse(j) : null; } catch (e) { return null; } }
 function startGame(state) {
   S = state; started = true; ending = false;
-  if (!state.today) S.today = { sold: 0, rev: 0, missed: 0, made: 0, failed: 0, empty: 0 };
+  if (!state.today) S.today = { sold: 0, rev: 0, missed: 0, made: 0, failed: 0, empty: 0, high: 0, taste: 0, budget: 0, likes: 0, fol: 0 };
+  if (!S.sns) S.sns = newSns();
   document.getElementById('title').style.display = 'none';
   World.setArea(S.area === 'town' ? 'town' : 'shop');
   if (S.area === 'town' && S.pos) World.place(S.pos[0], S.pos[1], 0);
@@ -255,6 +364,8 @@ function startGame(state) {
   World.setEnvironment(S.min, S.weather);
 }
 function onAreaChange(name, prev) {
+  if (Adventure.isAdv(prev) && !Adventure.isAdv(name)) Adventure.end();
+  if (Adventure.isAdv(name)) Adventure.enter(name, prev);
   if (name === 'shop') {
     const moved = stowBag(); World.refreshShelf(); World.refreshStaff();
     if (moved > 0) UI.toast('持ち帰った材料を棚にしまった');
@@ -282,7 +393,7 @@ const UI = (function () {
     while (c.children.length > 5) c.removeChild(c.firstChild);
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 400); }, 3800);
   }
-  const tags = st => TRAITS.filter(t => st.traits[t] > 0).map(t => `<span class="tag t-${t}">${TRAIT_NAME[t]} ${Math.round(st.traits[t] * 100)}%</span>`).join('') || '<span class="tag">ノーマル</span>';
+  const tags = st => (TRAITS.filter(t => st.traits[t] > 0).map(t => `<span class="tag t-${t}">${TRAIT_NAME[t]} ${Math.round(st.traits[t] * 100)}%</span>`).join('') + Object.keys(st.ft || {}).map(k => `<span class="tag t-ft">${FEEL2[k].name} ${Math.round(st.ft[k] * 100)}%</span>`).join('')) || '<span class="tag">ノーマル</span>';
   const swatch = (c, sp) => `<span class="sw" style="background:radial-gradient(circle at 30% 30%,#fff9 0,${c} 55%,${c}cc 100%)">${sp >= 2 ? '✨' : ''}</span>`;
   const rankTag = q => `<span class="rank r${q}">${q}</span>`;
 
@@ -365,6 +476,93 @@ const UI = (function () {
     Workshop.clearBowl(); close(); pending = null; World.refreshShelf();
     toast(`「${nm}」を${res.jars}個、在庫に入れた。棚に並べよう！`, 'good');
     if (first) toast('棚（左のかべ）で値段をつけて並べると、お客さんが買ってくれる', 'good');
+  }
+
+  // ----- スラグラム -----
+  let snsTab = 'feed', composer = null;
+  const SNS_CAPS = ['今日の自信作✨', '新作できました！', 'ふわふわ！さわってみて☁️', '触り心地にこだわりました', '暗いところで光ります🌙', '秘伝のエキス入り🏺', 'ぎりぎりを攻めました！'];
+  function openSocial(tab) {
+    if (tab) snsTab = tab;
+    openUI(() => {
+      const sn = S.sns, left = 3 - (sn.posted.day === S.day ? sn.posted.n : 0), boost = sn.boost.day === S.day && sn.boost.segs.length ? sn.boost.segs.map(g => '#' + SEGS[g]).join(' ') : null;
+      const head = `<div class="hd"><h2>📱 スラグラム</h2><button data-act="close">× とじる</button></div>
+        <div class="prof"><div class="avatar">🧴</div><div class="pstats"><div><b>${sn.posts.length}</b><small>投稿</small></div><div><b>${sn.followers}</b><small>フォロワー</small></div><div><b>${sn.likesTotal}</b><small>いいね</small></div></div></div>
+        <div class="sub">スライム商店　＠slime_shoten　${boost ? `｜ 🎯 今日の注目：${boost}（お客さん増）` : ''}${sn.viralDay === S.day ? '｜ 🔥バズり中！' : ''}</div>
+        <div class="tabs"><button class="${snsTab === 'feed' ? 'on' : ''}" data-act="stab" data-t="feed">投稿</button><button class="${snsTab === 'new' ? 'on' : ''}" data-act="stab" data-t="new">＋ 新しい投稿（あと${left}回）</button><button class="${snsTab === 'ugc' ? 'on' : ''}" data-act="stab" data-t="ugc">お客さんの反応</button></div>`;
+      let body = '';
+      if (snsTab === 'feed') {
+        body = sn.posts.length ? `<div class="sgrid">${sn.posts.map(p => `<div class="stile" data-act="postopen" data-id="${p.id}"><img src="${p.img}" alt=""><span class="lk">❤ ${p.likes}</span>${p.viral ? '<span class="vr">🔥</span>' : ''}${p.done ? '' : '<span class="pg">…</span>'}</div>`).join('')}</div>` : '<p class="sub">まだ投稿がありません。「＋ 新しい投稿」からスライムを紹介しよう！ いいねがつくと、フォロワーが増えて、お客さんも増えるよ。</p>';
+      } else if (snsTab === 'new') body = composerHTML(left);
+      else body = (sn.ugc.length ? sn.ugc.map(u => `<div class="ug ${u.good ? 'g' : ''}"><span class="ic2">${u.icon}</span><div class="grow"><b>${esc(u.user)}</b>${u.good ? '' : ' <span class="tag">ひとこと</span>'}<br>${esc(u.text)}<br><small class="sub">❤ ${u.likes}・${u.day}日目</small></div></div>`).join('') : '<p class="sub">お客さんの投稿はまだありません。お店で買い物をしてくれた人や、買わずに帰った人が、感想を書き込むことがあります。ここで反応を見て、値段や商品を考えよう。</p>');
+      return head + `<div class="scroll">${body}</div>`;
+    }, { cls: 'wide' });
+  }
+  function composerHTML(left) {
+    const stacks = S.slimes.filter(x => x.count > 0);
+    if (!stacks.length) return '<p class="sub">投稿できるスライムがありません。工房で作ろう！</p>';
+    if (!composer || !stacks.find(x => x.id === composer.sid)) composer = { sid: stacks[0].id, photo: null, caption: SNS_CAPS[0], tags: [] };
+    const st = stacks.find(x => x.id === composer.sid), tile = composer.photo || snsTile(st, 220), pr = snsPredict(st, !!composer.photo, composer.tags), stars = Math.min(5, Math.max(1, Math.round(pr.a * 1.1)));
+    return `<div class="comp"><img class="cimg" src="${tile}" alt="">
+      <div class="grow"><label class="sub">投稿するスライム</label><br><select data-act="cpick">${stacks.map(x => `<option value="${x.id}" ${x.id === composer.sid ? 'selected' : ''}>${esc(x.name)}（残${x.count}）</option>`).join('')}</select>
+      <p class="sub">${composer.photo ? '📸 3Dで撮った写真を使います（人気アップ！）' : '写真は自動できれいに加工されます。「さわる」画面で📸を押すと、3Dで撮った写真で投稿できる（人気アップ）'}</p></div></div>
+      <label class="sub">ひとこと</label><div class="chips">${SNS_CAPS.map(c => `<button class="mini ${composer.caption === c ? 'on' : ''}" data-act="ccap" data-c="${esc(c)}">${c}</button>`).join('')}</div>
+      <input id="cpCap" value="${esc(composer.caption)}" maxlength="40" style="width:100%;margin:6px 0">
+      <label class="sub">ハッシュタグ（2つまで。選んだお客さんが、今日たくさん来る！）</label><div class="chips">${Object.keys(SEGS).map(g => `<button class="mini ${composer.tags.includes(g) ? 'on' : ''}" data-act="ctag" data-g="${g}">#${SEGS[g]}</button>`).join('')}</div>
+      <div class="card">予想の反応：<b>${'★'.repeat(stars)}${'☆'.repeat(5 - stars)}</b>　<small class="sub">（フォロワー${S.sns.followers}人・個性が強い／ラメ／光る／3D写真／好みの合うタグで上がる。ときどき「バズる」！）</small></div>
+      <div class="row end"><button class="main" data-act="cpost" ${left <= 0 ? 'disabled' : ''}>📤 投稿する（今日あと${left}回）</button></div>`;
+  }
+  function openPostDetail(id) {
+    const p = S.sns.posts.find(x => x.id === +id); if (!p) return;
+    openUI(() => `<div class="hd"><h2>📱 投稿</h2><button data-act="snsback">← もどる</button></div><img class="bigimg" src="${p.img}" alt="">
+      <div class="row between"><b>❤ ${p.likes}${p.viral ? ' 🔥バズり！' : ''}</b><span class="sub">${p.day}日目 ${fmtTime(p.min)}　${p.done ? '反応が出そろった' : '反応を待っています…'}</span></div>
+      <div class="bar"><i style="width:${Math.min(100, p.likes / Math.max(1, p.likesTarget) * 100)}%"></i></div>
+      <p><b>slime_shoten</b>　${esc(p.caption)}<br>${p.tags.map(g => '<span class="tag">#' + SEGS[g] + '</span>').join('')}</p>
+      <div class="scroll">${p.comments.length ? p.comments.map(c => `<div class="ug"><div class="grow"><b>${esc(c.user)}</b>　${esc(c.text)}</div></div>`).join('') : '<p class="sub">コメントはまだありません。</p>'}</div>`, { cls: 'wide' });
+  }
+  function openPost(sid, photo) {   // 3Dで撮った写真つきで、投稿画面を開く
+    snsTab = 'new'; composer = { sid: +sid, photo: photo || null, caption: SNS_CAPS[0], tags: [] }; openSocial('new');
+  }
+
+  // ----- 友達の家 -----
+  function openLab() {
+    openUI(() => {
+      const have = (S.bag.extract_secret || 0) + (S.stock.extract_secret || 0);
+      let body;
+      if (!S.labUnlocked) {
+        body = `<p>🧑‍🔬「やあ！ スライムの研究をしてるんだ。山の奥の泉に、<b>秘伝のスライムエキス</b>があるって噂を知ってる？ ヌシの<b>キングスライム</b>が守ってるらしいよ。持ってきてくれたら、成分を調べて<b>同じものを作ってあげる</b>！」</p>
+        ${have > 0 ? '<div class="row end"><button class="main" data-act="labshow">🏺 秘伝のエキスを見せる（1つ渡す）</button></div>' : '<p class="sub">（秘伝のスライムエキスを持っていない。山の奥へ冒険に出よう！）</p>'}`;
+      } else {
+        const it = ITEMS.extract_secret, can = S.money >= 5000 && weightOf(S.bag) + it.w * 3 <= bagCap();
+        body = `<p>🧑‍🔬「成分は完全に解析したよ！ <b>5000円で3回分</b>、作ってあげる。これを入れたスライムは、VIPが競り合うほど人気になるはずさ！」</p>
+        <div class="item"><span class="ic" style="background:${it.color}">${it.icon}</span><div class="grow"><b>${it.name}（3回分）</b><br><small class="sub">${it.note}　（持ち物 ${Math.floor(have)}回）</small></div><b class="price">${yen(5000)}</b><button data-act="labbuy" ${can ? '' : 'disabled'}>買う</button></div>`;
+      }
+      return `<div class="hd"><h2>🔬 科学オタクの友達の家</h2><button data-act="close">× とじる</button></div><div class="row between"><span>所持金 <b>${yen(S.money)}</b></span><span>🎒 ${Math.round(weightOf(S.bag))} / ${bagCap()}</span></div>${body}
+        <details><summary class="sub">スライムエキスのこと</summary><p class="sub">山の魔物を倒すと、スライムエキスを落とすよ。種類によって、とれるエキスがちがう。スライムに入れると、入れた分だけ価値が上がる（秘伝はケタちがい）。</p></details>`;
+    }, { cls: 'wide' });
+  }
+  function openSmith() {
+    openUI(() => {
+      const rows = WEAPONS.filter(w => w.unlock !== 'chest' || S.weapons[w.id]).map(w => {
+        const own = !!S.weapons[w.id], eq = S.weapon === w.id, open = unlockOk(w);
+        if (!own && !open) return `<div class="item" style="opacity:.6"><div class="grow"><b>？？？（${esc(w.name.replace(/./g, '？').slice(0, 5))}）</b><br><small class="sub">解放の条件：${w.need}</small></div><b class="price">🔒</b></div>`;
+        return `<div class="item"><div class="grow"><b>${w.name}</b> ${eq ? '<span class="tag sale">そうび中</span>' : ''}<br><small class="sub">${w.el ? ELEMENTS[w.el].icon + ELEMENTS[w.el].name + '属性・' : ''}こうげき ${w.atk}・とどく ${w.reach}・${w.arc >= 360 ? 'ぐるっと全方向' : '前方'}・${w.desc}</small></div>
+          ${own ? `<button data-act="smithequip" data-id="${w.id}" ${eq ? 'disabled' : ''}>そうびする</button>` : `<b class="price">${yen(w.price)}</b><button data-act="smithbuy" data-id="${w.id}" ${S.money < w.price ? 'disabled' : ''}>買う</button>`}</div>`;
+      }).join('');
+      return `<div class="hd"><h2>🔧 エンジニアの友達の家</h2><button data-act="close">× とじる</button></div><p>🧑‍🏭「冒険に行くのか？ 武器ならいろいろあるぜ。値段はそれなりだけどな！」</p><div class="row between"><span>所持金 <b>${yen(S.money)}</b></span></div><div class="scroll">${rows}</div>`;
+    }, { cls: 'wide' });
+  }
+  let auc = null;
+  function openAuction(name, start, final, n) {
+    const steps = []; let p = start; const k = 7 + ((Math.random() * 4) | 0);
+    for (let i = 1; i <= k; i++) steps.push(Math.round((start + (final - start) * Math.pow(i / k, 1.6)) / 100) * 100);
+    steps[steps.length - 1] = final; auc = { name, steps, i: -1, final, n, done: false };
+    openUI(() => {
+      const a = auc, cur = a.i >= 0 ? a.steps[a.i] : start;
+      return `<h2>🔨 競りが始まった！</h2><p>🎩 VIPが <b>${a.n}人</b>、「<b>${esc(a.name)}</b>」をめぐって競り合っている…！</p>
+        <div class="card center" style="text-align:center"><div style="font-size:42px;font-weight:bold;color:#b87800">${yen(cur)}</div><div class="sub">${a.done ? '' : a.i < 0 ? 'スタート！' : ['VIPがつり上げた！', 'まだ上がる！', 'すごい競り合い！'][a.i % 3]}</div></div>
+        ${a.done ? `<p><b>🎉 落札！ ${yen(a.final)}</b></p><div class="row end"><button class="main" data-act="close">やったー！</button></div>` : ''}`;
+    }, { noClose: true });
+    const iv = setInterval(() => { if (!open || !auc || auc.done) { clearInterval(iv); return; } auc.i++; if (auc.i >= auc.steps.length - 1) { auc.done = true; sfx('ok'); clearInterval(iv); } else sfx('tick'); paint(); }, 650);
   }
 
   // ----- 事務机 -----
@@ -452,6 +650,7 @@ const UI = (function () {
       }
       const combos = [];
       for (const m of ['', 'nettori', 'danryoku']) for (const a of [0, 1]) for (const b of [0, 1]) combos.push([m, a ? 'torotoro' : '', b ? 'fuwafuwa' : ''].filter(Boolean));
+      const fk = Object.keys(FEEL2); h += '<h3>エキスの感触（作ると記録される）</h3><div class="combos">' + fk.map(k => { const n = (S.dex.feels || {})[k]; return `<div class="cb ${n ? 'got' : ''}">${n ? FEEL2[k].name : '？？？'}<small>${n ? FEEL2[k].desc : ''}</small></div>`; }).join('') + '</div>' + ((S.dex.rare || 0) ? `<p class="sub">✨ めずらしい音を ${S.dex.rare}回 聞いた</p>` : '');
       h += '<h3>作ったスライムの種類</h3><div class="combos">' + combos.map(cb => {
         const key = cb.join('+') || 'normal', n = S.dex.combos[key];
         return `<div class="cb ${n ? 'got' : ''}">${n ? (cb.map(t => TRAIT_NAME[t]).join('+') || 'ノーマル') : '？？？'}<small>${n ? n + '個' : ''}</small></div>`;
@@ -498,6 +697,22 @@ const UI = (function () {
     reset2: () => resetGame(),
     nextday: () => nextDay(),
     gameover: () => { },
+    labshow: () => { const from = S.bag.extract_secret > 0 ? S.bag : S.stock; from.extract_secret -= 1; if (from.extract_secret <= 0) delete from.extract_secret; S.labUnlocked = true; sfx('ok'); toast('🔬 成分を解析できた！ これからは5000円で3回分、買えるようになった！', 'good'); paint(); },
+    labbuy: () => { if (S.money < 5000 || !giveItem('extract_secret', 3)) return toast('お金かバッグの空きが足りない', 'bad'); S.money -= 5000; sfx('buy'); toast('🏺 秘伝のスライムエキス（3回分）を買った！', 'good'); paint(); },
+    smithbuy: d => { const w = WEAPONS.find(x => x.id === d.id); if (!w || S.money < w.price) return; S.money -= w.price; S.weapons[w.id] = true; S.weapon = w.id; Adventure.refreshWeapon(); sfx('ok'); toast(`${w.name}を手に入れて、そうびした！`, 'good'); paint(); },
+    smithequip: d => { if (S.weapons[d.id]) { S.weapon = d.id; Adventure.refreshWeapon(); sfx('pop'); paint(); } },
+    stab: d => { snsTab = d.t; paint(); },
+    cpick: (d, e) => { composer.sid = +e.value; composer.photo = null; paint(); },
+    ccap: d => { composer.caption = d.c; paint(); },
+    ctag: d => { const t = composer.tags, i = t.indexOf(d.g); if (i >= 0) t.splice(i, 1); else if (t.length < 2) t.push(d.g); paint(); },
+    postopen: d => openPostDetail(d.id),
+    snsback: () => openSocial('feed'),
+    cpost: () => {
+      const st = S.slimes.find(x => x.id === composer.sid), left = 3 - (S.sns.posted.day === S.day ? S.sns.posted.n : 0);
+      if (!st || left <= 0) return; const cap = (document.getElementById('cpCap') || {}).value || composer.caption;
+      const p = snsPost(st, composer.photo, cap, composer.tags.slice()); composer = null; sfx('ok');
+      toast(`📤 投稿した！ いいねを待とう…（フォロワー ${S.sns.followers}人）${p.tags.length ? ' 今日は選んだお客さんが増えるよ' : ''}`, 'good'); openSocial('feed');
+    },
     touchres: () => { const p = pending; close(); Workshop.touch(p.res.slime, () => openResult(p.res, p.amt, p.stir)); },
     touchst: d => { const st = S.slimes.find(x => x.id === +d.id); if (!st) return; close(); Workshop.touch(st, () => openOffice('stock')); },
     touchsh: d => { const st = S.slimes.find(x => x.id === +d.id); if (!st) return; close(); Workshop.touch(st, () => openShelf()); },
@@ -517,11 +732,12 @@ const UI = (function () {
       if (b.disabled) return;
       const f = ACT[b.dataset.act]; if (f) { f(b.dataset, b); sfx('pop'); }
     });
+    m.addEventListener('input', e => { if (e.target.id === 'cpCap' && composer) composer.caption = e.target.value; });
     m.addEventListener('change', e => { const b = e.target.closest('select[data-act]'); if (b) ACT[b.dataset.act](b.dataset, b); });
     addEventListener('keydown', e => { if (e.code === 'Escape' && open && !opts.noClose) close(); });
   }
   function howto() {
-    openUI(() => `<h2>🧴 スライムショップへようこそ！</h2>
+    openUI(() => `<h2>⚔🧴 スラバト商店へようこそ！</h2>
       <div class="card"><b>あそびかた</b><ol>
       <li><b>WASD</b>で歩く、<b>ドラッグ</b>で視点、<b>ホイール</b>でズーム、<b>Shift</b>でダッシュ。光る▼の近くで<b>Eキー</b>。</li>
       <li>お店の奥の<b>工房</b>でスライムを作る。材料のボタンを<b>長押し</b>で注ぎ、画面を<b>ドラッグ</b>してこねて、<b>完成</b>！</li>
@@ -529,11 +745,12 @@ const UI = (function () {
       <li>左のかべの<b>棚</b>に並べて値段をつける。お客さんは好みと値段で買っていく。</li>
       <li>材料がなくなったら、町の<b>お店</b>へ仕入れに行こう。</li>
       <li>お金がたまったら<b>事務机</b>で設備を強化したり、従業員を雇おう。</li>
+      <li><b>冒険</b>：町の<b>いちばん東のはしの門</b>から山へ。魔物を倒して<b>スライムエキス</b>を集めよう（Space/⚔で攻撃）。分かれ道・洞窟・隠し儀式もある。エンジニアの家で<b>属性つきの武器</b>が買える（ボスを倒すと新しい武器が解放）。</li>
       <li>100円ショップの<b>スノーパウダー</b>（シャリシャリ）と<b>蓄光パウダー</b>（暗いところで光る。子供・子連れに人気）は、入れすぎても失敗しないけど、そのぶん値段が高くなる。</li></ol>
       <small class="sub">営業時間は10:00〜19:00。お店にいないとき、店番がいないとお客さんは帰ってしまう。</small></div>
       <div class="row end"><button class="main" data-act="close">はじめる</button></div>`, {});
   }
-  return { open: openUI, close, paint, toast, openShop, openShelf, openOffice, openResult, bind, howto, isOpen: () => open };
+  return { open: openUI, close, paint, toast, openSocial, openPost, openLab, openSmith, auction: openAuction, openShop, openShelf, openOffice, openResult, bind, howto, isOpen: () => open };
 })();
 
 // =====================================================
@@ -566,9 +783,12 @@ function boot() {
   document.getElementById('wsFinish').onclick = () => Workshop.finish();
   document.getElementById('wsDump').onclick = () => Workshop.dump();
   document.getElementById('wsExit').onclick = () => Workshop.exit();
+  document.getElementById('btnAtk').addEventListener('pointerdown', e => { Adventure.attack(); e.preventDefault(); });
   document.getElementById('wsTouchExit').onclick = () => Workshop.exit();
   for (const id of ['wsDark', 'wsDark2']) document.getElementById(id).onclick = () => Workshop.toggleDark();
   document.getElementById('wsTwo').onclick = () => Workshop.toggleTwo();
+  document.getElementById('btnSns').onclick = () => { if (started && !UI.isOpen() && !ending) UI.openSocial(); };
+  document.getElementById('wsPhoto').onclick = () => Workshop.photo();
   document.getElementById('btnHelp').onclick = () => { if (started && !UI.isOpen()) UI.howto(); };
   let last = performance.now(), acc = 0, sec = 0, saveT = 0;
   function loop(now) {
@@ -582,7 +802,7 @@ function boot() {
         if (saveT > 60) { saveT = 0; saveGame(); }
       }
       hudT -= dt; if (hudT <= 0) { hudT = 0.2; updateHUD(); }
-      document.body.classList.toggle('in-ws', Workshop.active); document.body.classList.toggle('in-ui', UI.isOpen());
+      document.body.classList.toggle('in-ws', Workshop.active); document.body.classList.toggle('in-ui', UI.isOpen()); document.body.classList.toggle('in-adv', Adventure.isAdv(World.area));
     }
     World.frame(dt);
     requestAnimationFrame(loop);

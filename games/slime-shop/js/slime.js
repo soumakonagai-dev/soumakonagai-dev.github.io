@@ -10,7 +10,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // 材料ID→量 の辞書から、判定に必要な数字をまとめる
 function mixFromAmt(amt) {
-  const m = { glue: 0, borax: 0, water: 0, soap: 0, glitter: 0, paint: 0, snow: 0, glow: 0, stabSum: 0 };
+  const m = { glue: 0, borax: 0, water: 0, soap: 0, glitter: 0, paint: 0, snow: 0, glow: 0, ex: {}, stabSum: 0 };
   for (const id in amt) {
     const q = amt[id]; if (!(q > 0)) continue;
     const it = ITEMS[id]; if (!it) continue;
@@ -22,6 +22,7 @@ function mixFromAmt(amt) {
     else if (it.kind === 'paint') m.paint += q;
     else if (it.kind === 'snow') m.snow += q;
     else if (it.kind === 'glow') m.glow += q;
+    else if (it.kind === 'extract') { m.ex[it.ex] = (m.ex[it.ex] || 0) + q; if (it.ex === 'secret') m.glitter += q * 2; }   // 秘伝のエキスは金色にキラキラする
   }
   m.stab = m.glue > 0 ? m.stabSum / m.glue : 0.8;
   m.total = m.glue + m.borax + m.water + m.soap;
@@ -51,7 +52,7 @@ function ratios(m) {
 // 入れたラメの色（量に応じて）。レインボーは 'rainbow'（キラキラごとに色がちがう）
 function glitterCols(amt) {
   const out = [];
-  for (const id in amt) { const it = ITEMS[id]; if (it && it.kind === 'glitter' && amt[id] > 0) out.push({ c: id === 'glitter_rainbow' ? 'rainbow' : it.color, w: amt[id] }); }
+  for (const id in amt) { const it = ITEMS[id]; if (it && it.kind === 'glitter' && amt[id] > 0) out.push({ c: id === 'glitter_rainbow' ? 'rainbow' : it.color, w: amt[id] }); if (id === 'extract_secret' && amt[id] > 0) out.push({ c: '#ffd24a', w: amt[id] * 3 }); }
   return out;
 }
 
@@ -91,10 +92,11 @@ function colorName(hex, hasPaint) {
   return n;
 }
 
-function slimeName(traits, hex, hasPaint, sp, crunch, gl) {
+function slimeName(traits, hex, hasPaint, sp, crunch, gl, sec, ft) {
   const ts = TRAITS.filter(t => traits[t] > 0).map(t => TRAIT_NAME[t]).join('');
   const pre = gl >= 1 ? 'ひかる' : crunch >= 0.15 ? 'シャリシャリ' : sp >= 2 ? 'キラキラ' : '';
-  return pre + colorName(hex, hasPaint) + 'の' + (ts || 'ノーマル') + 'スライム';
+  const fk = Object.keys(ft || {}).sort((a, b) => ft[b] - ft[a])[0], fp = fk ? FEEL2[fk].name : '';
+  return (sec >= 0.2 ? '秘伝の' : '') + fp + pre + colorName(hex, hasPaint) + 'の' + (ts || 'ノーマル') + 'スライム';
 }
 
 // 判定。stir は混ぜ具合（0〜、1で十分）
@@ -125,9 +127,10 @@ function judge(amt, stir, env) {
   const q = qs >= 0.97 ? 'S' : qs >= 0.85 ? 'A' : qs >= 0.7 ? 'B' : 'C';
 
   const color = mixColor(amt), hs = hsl(color);
-  const sn = m.snow / m.total * 100, gl = m.glow / m.total * 100;   // 100mlあたりの回数
-  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100, gcols: glitterCols(amt) };
-  sl.name = slimeName(traits, color, m.paint > 0, sp, sl.crunch, gl);
+  const sn = m.snow / m.total * 100, gl = (m.glow + 0.8 * (m.ex.hikari || 0)) / m.total * 100;   // 100mlあたりの回数
+  const exp = {}; for (const k in m.ex) exp[k] = m.ex[k] / m.total * 100;
+  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100, gcols: glitterCols(amt), ex: exp, sec: exp.secret || 0, ft: (() => { const o = {}; for (const k in FEEL2) { const e = exp[FEEL2[k].ex] || 0; if (e >= 0.15) o[k] = clamp(e / 1.0, 0.2, 1); } return o; })() };
+  sl.name = slimeName(traits, color, m.paint > 0, sp, sl.crunch, gl, sl.sec, sl.ft);
   sl.fair = fairPrice(sl);
   return { ...out, ok: true, slime: sl, jars: Math.floor(m.total / JAR_ML) };
 }
@@ -137,6 +140,7 @@ function fairPrice(sl) {
   for (const t of TRAITS) { const s = sl.traits[t] || 0; if (s > 0) { mult *= 1 + 1.6 * s; n++; } }
   if (n >= 2) mult *= 1.25;
   mult *= 1 + 0.7 * (sl.crunch || 0);                            // スノーパウダー：入れるほど高くなる
+  for (const k in (sl.ex || {})) mult *= 1 + (EXTRACTS[k] ? EXTRACTS[k][3] : 0) * Math.min(sl.ex[k], 8);   // スライムエキス：入れるほど価値アップ（秘伝は特大）
   const gl = sl.gl || 0; mult *= 1 + 0.15 * gl + 0.06 * gl * gl;  // 蓄光パウダー：入れすぎると、とんでもなく高くなる
   return Math.round(BASE_PRICE * mult * QMULT[sl.q] / 10) * 10;
 }
