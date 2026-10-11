@@ -345,7 +345,7 @@ const UI = (function () {
     openUI(() => `<h2>🎉 スライムが完成！</h2>
       <div class="rescard">${swatch(sl.color, sl.sp).replace('class="sw"', 'class="sw big"')}
         <div class="grow"><input id="slName" value="${esc(sl.name)}" maxlength="20"><br>${rankTag(sl.q)} ${tags(sl)}<br>
-        <small class="sub">${sl.rough ? 'ラメが多すぎてザラザラ…　' : ''}${sl.stained ? '絵具が多くて手に色がつきそう…　' : ''}</small></div></div>
+        <small class="sub">${sl.dry ? '水がノリより少なくて、ごわごわ…（水はノリより多めがうまくいく）　' : ''}${sl.rough ? 'ラメが多すぎてザラザラ…　' : ''}${sl.stained ? '絵具が多くて手に色がつきそう…　' : ''}</small></div></div>
       <div class="card"><div class="row between"><span>できた数</span><b>${res.jars}個（${JAR_ML}mlずつ）</b></div>
       <div class="row between"><span>目安の値段</span><b>${yen(sl.fair)}</b></div>
       <div class="row between"><span>こね具合</span><b>${Math.round(Math.min(1, pending.stir) * 100)}%</b></div></div>
@@ -524,7 +524,7 @@ const UI = (function () {
       <div class="card"><b>あそびかた</b><ol>
       <li><b>WASD</b>で歩く、<b>ドラッグ</b>で視点、<b>ホイール</b>でズーム、<b>Shift</b>でダッシュ。光る▼の近くで<b>Eキー</b>。</li>
       <li>お店の奥の<b>工房</b>でスライムを作る。材料のボタンを<b>長押し</b>で注ぎ、画面を<b>ドラッグ</b>してこねて、<b>完成</b>！</li>
-      <li>洗濯ノリを基準に、ホウ砂水・水・泡の<b>割合</b>が大事。入れすぎると失敗、ギリギリを攻めると個性派スライムになって高く売れる。</li>
+      <li>洗濯ノリを基準に、ホウ砂水・水・泡の<b>割合</b>が大事。本物と同じで、<b>水はノリより多め</b>（ノリ1：水2くらい）がうまくいく。入れすぎると失敗、ギリギリを攻めると個性派スライムになって高く売れる。</li>
       <li>左のかべの<b>棚</b>に並べて値段をつける。お客さんは好みと値段で買っていく。</li>
       <li>材料がなくなったら、町の<b>お店</b>へ仕入れに行こう。</li>
       <li>お金がたまったら<b>事務机</b>で設備を強化したり、従業員を雇おう。</li></ol>

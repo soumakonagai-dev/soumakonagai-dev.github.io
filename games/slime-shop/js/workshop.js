@@ -252,7 +252,7 @@ const Workshop = (function () {
     if (m.glue > 0) {
       tgt.solid = clamp((R.b - (L.bMin - 1.5)) / 2.5, 0, 1) * clamp(stir / 0.5, 0, 1);
       tgt.hard = clamp((R.b - (L.bMax - 1.2)) / 1.2, 0, 1);
-      tgt.sticky = clamp((R.w - 38) / (L.wMax - 38), 0, 1);
+      tgt.sticky = clamp((R.w - (L.wMax - 90)) / 90, 0, 1);
       tgt.foam = clamp((R.s - 6) / (L.sMax - 6), 0, 1);
       tgt.ooze = clamp(1 - (R.b - L.bMin) / (L.bEdgeLo * 2.2), 0, 1) * (R.b >= L.bMin - 1 ? 1 : 0.5);
       tgt.bouncy = clamp((R.b - 25) / 11, 0, 1);
@@ -436,7 +436,7 @@ const Workshop = (function () {
         const L = limits(m.stab, S.env), RED = '#ff7b7b', YEL = '#ffd95e', GRN = '#8be0a0';
         h += `<div class="rd-h"><b>ギリギリセンサー</b><span class="sub">赤=失敗 黄=個性が出る</span></div>`;
         h += `<div class="sub">固まり具合</div>` + gauge(R.b, 50, [[0, L.bMin, RED], [L.bMin, L.bMin + L.bEdgeLo, YEL], [L.bMin + L.bEdgeLo, L.bMax - L.bEdgeHi, GRN], [L.bMax - L.bEdgeHi, L.bMax, YEL], [L.bMax, 50, RED]]);
-        h += `<div class="sub">水分</div>` + gauge(R.w, 75, [[0, L.wMax - L.wEdge, GRN], [L.wMax - L.wEdge, L.wMax, YEL], [L.wMax, 75, RED]]);
+        h += `<div class="sub">水分</div>` + gauge(R.w, 360, [[0, 100, '#d8ecb0'], [100, L.wMax - L.wEdge, GRN], [L.wMax - L.wEdge, L.wMax, YEL], [L.wMax, 360, RED]]);
         h += `<div class="sub">泡</div>` + gauge(R.s, 28, [[0, L.sMax - L.sEdge, GRN], [L.sMax - L.sEdge, L.sMax, YEL], [L.sMax, 28, RED]]);
       }
     }

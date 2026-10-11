@@ -2,7 +2,7 @@
 // ====== スライムの判定ロジック（画面に依存しない）======
 // ノリ100mlあたりの割合で、固まり具合・水分・泡を判定する
 
-const LIM = { bMin: 15, bEdgeLo: 3, bMax: 40, bEdgeHi: 4, wMax: 60, wEdge: 8, sMax: 20, sEdge: 3 };
+const LIM = { bMin: 15, bEdgeLo: 3, bMax: 40, bEdgeHi: 4, wMax: 320, wEdge: 50, sMax: 20, sEdge: 3 };
 
 const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const rgb2hex = c => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
@@ -31,7 +31,7 @@ function limits(stab, env) {
   const e = env || { b: 0, w: 0, s: 0 };
   const wob = 1.5 - stab;                       // 安いノリほど環境でぶれやすい
   const band = 0.5 + 0.5 * stab;                // 安いノリほど「ギリギリ帯」がせまい
-  const sh = { b: e.b * wob, w: e.w * wob, s: e.s * wob };
+  const sh = { b: e.b * wob, w: e.w * wob * 6, s: e.s * wob };   // 水は量が多いので、ぶれ幅も大きい
   return {
     bMin: LIM.bMin + sh.b, bMax: LIM.bMax + sh.b, bEdgeLo: LIM.bEdgeLo * band, bEdgeHi: LIM.bEdgeHi * band,
     wMax: LIM.wMax + sh.w, wEdge: LIM.wEdge * band, sMax: LIM.sMax + sh.s, sEdge: LIM.sEdge * band,
@@ -42,7 +42,7 @@ function limits(stab, env) {
 function ratios(m) {
   if (m.glue <= 0) return { b: 0, w: 0, s: 0 };
   const w = m.water / m.glue * 100, s = m.soap / m.glue * 100;
-  const soften = 1 + w / 100 * 0.1 + s / 100 * 0.15;      // 水と泡はホウ砂水の効きを少し弱める
+  const soften = 1 + w / 100 * 0.04 + s / 100 * 0.15;      // 水と泡はホウ砂水の効きを少し弱める
   return { b: m.borax / m.glue * 100 / soften, w, s };
 }
 
@@ -109,12 +109,13 @@ function judge(amt, stir, env) {
   const rough = sp > 10, stained = ps > 9;
   if (rough) look *= 0.6;
   if (stained) look *= 0.6;
-  const stirScore = clamp(stir, 0, 1), brand = 0.5 + 0.5 * m.stab;
-  const qs = 0.4 * stirScore + 0.3 * look + 0.3 * brand;
-  const q = qs >= 0.96 ? 'S' : qs >= 0.85 ? 'A' : qs >= 0.7 ? 'B' : 'C';
+  // 本物のスライムと同じで、ノリより水が多めのほうがうまくいく（水がノリより少ないと、ごわごわして品質ダウン）
+  const stirScore = clamp(stir, 0, 1), brand = 0.5 + 0.5 * m.stab, waterScore = R.w >= 100 ? 1 : 0.2 + 0.8 * Math.pow(R.w / 100, 2);
+  const qs = 0.3 * stirScore + 0.25 * look + 0.2 * brand + 0.25 * waterScore;
+  const q = qs >= 0.97 ? 'S' : qs >= 0.85 ? 'A' : qs >= 0.7 ? 'B' : 'C';
 
   const color = mixColor(amt), hs = hsl(color);
-  const sl = { traits, q, qs, color, sp, ps, sat: hs.s, light: hs.l, rough, stained };
+  const sl = { traits, q, qs, color, sp, ps, sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100 };
   sl.name = slimeName(traits, color, m.paint > 0, sp);
   sl.fair = fairPrice(sl);
   return { ...out, ok: true, slime: sl, jars: Math.floor(m.total / JAR_ML) };
