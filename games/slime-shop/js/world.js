@@ -9,6 +9,7 @@ const World = (function () {
   const C = { yaw: 0, pitch: 0.55, dist: 9 };
   const keys = {};
   const joyV = { x: 0, z: 0 }; let runOn = false;
+  const jarSparkles = [];
   let manualDark = 0, darkV = 0, dayK = 1; const lt = { sun: 1, hemi: 1, lamp: 0 }, glowMats = [];
   const mats = {};
   const GEO = { box: new T.BoxGeometry(1, 1, 1), cyl: new T.CylinderGeometry(1, 1, 1, 20), sph: new T.SphereGeometry(1, 20, 14) };
@@ -360,8 +361,13 @@ const World = (function () {
     else top(0.26, 0.08, 0.26, 0.36);
     for (let i = 0; i < Math.round(((st && st.crunch) || 0) * 12); i++) { const a = i * 2.1; sph(0.018, 0xffffff, Math.cos(a) * 0.2, 0.12 + (i % 5) * 0.06, Math.sin(a) * 0.2, g).castShadow = false; }
     if (!(tr.nettori || tr.fuwafuwa)) { const lid = box(0.52, 0.07, 0.52, 0xffffff, 0, 0.46, 0, g); lid.scale.set(0.56, 0.07, 0.56); lid.position.y = 0.5; }
-    for (let i = 0; i < Math.min(10, Math.round(sparkle * 2)); i++) {
-      const a = i * 2.4; sph(0.022, 0xffffff, Math.cos(a) * 0.16, 0.08 + (i % 5) * 0.055, Math.sin(a) * 0.16, g, { emissive: 0xfff2b0, emissiveIntensity: 1 }).castShadow = false;
+    const gc = (st && st.gcols && st.gcols.length) ? st.gcols : (sparkle > 0 ? [{ c: '#fff2b0', w: 1 }] : []), gtot = gc.reduce((a, x) => a + x.w, 0) || 1;
+    for (let i = 0; i < Math.min(16, Math.round(sparkle * 3)); i++) {
+      let pk = ((i * 0.6180339 + 0.1) % 1) * gtot, col = gc[0].c;
+      for (const x of gc) { pk -= x.w; if (pk <= 0) { col = x.c; break; } }
+      if (col === 'rainbow') col = '#' + new T.Color().setHSL(Math.random(), 1, 0.65).getHexString();
+      const a = i * 2.4, d = new T.Mesh(GEO.sph, new T.MeshBasicMaterial({ color: col }));
+      d.position.set(Math.cos(a) * 0.19, 0.08 + (i % 6) * 0.05, Math.sin(a) * 0.19); d.scale.setScalar(0.03); g.add(d); jarSparkles.push({ m: d, ph: i * 1.7, s: 0.04 });
     }
     return g;
   }
@@ -371,7 +377,7 @@ const World = (function () {
   }
   function refreshShelf() {
     if (!shelfG) return;
-    glowMats.length = 0;
+    glowMats.length = 0; jarSparkles.length = 0;
     while (shelfG.children.length) { const c = shelfG.children.pop(); c.traverse(o => { if (o.material && o.material.map) o.material.map.dispose(); }); }
     const ox = areas.shop.slotBase;
     S.shelf.forEach((sl, i) => {
@@ -572,7 +578,7 @@ const World = (function () {
     const a = areas.shop, ox = a.slotBase;
     titleT += dt;
     if (titleT > nextSpawn) { spawnVisitor('kid', () => { }); nextSpawn = titleT + 3.2; }
-    stepVisitors(dt);
+    stepVisitors(dt); twinkleJars();
     staffMeshes.forEach(s => { s.position.y = Math.abs(Math.sin(tNow * 2 + s.userData.t)) * 0.04; });
     a.hot.forEach(h => { h.marker.visible = false; });
     const ang = -0.5 + Math.sin(titleT * 0.12) * 0.3;
@@ -580,13 +586,14 @@ const World = (function () {
     followSun(ox, 0); skyDome.position.copy(cam.position);
     renderer.render(scene, cam);
   }
+  function twinkleJars() { for (const j of jarSparkles) j.m.scale.setScalar(j.s * (0.3 + 1.3 * Math.pow(Math.max(0, Math.sin(tNow * 3.2 + j.ph)), 3))); }
   function demoScene() {
     const ox = areas.shop.slotBase;
     const demo = [['#ff8fc0', { fuwafuwa: 0.8 }, 3], ['#7be8b2', { danryoku: 0.6 }, 1], ['#8fd0ff', { torotoro: 0.7 }, 2], ['#ffd95e', { nettori: 0.5 }, 0],
       ['#d9a6ff', {}, 4], ['#ffffff', { fuwafuwa: 0.4 }, 0], ['#ff9a6a', {}, 2], ['#6fe0c8', { torotoro: 0.3 }, 3]];
     demo.forEach((d, i) => {
       const p = SLOT(i);
-      for (let k = 0; k < 3; k++) { const j = makeJar(d[0], d[2], { traits: d[1] }); j.position.set(ox + p.x + (k - 1) * 0.55, p.y + 0.05, p.z + 0.05 + (k % 2) * 0.1); shelfG.add(j); }
+      for (let k = 0; k < 3; k++) { const j = makeJar(d[0], d[2], { traits: d[1], gcols: [{ c: ['#ffd24a', '#58a8ff', '#ff6fb5', '#5ee08a', 'rainbow', '#d8dde6'][i % 6], w: 1 }] }); j.position.set(ox + p.x + (k - 1) * 0.55, p.y + 0.05, p.z + 0.05 + (k % 2) * 0.1); shelfG.add(j); }
       const tg = priceTag('¥' + (180 + i * 60)); tg.position.set(ox + p.x, p.y + 0.78, p.z + 0.3); shelfG.add(tg);
     });
     const c = makePerson(0xff9bb5, 0x442211, 0xff6b6b); c.position.set(ox - 4, 0, 1.4); c.userData.t = 0; staffG.add(c); staffMeshes.push(c);
@@ -649,7 +656,7 @@ const World = (function () {
       for (let i = 0; i < p.count; i++) { let y = p.getY(i) - 28 * dt; if (y < 0) y += 25; p.setY(i, y); }
       p.needsUpdate = true; rain.position.set(cam.position.x, 0, cam.position.z);
     }
-    Workshop.update(dt, tNow);
+    Workshop.update(dt, tNow); twinkleJars();
     darkV += (manualDark - darkV) * Math.min(1, dt * 4);
     sun.intensity = lt.sun * (1 - 0.93 * darkV); hemi.intensity = lt.hemi * (1 - 0.9 * darkV); lamp.intensity = lt.lamp * (1 - 0.95 * darkV);
     const dk = Math.max(darkV, (1 - dayK) * 0.55); for (const g of glowMats) g.mat.emissiveIntensity = 0.05 + 1.1 * g.lv * dk;

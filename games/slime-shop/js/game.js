@@ -180,10 +180,10 @@ function buyerRun() {
 // ---------- スライムの登録 ----------
 function comboKey(traits) { return TRAITS.filter(t => traits[t] > 0).join('+') || 'normal'; }
 function addSlimeStack(sl, count) {
-  const sig = sl.name + sl.q + sl.color + TRAITS.map(t => Math.round((sl.traits[t] || 0) * 20)).join('') + Math.round((sl.crunch || 0) * 10) + '|' + Math.round((sl.gl || 0) * 2);
+  const sig = sl.name + sl.q + sl.color + TRAITS.map(t => Math.round((sl.traits[t] || 0) * 20)).join('') + Math.round((sl.crunch || 0) * 10) + '|' + Math.round((sl.gl || 0) * 2) + '|' + (sl.gcols || []).map(g => g.c + Math.round(g.w)).join(',');
   let st = S.slimes.find(x => x.sig === sig);
   if (st) st.count += count;
-  else { st = { id: S.nid++, sig, name: sl.name, traits: sl.traits, color: sl.color, sp: sl.sp, sn: sl.sn || 0, gl: sl.gl || 0, crunch: sl.crunch || 0, sat: sl.sat, light: sl.light, q: sl.q, fair: sl.fair, count }; S.slimes.push(st); }
+  else { st = { id: S.nid++, sig, name: sl.name, traits: sl.traits, color: sl.color, sp: sl.sp, gcols: sl.gcols || [], sn: sl.sn || 0, gl: sl.gl || 0, crunch: sl.crunch || 0, sat: sl.sat, light: sl.light, q: sl.q, fair: sl.fair, count }; S.slimes.push(st); }
   S.dex.combos[comboKey(sl.traits)] = (S.dex.combos[comboKey(sl.traits)] || 0) + count;
   S.dex.made += count;
   return st;

@@ -27,6 +27,7 @@ const Workshop = (function () {
   // さわる（やわらかい体のシミュレーション）：頂点ごとのずれ disp とそのはやさ vel
   let disp = null, vel = null, tgtD = null, kw = null, touchExit = null, tapInfo = null;
   const grainMat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
+  let sparkles = [], sparkKey = '';
   let hands = [], twoHand = false, snapBoost = 0, tearP = 0, lastLevel = 0, handMk = [], debris = [], grains = [], glowLight = null;
   const raycaster = new T.Raycaster(), tmpV = new T.Vector3();
   const feelM = () => ({ hard: st.hard, bouncy: st.bouncy, foam: st.foam, ooze: st.ooze, sticky: st.sticky, crunch: st.crunch });
@@ -196,6 +197,10 @@ const Workshop = (function () {
     for (let i = 0; i < 8; i++) { const d = new T.Mesh(new T.SphereGeometry(1, 12, 10), blob.material); d.visible = false; d.castShadow = true; d.userData = { life: 0, v: new T.Vector3() }; grp.add(d); debris.push(d); }
     for (let i = 0; i < 44; i++) { const g = new T.Mesh(new T.SphereGeometry(0.03 + Math.random() * 0.025, 6, 5), grainMat); g.userData = { th: Math.random() * Math.PI * 2, ph: Math.acos(Math.random() * 1.7 - 0.85) }; g.visible = false; grp.add(g); grains.push(g); }
     glowLight = new T.PointLight(0xa8ffb0, 0, 6); grp.add(glowLight);
+    for (let i = 0; i < 80; i++) {   // ラメ：入れた色でキラキラ光る
+      const s = new T.Mesh(new T.SphereGeometry(1, 8, 6), new T.MeshBasicMaterial({ color: 0xffffff }));
+      s.visible = false; s.userData = { vi: (Math.random() * bg.attributes.position.count) | 0, ph: Math.random() * 6.3, sz: 0.032 + Math.random() * 0.022, th: Math.random() * 6.3, r: Math.sqrt(Math.random()) * 0.55 }; grp.add(s); sparkles.push(s);
+    }
     strand = new T.Mesh(GEO_CYL(), blob.material); strand.visible = false; grp.add(strand);
     for (let i = 0; i < 5; i++) { const d = new T.Group(), c = new T.Mesh(GEO_CYL(), blob.material), s = new T.Mesh(new T.SphereGeometry(1, 10, 8), blob.material); d.add(c, s); d.userData = { c, s, a: i * 1.26 + 0.3 }; d.visible = false; grp.add(d); drips.push(d); }
     grp.traverse(o => { if (o.isMesh && o !== bowlM) o.castShadow = o.castShadow || false; });
@@ -415,6 +420,28 @@ const Workshop = (function () {
       pos.needsUpdate = true; blob.geometry.computeVertexNormals(); blob.geometry.computeBoundingSphere();
     } else { st.sq *= 0.9; st.sqv *= 0.9; }
     softExtras(dt, t, cx, cz);
+    {   // ラメ（色は入れたラメの色。レインボーは粒ごとに色がちがう）
+      const gcs = st.touch ? (st.touch.gcols || []) : glitterCols(amt), spv = st.touch ? (st.touch.sp || 0) : (m.total > 0 ? m.glitter / m.total * 100 : 0);
+      const key = gcs.map(g => g.c + ':' + Math.round(g.w)).join(',');
+      if (key !== sparkKey) {
+        sparkKey = key; const tot = gcs.reduce((a, x) => a + x.w, 0) || 1;
+        sparkles.forEach((s, i) => {
+          let pk = ((i * 0.6180339 + 0.1) % 1) * tot, col = gcs.length ? gcs[0].c : '#ffffff';
+          for (const x of gcs) { pk -= x.w; if (pk <= 0) { col = x.c; break; } }
+          s.material.color.set(col === 'rainbow' ? new T.Color().setHSL((i * 0.137) % 1, 1, 0.62) : col);
+        });
+      }
+      const nsp = gcs.length ? clamp(Math.round(spv * 16), 3, 80) : 0, pos = blob.geometry.attributes.position, nrm = blob.geometry.attributes.normal;
+      const lvH = 0.06 + 0.4 * frac;
+      sparkles.forEach((s, i) => {
+        const u = s.userData, on = i < nsp && mtot > 0 && (blob.visible || liquid.visible); s.visible = on; if (!on) return;
+        if (blob.visible) {
+          tmpV.set(pos.getX(u.vi) + nrm.getX(u.vi) * 0.03, pos.getY(u.vi) + nrm.getY(u.vi) * 0.03, pos.getZ(u.vi) + nrm.getZ(u.vi) * 0.03); blob.localToWorld(tmpV); s.position.copy(tmpV);
+          if (tmpV.y < blob.position.y - blob.scale.y * 0.1) s.visible = false;
+        } else s.position.set(cx + Math.cos(u.th) * u.r, bowlBottom + lvH + 0.01, cz + Math.sin(u.th) * u.r);
+        s.scale.setScalar(u.sz * (0.3 + 0.9 * Math.pow(Math.max(0, Math.sin(t * 3.4 + u.ph)), 4)));
+      });
+    }
     // あわ
     const nb = Math.round(st.foam * bubbles.length * (st.melt > 0.5 ? 1 : 0.85));
     bubbles.forEach((b, i) => {

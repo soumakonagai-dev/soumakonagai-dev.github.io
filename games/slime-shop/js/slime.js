@@ -48,6 +48,13 @@ function ratios(m) {
   return { b: m.borax / m.glue * 100 / soften, w, s };
 }
 
+// 入れたラメの色（量に応じて）。レインボーは 'rainbow'（キラキラごとに色がちがう）
+function glitterCols(amt) {
+  const out = [];
+  for (const id in amt) { const it = ITEMS[id]; if (it && it.kind === 'glitter' && amt[id] > 0) out.push({ c: id === 'glitter_rainbow' ? 'rainbow' : it.color, w: amt[id] }); }
+  return out;
+}
+
 function mixColor(amt) {
   let r = 0, g = 0, b = 0, n = 0;
   for (const id in amt) {
@@ -119,7 +126,7 @@ function judge(amt, stir, env) {
 
   const color = mixColor(amt), hs = hsl(color);
   const sn = m.snow / m.total * 100, gl = m.glow / m.total * 100;   // 100mlあたりの回数
-  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100 };
+  const sl = { traits, q, qs, color, sp, ps, sn, gl, crunch: clamp(sn / 5, 0, 1), sat: hs.s, light: hs.l, rough, stained, dry: R.w < 100, gcols: glitterCols(amt) };
   sl.name = slimeName(traits, color, m.paint > 0, sp, sl.crunch, gl);
   sl.fair = fairPrice(sl);
   return { ...out, ok: true, slime: sl, jars: Math.floor(m.total / JAR_ML) };
@@ -142,4 +149,4 @@ const FAIL_TEXT = {
   melted: ['溶けてしまった…', '泡を入れすぎて、水と泡に分離して溶けてしまいました。'],
 };
 
-if (typeof module !== 'undefined') module.exports = { judge, limits, ratios, mixFromAmt, mixColor, fairPrice, slimeName, LIM };
+if (typeof module !== 'undefined') module.exports = { glitterCols, judge, limits, ratios, mixFromAmt, mixColor, fairPrice, slimeName, LIM };
