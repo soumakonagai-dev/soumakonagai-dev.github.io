@@ -182,7 +182,7 @@ function battleEnd(r, s) {
   save();
   result = out; scr = 'result'; render();
 }
-const TIME_HALF = 90;
+const TIME_HALF = 120;
 
 // ---------- 操作 ----------
 document.addEventListener('click', e => {
@@ -383,8 +383,8 @@ function vHome() {
   const pips = S.apd > 3 ? `<b class="tp">のこり ${S.actions} / ${maxActions()} 回</b>` : Array.from({ length: maxActions() }, (_, i) => `<span class="${i < S.actions ? 'on' : ''}"></span>`).join('');
   const dbg = DEBUG ? `<div class="row" style="margin-top:10px"><button data-a="dbg" data-v="tp">+1000TP</button><button data-a="dbg" data-v="stat">全能力+100</button><button data-a="dbg" data-v="stat2">全能力+300</button><button data-a="dbg" data-v="area">全エリア解放</button><button data-a="dbg" data-v="day">+10日</button></div>` : '';
   return `${topBar()}${toastHtml()}
-  <div class="grid g2 homegrid">
-    <div class="card">
+  <div class="homegrid2">
+    <div class="card h-stats">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3>${t.icon} ${c.name}</h3><div><span class="tag">${t.name}</span>${elemTag(c.elem)}</div>
       </div>
@@ -394,8 +394,11 @@ function vHome() {
       <div class="statrow"><span>スタミナ</span><b>${S.stamina}</b><div class="bar"><i style="width:${S.stamina}%;background:#ffa94d"></i></div></div>
       <div class="sub" style="margin-top:4px">調子：${m.icon} ${m.n}（上昇量 ×${m.mul}）${S.protein ? '　🥛プロテイン効果中' : ''}</div>
     </div>
-    <div>
-      <div class="card">
+    <div class="h-go">
+      <button class="main" style="width:100%;font-size:19px;padding:14px" data-a="map" ${fz || (S.apd > 3 && S.actions < 1) ? 'disabled' : ''}>⚔️ おでかけ（${S.apd > 3 ? '行動' + BATTLE_COST + '回ぶん' : '1日使う'}）</button>
+    </div>
+    <div class="card h-train">
+      <div>
         <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
           <b>きょうの行動</b><span class="pips">${pips}</span>
         </div>
@@ -407,8 +410,9 @@ function vHome() {
           ${fz ? '' : `<button class="tbtn" data-a="sleep"><b>🌙 ${S.actions <= 0 ? '次の日へ' : '今日を終える'}</b><span class="sub">${S.apd > 3 ? '残りの行動を捨てて次の日へ（スタミナ+40）' : '残りの行動を捨てて次の日へ'}</span></button>`}
         </div>` : ''}
       </div>
-      <div class="grid" style="grid-template-columns:repeat(2,1fr);margin-top:10px">
-        <button data-a="map" ${fz || (S.apd > 3 && S.actions < 1) ? 'disabled' : ''}>⚔️ おでかけ（${S.apd > 3 ? '行動' + BATTLE_COST + '回ぶん' : '1日使う'}）</button>
+    </div>
+    <div class="h-more">
+      <div class="grid" style="grid-template-columns:repeat(3,1fr)">
         <button data-a="skills">📘 技セット</button>
         <button data-a="shop">🛒 ショップ</button>
         <button data-a="items">🎒 もちもの</button>

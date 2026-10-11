@@ -132,7 +132,7 @@ const FX = (() => {
   function buildModel(def) {
     const ec = ELEM[def.elem].c;
     const main = new THREE.Color(def.color), dark = main.clone().multiplyScalar(0.55), light = main.clone().lerp(new THREE.Color(0xffffff), 0.55);
-    const mats = [], sway = [], eyeList = [], fingerList = [];
+    const mats = [], sway = [], eyeList = [], fingerList = [], tails = [];
     const part = (geo, color, o = {}) => {
       const m = toon(color, o); mats.push(m);
       const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true;
@@ -191,7 +191,7 @@ const FX = (() => {
         const g = new THREE.Group(); g.position.set(i ? 0 : x, i ? 0.02 : y, i ? -sizes[i - 1] * 1.7 : z); par.add(g);
         const b = ball(r, i % 2 ? col1 : col2); b.position.z = -r * 0.5; g.add(b);
         if (i) { const jt = ball(r * 0.6, col2, { noOutline: true }); jt.position.z = r * 0.3; g.add(jt); }
-        swayOf(g, 'y', amp, sp, (ph || 0) + i * 0.6); par = g;
+        swayOf(g, 'y', amp, sp, (ph || 0) + i * 0.6); if (!i) tails.push(g); par = g;
         if (i === sizes.length - 1 && tipCol) { const tp = ball(r * 0.9, tipCol, { emissive: tipCol, ei: 0.9, noOutline: true }); g.add(at(tp, 0, 0, -r * 1.6)); glowTip(g, tipCol, 1.2, 0, 0, -r * 1.6); }
       });
     };
@@ -416,15 +416,17 @@ const FX = (() => {
     const chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.08, 28), new THREE.MeshBasicMaterial({ color: ec, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     chargeRing.rotation.x = -Math.PI / 2; chargeRing.position.y = 0.06; root.add(chargeRing);
 
-    return { root, upper, head, armL, armR, handL: limbs.armL.hand, handR: limbs.armR.hand, legL, legR, limbs, jaw, pulse, eyeList, fingerList, seed: Math.random() * 10, cape, orbs, sway, float, quad, baseY: upper.position.y, mats, shadow, aura, guardMesh, barrier, chargeRing, type: t, ec };
+    return { root, upper, head, armL, armR, handL: limbs.armL.hand, handR: limbs.armR.hand, legL, legR, limbs, jaw, pulse, tails, eyeList, fingerList, seed: Math.random() * 10, cape, orbs, sway, float, quad, baseY: upper.position.y, mats, shadow, aura, guardMesh, barrier, chargeRing, type: t, ec };
   }
 
   // s: { moving, atk(0〜1の進行), style, stun, guard, dead, charge, buff, idleOnly }
   function pose(p, s, t) {
     const u = p.upper, wide = p.type === 'heavy';
-    const sw = s.moving ? Math.sin(t * 13) : 0;
+    const GS = s.slowWalk ? 5 : 13, sw = s.moving ? Math.sin(t * GS) : 0;
+    const ramp = s.atk > 0 ? Math.min(1, (1 - s.atk) * 4) : 0;
+    p.raiseTail = 0;
     p.legL.rotation.x = sw * 0.8; p.legR.rotation.x = -sw * 0.8;
-    u.position.y = (p.baseY || 0.8) + (s.moving ? Math.abs(Math.sin(t * 13)) * 0.07 : Math.sin(t * 2.4) * 0.02);
+    u.position.y = (p.baseY || 0.8) + (s.moving ? Math.abs(Math.sin(t * GS)) * 0.07 : Math.sin(t * 2.4) * 0.02);
     let aR = s.moving ? sw * 0.6 : Math.sin(t * 2.4) * 0.05 - 0.15, aL = s.moving ? -sw * 0.6 : -Math.sin(t * 2.4) * 0.05 - 0.15;
     let lean = s.moving ? 0.14 : 0, twist = 0, headX = 0, aRz = 0.05, aLz = -0.05;
     if (p.type === 'mage') { aR = -0.35 + Math.sin(t * 2) * 0.15; aL = -0.35 - Math.sin(t * 2) * 0.15; }
@@ -447,12 +449,14 @@ const FX = (() => {
         const k = Math.sin(Math.min(1, q * 1.3) * Math.PI);
         aL = -1.55; aR = -1.4 + k * 2.2; lean = 0.08;
       } else if (s.style === 'dash') { aR = -1.6; aL = 1.2; lean = 0.55; }
+      else if (s.style === 'threat') { aR = -2.3 * ramp; aL = -2.3 * ramp; lean = -0.28 * ramp; headX = -0.4 * ramp; twist = Math.sin(t * 38) * 0.04 * ramp; }
+      else if (s.style === 'retreat') { aR = aL = -0.5 * ramp; lean = -0.18 * ramp; headX = 0.2 * ramp; }
       else if (s.style === 'buff') { const k = Math.sin(q * Math.PI); aR = -2.6 * k; aL = -2.6 * k; lean = -0.15 * k; }
     }
     if (s.guard) { aL = -1.3; aR = -1.3; aRz = -0.5; aLz = 0.5; lean = 0.1; }
     if (s.stun) { lean = -0.45; headX = 0.3; aR = 0.8; aL = 0.8; }
     if (p.quad) {
-      const w = s.moving ? Math.sin(t * 12) : 0;
+      const w = s.moving ? Math.sin(t * (s.slowWalk ? 4.5 : 12)) : 0;
       aR = -w * 0.75; aL = w * 0.75; let hR = w * 0.75, hL = -w * 0.75;
       if (!s.moving) { aR = aL = Math.sin(t * 2.4) * 0.03; hR = hL = 0; }
       lean = s.moving ? 0.04 : 0; twist = 0; headX = s.moving ? 0.1 : Math.sin(t * 2) * 0.05;
@@ -472,13 +476,18 @@ const FX = (() => {
         } else if (s.style === 'cast') {
           const k = Math.sin(Math.min(1, q * 1.4) * Math.PI);
           lean = -0.28 * k; headX = -0.45 * k; aR = aL = -0.5 * k;
-        } else if (s.style === 'buff') { const k = Math.sin(q * Math.PI); lean = -0.55 * k; aR = aL = -1.3 * k; headX = -0.3 * k; }
+        } else if (s.style === 'threat') {
+          if (s.kind === 'tail') { lean = -0.12 * ramp; headX = -0.25 * ramp; aR = aL = -0.2 * ramp; p.raiseTail = 1.35 * ramp; }
+          else { lean = -0.6 * ramp; headX = -0.5 * ramp; aR = aL = -1.25 * ramp; p.raiseTail = 0.6 * ramp; }
+          lean += Math.sin(t * 38) * 0.012 * ramp;
+        } else if (s.style === 'retreat') { lean = 0.16 * ramp; headX = 0.25 * ramp; u.position.y = p.baseY - 0.09 * ramp; p.raiseTail = 0.5 * ramp; aR = aL = 0.15; }
+        else if (s.style === 'buff') { const k = Math.sin(q * Math.PI); lean = -0.55 * k; aR = aL = -1.3 * k; headX = -0.3 * k; }
       }
       if (s.guard) { aL = aR = -0.5; lean = 0.12; u.position.y = p.baseY - 0.14; headX = 0.2; }
       if (s.stun) { lean = -0.3; headX = 0.4; aR = aL = 0.5; }
       p.legR.rotation.x = hR; p.legL.rotation.x = hL; aRz = 0; aLz = 0;
     }
-    if (p.type === 'archer') { const fl = s.moving ? Math.sin(t * 22) * 0.7 : Math.sin(t * 3) * 0.12; aRz = 0.35 + fl + (s.atk > 0 ? 0.5 : 0); aLz = -(0.35 + fl + (s.atk > 0 ? 0.5 : 0)); if (!s.atk) { aR = 0; aL = 0; } }
+    if (p.type === 'archer') { const fl = s.moving ? Math.sin(t * 22) * 0.7 : Math.sin(t * 3) * 0.12; const spr = s.atk > 0 ? (s.style === 'threat' ? 0.95 * ramp : 0.5) : 0; aRz = 0.35 + fl + spr; aLz = -(0.35 + fl + spr); if (!s.atk) { aR = 0; aL = 0; } }
     p.armR.rotation.set(aR, 0, aRz); p.armL.rotation.set(aL, 0, aLz);
     if (p.sway) p.sway.forEach(w => { w.o.rotation[w.axis] = Math.sin(t * w.sp * (s.moving ? 1.6 : 1) + w.ph) * w.amp; });
     // ---- 関節：肘・膝・足首・指・あご・まばたき ----
@@ -499,14 +508,15 @@ const FX = (() => {
         if (s.guard) b += 0.25;
         L.lower.rotation.x = b; if (L.foot) L.foot.rotation.x = -b * (p.quad ? 0.9 : 0.55);
       };
+      if (p.tails) p.tails.forEach(g => { g.rotation.x = p.raiseTail; });
       armBend(J.armL, p.armL, -1); armBend(J.armR, p.armR, 1); legBend(J.legL, p.legL); legBend(J.legR, p.legR);
       const curl = 0.3 + 0.9 * swing + (s.guard ? 0.6 : 0) + (s.stun ? 0.4 : 0);
       p.fingerList.forEach(f => { f.g.rotation.x = -curl; f.tip.rotation.x = -curl * 0.8; });
-      if (p.jaw) p.jaw.rotation.x = s.atk > 0 ? swing * 0.7 : (s.stun ? 0.5 : 0.03 + 0.03 * Math.sin(t * 2 + p.seed));
+      if (p.jaw) p.jaw.rotation.x = s.style === 'threat' && s.atk > 0 ? 0.6 * ramp * (0.8 + 0.2 * Math.sin(t * 30)) : s.atk > 0 ? swing * 0.7 : (s.stun ? 0.5 : 0.03 + 0.03 * Math.sin(t * 2 + p.seed));
       const blink = ((t * 0.8 + p.seed) % 3.6) < 0.12;
       p.eyeList.forEach(e => { e.mesh.scale.y = e.sy * (blink ? 0.1 : 1); });
       p.head.rotation.y = (!s.atk && !s.moving && !s.dead && !s.guard) ? Math.sin(t * 0.7 + p.seed) * 0.2 : 0;
-      if (p.pulse) { const k = Math.sin(t * 3); p.pulse.scale.set(1 + k * 0.04, 1 - k * 0.05, 1 + k * 0.04); }
+      if (p.pulse) { const k = Math.sin(t * 3); const gz = 1 + (s.style === 'threat' ? 0.3 * ramp : 0); p.pulse.scale.set((1 + k * 0.04) * gz, (1 - k * 0.05) * gz, (1 + k * 0.04) * gz); }
     }
     u.rotation.set(lean, twist, 0); p.head.rotation.x = headX;
     if (p.cape) p.cape.rotation.x = 0.12 + (s.moving ? 0.45 : Math.sin(t * 3) * 0.06);

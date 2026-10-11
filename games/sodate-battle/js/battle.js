@@ -3,8 +3,8 @@
 
 const Battle = (() => {
   const R = 14;                       // アリーナの半径
-  const TIME_LIMIT = 180;           // 敵の体力が3倍なので、制限時間も長くしてある
-const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
+  const TIME_LIMIT = 240;           // 敵の体力が多いので、制限時間も長くしてある
+const ENEMY_HP_MUL = 5;           // 敵の体力の倍率
   const INTRO = 2.6;
   let renderer, scene, camera, root, canvas, hemi, sun, parts;
   let running = false, raf = 0, last = 0, inited = false;
@@ -388,14 +388,16 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
     }
     return true;
   }
-  function useSkill(f, i, isUlt) {
+  function useSkill(f, i, isUlt, o) {
+    o = o || {};
     const s = isUlt ? f.ult : (f.skills[i] && f.skills[i].def);
-    if (!s || f.dead || ctx.start > 0 || f.busy > 0 || f.stun > 0 || f.stepT > 0 || f.dash) return false;
+    if (!s || f.dead || ctx.start > 0 || (!o.force && f.busy > 0) || f.stun > 0 || f.stepT > 0 || f.dash) return false;
     if (isUlt) { if (f.gauge < 100) return false; }
     else if (f.skills[i].cd > 0) return false;
-    face(f);
+    const qk = o.quick ? 0.5 : 1, pw = s.power * (o.boost || 1);
+    if (!o.quick) face(f);
     const t = opp(f);
-    if (isUlt) { f.gauge = 0; cutIn(f, s); } else f.skills[i].cd = s.ct;
+    if (isUlt) { f.gauge = 0; cutIn(f, s); } else f.skills[i].cd = s.ct * (f.side === 'e' ? 1.25 : 1);
     const dmg = s.type === 'magic' ? 'magic' : 'physical';
     const ec = FX.ELEM_FX[s.elem], isMagic = s.type === 'magic';
     const pre = isUlt ? 0.5 : 0;
@@ -407,29 +409,29 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
     if (s.range === 'line') {
       f.busy = 0.3 + pre;
       parts.burst(s.elem, f.pos.x + Math.sin(f.yaw), 1.4, f.pos.z + Math.cos(f.yaw), 14, 3, 0.2);
-      later(0.18 + pre, () => {
+      later(0.18 * qk + pre, () => {
         if (f.dead) return;
-        face(f);
+        if (!o.quick) face(f);
         const n = s.n || 1;
         Sound.play(s.elem === 'wind' && isMagic ? 'thunder' : f.type === 'archer' ? 'shot' : 'magic');
         for (let k = 0; k < n; k++) {
           const ang = n > 1 ? (k - (n - 1) / 2) * (s.spread || 0.2) : 0;
-          spawnProj(f, { power: s.power, dmg, elem: s.elem, speed: s.speed, size: s.size || 0.45, ang, pierce: s.pierce, slow: s.slow, stun: s.stun, shape: s.shape });
+          spawnProj(f, { power: pw, dmg, elem: s.elem, speed: s.speed, size: s.size || 0.45, ang, pierce: s.pierce, slow: s.slow, stun: s.stun, shape: s.shape });
         }
       });
     } else if (s.range === 'melee') {
-      f.busy = (s.delay || 0.2) + 0.3 + pre;
-      later((s.delay || 0.2) + pre, () => {
+      f.busy = (s.delay || 0.2) * qk + 0.3 + pre;
+      later((s.delay || 0.2) * qk + pre, () => {
         if (f.dead || f.stun > 0) return;
-        face(f);
+        if (!o.quick) face(f);
         clawSlash(f, s.reach + 0.6, s.arc, ec, 3);
         parts.burst(s.elem, f.pos.x + Math.sin(f.yaw) * 2, 1, f.pos.z + Math.cos(f.yaw) * 2, 24, 6, 0.4);
         ctx.shake = Math.max(ctx.shake, 0.3);
-        if (inCone(f, t, s.reach, s.arc)) hurt(t, f, s.power, dmg, s.elem, { stun: s.stun, kb: 1.8 });
+        if (inCone(f, t, s.reach, s.arc)) hurt(t, f, pw, dmg, s.elem, { stun: s.stun, kb: 1.8 });
       });
     } else if (s.range === 'circle') {
       const atTarget = s.at === 'target';
-      const delay = (s.delay || 0.2) + pre;
+      const delay = Math.max(o.quick ? 0.35 : 0, (s.delay || 0.2) * (o.quick ? 0.6 : 1)) + pre;
       const cx = atTarget ? t.pos.x : f.pos.x, cz = atTarget ? t.pos.z : f.pos.z;
       f.busy = (atTarget ? 0.45 : delay + 0.3);
       telegraph(atTarget ? cx : f.pos.x, atTarget ? cz : f.pos.z, s.r, warnColor, delay);
@@ -449,11 +451,11 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
         runeCircle(ox, 0.12, oz, s.r * 1.15, ec[1], 0.8, { spin: 2, expand: true });
         for (let i = 0; i < 3; i++) later(i * 0.07, () => shock(ox, oz, s.r * (0.7 + i * 0.25), ec[1], 0.4, 0.2 + i * 1.1));
         const tt = opp(f);
-        if (Math.hypot(tt.pos.x - ox, tt.pos.z - oz) <= s.r + 0.5) hurt(tt, f, s.power, dmg, s.elem, { slow: s.slow, stun: s.stun, kb: 2 });
+        if (Math.hypot(tt.pos.x - ox, tt.pos.z - oz) <= s.r + 0.5) hurt(tt, f, pw, dmg, s.elem, { slow: s.slow, stun: s.stun, kb: 2 });
       });
     } else if (s.range === 'dash') {
-      const back = s.dir === 'back', dur = 0.22, dirv = back ? -1 : 1;
-      f.dash = { vx: Math.sin(f.yaw) * s.dist / dur * dirv, vz: Math.cos(f.yaw) * s.dist / dur * dirv, t: dur, skill: s, hit: back, dmg };
+      const back = s.dir === 'back', dur = o.quick ? 0.14 : 0.22, dirv = back ? -1 : 1;
+      f.dash = { vx: Math.sin(f.yaw) * s.dist / dur * dirv, vz: Math.cos(f.yaw) * s.dist / dur * dirv, t: dur, skill: s, hit: back, dmg, boost: o.boost || 1 };
       f.inv = Math.max(f.inv, dur + 0.05); f.busy = dur + 0.15;
       Sound.play('dash');
     } else if (s.range === 'tele') {
@@ -480,6 +482,72 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
     return true;
   }
   const pick2 = a => a[(Math.random() * a.length) | 0];
+  // 強い技は、前ぶり（後ずさり・しっぽを上げる・吠える）のあとに、すばやく放つ
+  const STRONG_POWER = 85;
+  const isStrong = s => s && (s.type === 'physical' || s.type === 'magic' || s.type === 'move') && s.power >= STRONG_POWER;
+  function laneWarn(f, s, dur) {
+    const col = 0xff4a3a;
+    const mkFlat = (geo, ox, oz) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = -Math.PI / 2; return m; };
+    const g = new THREE.Group(); g.position.set(f.pos.x, 0.09, f.pos.z); g.rotation.y = f.yaw;
+    if (s.range === 'line' || s.range === 'dash') {
+      const len = s.range === 'dash' ? s.dist + 2 : 18, wid = s.range === 'dash' ? 2.2 : (s.size && s.size > 1 ? 2.6 : 1.6);
+      const m = mkFlat(new THREE.PlaneGeometry(wid, len)); m.position.z = len / 2 + 0.8; g.add(m);
+      const fill = mkFlat(new THREE.PlaneGeometry(wid, len)); fill.position.z = len / 2 + 0.8; fill.material.opacity = 0.35; g.add(fill);
+      addFx(dur + 0.1, g, (k) => {
+        g.position.set(f.pos.x, 0.09, f.pos.z); g.rotation.y = f.yaw;
+        const t = Math.min(1, 1 - k), lk = f.windup && f.windup.locked; fill.scale.set(1, Math.max(0.01, t), 1); fill.position.z = 0.8 + len * t / 2;
+        m.material.opacity = lk ? 0.5 : 0.18 + Math.sin(clock * 28) * 0.08; fill.material.opacity = lk ? 0.75 : 0.35;
+      });
+    } else if (s.range === 'melee') {
+      const arc = s.arc * Math.PI / 180, m = new THREE.Mesh(new THREE.CircleGeometry(s.reach + 0.6, 28, -Math.PI / 2 - arc / 2, arc), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2; g.add(m);
+      addFx(dur + 0.1, g, () => { g.position.set(f.pos.x, 0.09, f.pos.z); g.rotation.y = f.yaw; m.material.opacity = f.windup && f.windup.locked ? 0.55 : 0.2 + Math.sin(clock * 28) * 0.1; });
+    } else if (s.range === 'circle' && s.at !== 'target') {
+      telegraph(f.pos.x, f.pos.z, s.r, col, dur + 0.3);
+    }
+  }
+  function startWindup(f, i) {
+    if (f.windup || f.busy > 0 || f.stun > 0 || f.dash || ctx.start > 0 || f.dead) return false;
+    const s = f.skills[i].def;
+    const kind = pick2(['retreat', 'roar', 'tail']);
+    const dur = Math.max(0.7, 1.2 - 0.45 * f.lvl);
+    f.windup = { i, kind, t: 0, dur, roared: false };
+    f.busy = dur + 0.15; f.aiAtk = false;
+    setAnim(f, kind === 'retreat' ? 'retreat' : 'threat', dur);
+    floatText(f, '！', '#ff5a4a', 'big'); Sound.play('warn');
+    laneWarn(f, s, dur);
+    return true;
+  }
+  function updateWindup(f, dt) {
+    const w = f.windup, o = opp(f), ec = FX.ELEM_FX[f.elem];
+    w.t += dt;
+    if (f.stun > 0 || f.dead) {
+      if (!f.dead) { f.skills[w.i].cd = 2.5; floatText(f, '中断！', '#ffe27a', 'sm'); }
+      f.windup = null; f.yawLock = 0; return;
+    }
+    const k = Math.min(1, w.t / w.dur);
+    if (!(f.yawLock > clock)) face(f);
+    if (!w.locked && w.t >= w.dur - 0.2) { w.locked = true; f.yawLock = clock + 0.55; Sound.play('ready'); }
+    f.buffs.ultAura = 0.25;
+    if (w.kind === 'retreat') {          // ゆっくり後ろへ下がる
+      const dx = f.pos.x - o.pos.x, dz = f.pos.z - o.pos.z, l = Math.hypot(dx, dz) || 1;
+      f.pos.x += dx / l * 2.2 * dt; f.pos.z += dz / l * 2.2 * dt; f.moving = true;
+    }
+    // 力をためる粒
+    if (Math.random() < dt * (30 + 90 * k)) {
+      const a = Math.random() * 6.28, r = 2.6 - 1.4 * k;
+      parts.emit({ x: f.pos.x + Math.cos(a) * r, y: rand(0.3, 2.2), z: f.pos.z + Math.sin(a) * r, vx: -Math.cos(a) * r * 3, vy: rand(0, 1.5), vz: -Math.sin(a) * r * 3, color: Math.random() < 0.4 ? 0xff5a3a : ec[1], life: 0.45, size: 0.35, drag: 1 });
+    }
+    if (w.kind === 'roar' && !w.roared && k > 0.5) {   // 吠える（衝撃波と画面の揺れ）
+      w.roared = true; shock(f.pos.x, f.pos.z, 4.5, 0xff7a5a, 0.6); ctx.shake = Math.max(ctx.shake, 0.22); Sound.play('quake');
+      for (let n = 0; n < 24; n++) { const a = n / 24 * 6.28; parts.emit({ x: f.pos.x, y: 1.4, z: f.pos.z, vx: Math.cos(a) * 7, vy: rand(0, 1), vz: Math.sin(a) * 7, color: 0xffd0b0, life: 0.4, size: 0.4, drag: 2 }); }
+    }
+    if (w.kind === 'tail' && !w.glowed && k > 0.35) { w.glowed = true; glow(f.pos.x, 1.4, f.pos.z, ec[1], 5, 0.5); Sound.play('buff'); }
+    if (w.t >= w.dur) {                  // ここから、すばやく強い一撃
+      const i = w.i; f.windup = null; f.busy = 0; f.stun = 0; f.skills[i].cd = 0;
+      useSkill(f, i, false, { quick: true, boost: 1.3, force: true });
+    }
+  }
   function cutIn(f, s) {
     Sound.play('ult');
     const el = $('bt-cut');
@@ -517,6 +585,7 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
   function aiThink(f) {
     const o = opp(f), d = dist(f, o), lvl = f.lvl, style = f.ai;
     f.aiT = 0.5 - 0.3 * lvl + rand(0, 0.15);
+    if (f.windup) { f.in = { fwd: 0, right: 0 }; f.aiT = 0.2; return; }
     const melee = !f.ranged;
     let pref = melee ? 2.1 : 8.5;
     if (style === 'careful' && melee) pref = 3.4;
@@ -534,15 +603,17 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
     }
     if (f.aiGuardT <= 0 && style === 'counter' && Math.random() < 0.12) f.aiGuardT = 0.5;
     const reach = melee ? (f.atkT.range || 2.6) + 0.4 : 15;
-    if (d < reach && Math.random() < 0.45 + 0.4 * lvl) f.aiAtk = true;
+    if (d < reach && Math.random() < 0.3 + 0.3 * lvl) f.aiAtk = true;
     f.skills.forEach((sk, i) => {
-      if (!sk || sk.cd > 0 || Math.random() > 0.3 + 0.35 * lvl) return;
-      const s = sk.def; let ok = false;
+      if (!sk || sk.cd > 0 || f.windup || f.busy > 0) return;
+      const s = sk.def, strong = isStrong(s);
+      if (Math.random() > (strong ? 0.42 + 0.3 * lvl : 0.15 + 0.2 * lvl)) return;
+      let ok = false;
       if (s.range === 'line') ok = d > 2.5 && d < 14;
       else if (s.range === 'circle') ok = s.at === 'target' ? d < 12 : d < s.r + 1;
       else if (s.range === 'melee') ok = d < s.reach + 0.3;
       else if (s.range === 'dash') ok = d > 2.5 && d < s.dist + 1;
-      if (ok) useSkill(f, i);
+      if (ok) { if (strong) startWindup(f, i); else useSkill(f, i); }
     });
   }
 
@@ -557,10 +628,11 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
     if (f.anim) { f.anim.t += dt; if (f.anim.t >= f.anim.dur) f.anim = null; }
     f.skills.forEach(s => { if (s && s.cd > 0) s.cd -= dt; });
     f.pos.x += f.kb.x * dt; f.pos.z += f.kb.z * dt; f.kb.multiplyScalar(Math.pow(0.002, dt));
+    if (f.windup) updateWindup(f, dt);
     if (f.dead) return;
     f.guard = f.wantGuard && f.stun <= 0 && f.busy <= 0 && f.stepT <= 0 && f.guardBroke <= 0;
     if (!f.guard && f.guardBroke <= 0) f.guardHp = Math.min(60 + f.stats.DEF * 0.15, f.guardHp + dt * 8);
-    f.moving = false;
+    f.moving = !!(f.windup && f.windup.kind === 'retreat');
     if (f.stepT > 0) {
       f.stepT -= dt; f.pos.x += f.stepV.x * dt; f.pos.z += f.stepV.z * dt; f.moving = true;
       if (Math.random() < 0.8) parts.emit({ x: f.pos.x, y: 0.2, z: f.pos.z, vx: rand(-0.5, 0.5), vy: 0.3, vz: rand(-0.5, 0.5), color: 0xcfd6e8, life: 0.3, size: 0.6, drag: 2 });
@@ -571,7 +643,7 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
       for (let i = 0; i < 3; i++) parts.emit({ x: f.pos.x + rand(-0.3, 0.3), y: rand(0.3, 1.8), z: f.pos.z + rand(-0.3, 0.3), vx: -d.vx * 0.05, vz: -d.vz * 0.05, color: c[(Math.random() * 3) | 0], life: 0.35, size: 0.6, drag: 3 });
       if (!d.hit && dist(f, o) < 1.7) {
         d.hit = true; slashArc(f, 3, 120, c[1], true);
-        hurt(o, f, d.skill.power, d.dmg, d.skill.elem, { stun: d.skill.stun, kb: 1.5 });
+        hurt(o, f, d.skill.power * (d.boost || 1), d.dmg, d.skill.elem, { stun: d.skill.stun, kb: 1.5 });
       }
       if (d.t <= 0) {
         if (d.skill.then === 'shot') { face(f); spawnProj(f, { power: d.skill.power, dmg: d.dmg, elem: d.skill.elem, speed: 28, size: 0.35, shape: 'feather' }); Sound.play('shot'); }
@@ -596,7 +668,7 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
       f.pos.x += (f.pos.x - o.pos.x) / dd * push; f.pos.z += (f.pos.z - o.pos.z) / dd * push;
     }
     clampArena(f);
-    if (!f.dash && f.stepT <= 0) face(f);
+    if (!f.dash && f.stepT <= 0 && !(f.yawLock > clock)) face(f);
     // バフのオーラ粒
     if ((f.buffs.atk > 0 || f.buffs.spd > 0 || f.buffs.ultAura > 0) && Math.random() < dt * 30) {
       const c = f.buffs.atk > 0 ? 0xff7a4a : f.buffs.spd > 0 ? 0x8affb0 : FX.ELEM_FX[f.elem][1];
@@ -665,7 +737,7 @@ const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
     if (ctx.hitstop > 0 && ctx.hitTarget === f) { m.root.position.x += rand(-0.1, 0.1); m.root.position.z += rand(-0.1, 0.1); }
     m.root.rotation.y = f.yaw;
     FX.pose(m, {
-      moving: f.moving, atk: f.anim ? 1 - f.anim.t / f.anim.dur : 0, style: f.anim && f.anim.style, stun: f.stun > 0, guard: f.guard, dead: f.dead,
+      moving: f.moving, atk: f.anim ? 1 - f.anim.t / f.anim.dur : 0, style: f.anim && f.anim.style, kind: f.windup ? f.windup.kind : null, slowWalk: !!(f.windup && f.windup.kind === 'retreat'), stun: f.stun > 0, guard: f.guard, dead: f.dead,
       charge: f.charge, buff: f.buffs.atk > 0 || f.buffs.spd > 0 || f.buffs.ultAura > 0, barrier: f.buffs.def > 0, flash: f.flash,
     }, t);
     if (f.dead) m.root.position.y = 0.45;

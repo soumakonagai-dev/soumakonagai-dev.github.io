@@ -13,6 +13,8 @@
   body.peeking #ui{opacity:0;pointer-events:none;transition:opacity .3s}
   #ui{transition:opacity .3s}
   .title .sub{background:rgba(10,14,36,.55);padding:6px 12px;border-radius:10px;display:inline-block}
+  .homegrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;grid-template-areas:"stats go" "stats train" "stats more"}
+  .h-stats{grid-area:stats}.h-go{grid-area:go}.h-train{grid-area:train}.h-more{grid-area:more}
 </style><script>(function(){var l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
 <meta name="theme-color" content="#14182b">
 <title>ソダテバトル</title>
@@ -157,9 +159,9 @@
     button{min-height:40px}
   }
   @media (max-width:760px){
-    .homegrid>div:nth-child(2){order:-1}
-    .pv{height:210px}
-    canvas.radar{max-width:210px}
+    .homegrid2{grid-template-columns:1fr;grid-template-areas:"stats" "train" "go" "more"}
+    .pv{height:150px}
+    canvas.radar{display:none}
     .title button{min-width:200px}
     .day{font-size:19px}
   }
@@ -243,13 +245,13 @@
 
 <script id="noctx">addEventListener('contextmenu', function (e) { e.preventDefault(); });</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=4c35cdc7"></script>
-<script src="js/audio.js?v=4c35cdc7"></script>
-<script src="js/fx.js?v=4c35cdc7"></script>
-<script src="js/world.js?v=4c35cdc7"></script>
-<script src="js/home3d.js?v=4c35cdc7"></script>
-<script src="js/battle.js?v=4c35cdc7"></script>
-<script src="js/preview.js?v=4c35cdc7"></script>
-<script src="js/game.js?v=4c35cdc7"></script>
+<script src="js/data.js?v=4ded783c"></script>
+<script src="js/audio.js?v=4ded783c"></script>
+<script src="js/fx.js?v=4ded783c"></script>
+<script src="js/world.js?v=4ded783c"></script>
+<script src="js/home3d.js?v=4ded783c"></script>
+<script src="js/battle.js?v=4ded783c"></script>
+<script src="js/preview.js?v=4ded783c"></script>
+<script src="js/game.js?v=4ded783c"></script>
 </body>
 </html>
