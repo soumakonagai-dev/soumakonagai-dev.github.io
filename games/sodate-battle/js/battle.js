@@ -3,7 +3,8 @@
 
 const Battle = (() => {
   const R = 14;                       // アリーナの半径
-  const TIME_LIMIT = 90;
+  const TIME_LIMIT = 180;           // 敵の体力が3倍なので、制限時間も長くしてある
+const ENEMY_HP_MUL = 3;           // 敵の体力の倍率
   const INTRO = 2.6;
   let renderer, scene, camera, root, canvas, hemi, sun, parts;
   let running = false, raf = 0, last = 0, inited = false;
@@ -238,7 +239,7 @@ const Battle = (() => {
     const f = {
       side, name: def.name, type: def.type, elem: def.elem, color: def.color, stats: st,
       atkT: ATK_TYPES[def.type],
-      maxHp: 100 + st.HP * 2, hp: 0, gauge: 0,
+      maxHp: (100 + st.HP * 2) * (side === 'e' ? ENEMY_HP_MUL : 1), hp: 0, gauge: 0,
       pos: new THREE.Vector3(side === 'p' ? -7 : 7, 0, 0), yaw: side === 'p' ? Math.PI / 2 : -Math.PI / 2,
       busy: 0, atkCd: 0, stun: 0, inv: 0, stepT: 0, stepCd: 0, stepV: null, dash: null, kb: new THREE.Vector3(),
       guard: false, wantGuard: false, guardHp: 0, guardBroke: 0,
@@ -702,7 +703,7 @@ const Battle = (() => {
     const p = P.pos, e = E.pos;
     const dx = e.x - p.x, dz = e.z - p.z, d = Math.hypot(dx, dz) || 1;
     const nx = dx / d, nz = dz / d;
-    const back = 8 + d * 0.25, up = 6.5 + d * 0.3;
+    const back = 8.5 + d * 0.25, up = 4.6 + d * 0.22;
     const norm = new THREE.Vector3(p.x - nx * back, up, p.z - nz * back);
     const lookN = new THREE.Vector3((p.x + e.x) / 2, 0.8, (p.z + e.z) / 2);
     let pos = norm, look = lookN;
@@ -832,7 +833,7 @@ const Battle = (() => {
     $('bt-intro-n').textContent = E.name;
     $('bt-intro-s').textContent = (opts.enemy.line ? '「' + opts.enemy.line + '」' : '') ;
     $('bt-intro-r').textContent = 'ランク ' + (opts.enemy.rank || '') + (opts.enemy.boss ? '　BOSS' : '');
-    $('bt-time').classList.remove('low'); $('bt-combo').style.opacity = 0; $('bt-flash').style.opacity = 0;
+    $('bt-time').classList.remove('low'); $('bt-time').textContent = TIME_LIMIT; $('bt-combo').style.opacity = 0; $('bt-flash').style.opacity = 0;
     root.classList.remove('hidden'); document.body.classList.add('in-battle');
     for (const k in keys) keys[k] = false;
     for (const k in edge) edge[k] = false;

@@ -3,7 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<style>html{touch-action:manipulation}</style><script>(function(){var l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
+<style>html{touch-action:manipulation}  .title{text-shadow:0 2px 12px #000c}
+  .title .sub,.title p{text-shadow:0 2px 8px #000}
+  .toast{background:rgba(39,48,102,.9)}
+  button{backdrop-filter:blur(3px)}
+  .top .day,.top .tp{text-shadow:0 2px 8px #000}
+  #peek{position:fixed;right:8px;top:52px;z-index:60;padding:4px 8px;border-radius:20px;font-size:16px;opacity:.8}
+  body.in-battle #peek{display:none}
+  body.peeking #ui{opacity:0;pointer-events:none;transition:opacity .3s}
+  #ui{transition:opacity .3s}
+  .title .sub{background:rgba(10,14,36,.55);padding:6px 12px;border-radius:10px;display:inline-block}
+</style><script>(function(){var l=0;document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},{passive:false});["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
 <meta name="theme-color" content="#14182b">
 <title>ソダテバトル</title>
 <style>
@@ -96,8 +106,9 @@
   #mute{position:fixed;right:8px;top:8px;z-index:60;padding:4px 8px;border-radius:20px;font-size:16px;opacity:.8}
   #ui{animation:fadein .35s ease-out}
   @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  body{background:radial-gradient(ellipse at 50% -10%,#2b3570 0%,#14182b 60%) fixed}
-  .card{background:linear-gradient(160deg,#252c52,#1b2040);box-shadow:0 4px 18px #0006,inset 0 1px 0 #ffffff14}
+  html{background:radial-gradient(ellipse at 50% -10%,#2b3570 0%,#14182b 60%) fixed}
+  body{background:transparent!important}
+  .card{background:linear-gradient(160deg,rgba(37,44,82,.74),rgba(27,32,64,.78));backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);box-shadow:0 4px 18px #0006,inset 0 1px 0 #ffffff14}
   button.main{box-shadow:0 3px 0 #a86a00,0 6px 14px #0006}
   button.main:active{transform:translateY(2px)}
   .pv{position:relative;height:260px;border-radius:12px;margin:6px 0;background:radial-gradient(ellipse at 50% 85%,#3b4a9a 0%,#1b2040 70%);overflow:hidden}
@@ -228,14 +239,17 @@
   </div>
 </div>
 <button id="mute" title="音のON/OFF">🔊</button>
+<button id="peek" title="画面のボタンを隠して、景色を見る">👁</button>
 
 <script id="noctx">addEventListener('contextmenu', function (e) { e.preventDefault(); });</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="js/data.js?v=b9f859c5"></script>
-<script src="js/audio.js?v=b9f859c5"></script>
-<script src="js/fx.js?v=b9f859c5"></script>
-<script src="js/battle.js?v=b9f859c5"></script>
-<script src="js/preview.js?v=b9f859c5"></script>
-<script src="js/game.js?v=b9f859c5"></script>
+<script src="js/data.js?v=4c35cdc7"></script>
+<script src="js/audio.js?v=4c35cdc7"></script>
+<script src="js/fx.js?v=4c35cdc7"></script>
+<script src="js/world.js?v=4c35cdc7"></script>
+<script src="js/home3d.js?v=4c35cdc7"></script>
+<script src="js/battle.js?v=4c35cdc7"></script>
+<script src="js/preview.js?v=4c35cdc7"></script>
+<script src="js/game.js?v=4c35cdc7"></script>
 </body>
 </html>

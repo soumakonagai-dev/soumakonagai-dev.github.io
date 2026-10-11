@@ -142,7 +142,7 @@ function startBattle(e) {
   const c = CHARS[S.charId];
   const stats = statsFromTotal(e.type, e.total);
   const pdef = { name: c.name, type: c.type, elem: c.elem, color: c.color, stats: Object.assign({}, S.stats), skills: S.equipped.slice(), ult: 'ult_' + S.charId };
-  const edef = { name: e.name, type: e.type, elem: e.elem, color: ELEM[e.elem].c, stats, skills: trainerSkills(e.type, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, rank: rankOf(e.total) };
+  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: trainerSkills(e.type, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, rank: rankOf(e.total) };
   Battle.start({ player: pdef, enemy: edef, area: e.area, onEnd: r => battleEnd(r, sel) });
 }
 function battleEnd(r, s) {
@@ -182,7 +182,7 @@ function battleEnd(r, s) {
   save();
   result = out; scr = 'result'; render();
 }
-const TIME_HALF = 45;
+const TIME_HALF = 90;
 
 // ---------- 操作 ----------
 document.addEventListener('click', e => {
@@ -305,6 +305,7 @@ function render() {
   ui.innerHTML = f();
   document.querySelectorAll('canvas.radar').forEach(drawRadar);
   Sound.bgm('home');
+  try { HomeBG.set(scr, S, { area: scr === 'versus' ? (sel.tr ? sel.tr.area : sel.nora.area) : mapArea, win: scr === 'result' ? result.win : (S && S.end ? S.end.win : false) }); } catch (e) { /* 背景は飾りなので、失敗しても続ける */ }
   const pv = document.getElementById('pv');
   if (pv) { const c = CHARS[S.charId]; Preview.mount(pv, { type: c.type, elem: c.elem, color: c.color }); }
   window.scrollTo(0, 0);
@@ -536,3 +537,6 @@ if (typeof THREE === 'undefined') {
   b.addEventListener('click', () => { Sound.unlock(); Sound.toggleMute(); sync(); if (!Sound.isMuted()) Sound.play('click'); });
   sync();
 })();
+
+// 景色を見るボタン（画面のボタンを隠す）
+(() => { const b = document.getElementById('peek'); b.addEventListener('click', () => { document.body.classList.toggle('peeking'); }); })();

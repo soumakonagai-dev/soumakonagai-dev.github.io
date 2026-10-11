@@ -126,12 +126,13 @@ const FX = (() => {
     s.scale.set(size, size, 1); return s;
   }
 
-  // ---------- モンスターモデル ----------
+  // ---------- モンスターモデル（関節つき）----------
   // def: { type, elem, color }  type: sword=ドラゴン / fist=ゴリラ / mage=クラゲ / archer=小鳥 / heavy=ゴーレム / dual=キツネ
+  // 関節: 肩・肘・手首（指）、股・膝・足首、首、あご、しっぽや触手のつなぎ目、まぶた。
   function buildModel(def) {
     const ec = ELEM[def.elem].c;
     const main = new THREE.Color(def.color), dark = main.clone().multiplyScalar(0.55), light = main.clone().lerp(new THREE.Color(0xffffff), 0.55);
-    const mats = [], sway = [];
+    const mats = [], sway = [], eyeList = [], fingerList = [];
     const part = (geo, color, o = {}) => {
       const m = toon(color, o); mats.push(m);
       const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true;
@@ -145,183 +146,263 @@ const FX = (() => {
     const box = (w, h, d, color, o = {}) => part(new THREE.BoxGeometry(w, h, d), color, o);
     const at = (m, x, y, z) => { m.position.set(x, y, z); return m; };
     const swayOf = (o, axis, amp, sp, ph) => sway.push({ o, axis, amp, sp, ph: ph || 0 });
+    const glowTip = (parent, color, size, x, y, z) => { const g = glowSprite(color, size, 0.9); g.position.set(x || 0, y || 0, z || 0); parent.add(g); return g; };
     const eyes = (head, y, z, sx, r, col) => {
       for (const s of [-1, 1]) {
         const e = ball(r, col || 0x1a1a2a, { noOutline: true }); e.scale.set(0.9, 1.25, 0.5); head.add(at(e, s * sx, y, z));
+        eyeList.push({ mesh: e, sy: 1.25 });
         const h = ball(r * 0.35, 0xffffff, { noOutline: true, emissive: 0xffffff }); head.add(at(h, s * sx + r * 0.3, y + r * 0.45, z + r * 0.4));
+      }
+    };
+    // 関節つきの手足。上の骨 → 関節の玉 → 下の骨 → 手首/足首。lower が膝・肘で曲がる
+    const limb = (parent, x, y, z, upLen, loLen, thick, upCol, loCol, o = {}) => {
+      const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g);
+      const blocky = o.blocky;
+      const up = blocky ? box(thick * 2, upLen, thick * 2, upCol, { ol: 1.06 }) : cyl(thick, thick * 0.82, upLen, upCol, { seg: 8 });
+      up.position.y = -upLen / 2; g.add(up);
+      const jt = blocky ? part(new THREE.DodecahedronGeometry(thick * 1.25, 0), o.jointCol || dark) : ball(thick * 1.08, o.jointCol || upCol); jt.position.y = -upLen; g.add(jt);
+      const lower = new THREE.Group(); lower.position.y = -upLen; g.add(lower);
+      const lo = blocky ? box(thick * 1.8, loLen, thick * 1.8, loCol, { ol: 1.06 }) : cyl(thick * 0.8, thick * 0.6, loLen, loCol, { seg: 8 });
+      lo.position.y = -loLen / 2; lower.add(lo);
+      const hand = new THREE.Group(); hand.position.y = -loLen; lower.add(hand);   // 手首・足首
+      return { arm: g, lower, hand };
+    };
+    // 指・つめ（曲がる）
+    const fingers = (hand, n, len, r, color, spread, y, z, claw) => {
+      for (let i = 0; i < n; i++) {
+        const fg = new THREE.Group(); fg.position.set((i - (n - 1) / 2) * spread, y, z); hand.add(fg);
+        const a = cyl(r, r * 0.8, len, color, { seg: 6, noOutline: r < 0.04 }); a.position.y = -len / 2; fg.add(a);
+        const jt = ball(r * 0.95, color, { noOutline: true }); jt.position.y = -len; fg.add(jt);
+        const tip = new THREE.Group(); tip.position.y = -len; fg.add(tip);
+        const b = claw ? cone(r * 0.9, len * 1.1, 0xf2e6c8, { seg: 5, noOutline: true }) : cyl(r * 0.8, r * 0.55, len * 0.8, color, { seg: 6, noOutline: r < 0.04 });
+        b.position.y = claw ? -len * 0.5 : -len * 0.4; if (claw) b.rotation.x = Math.PI; tip.add(b);
+        fingerList.push({ g: fg, tip });
       }
     };
     const root = new THREE.Group(), upper = new THREE.Group(); upper.position.y = 0.8; root.add(upper);
     const head = new THREE.Group(); upper.add(head);
-    const mkArm = (s, x, len, color) => {
-      const a = new THREE.Group(); a.position.set(s * x, 0.82, 0); upper.add(a);
-      const up = cyl(0.1, 0.085, len, color || main, { seg: 8 }); up.position.y = -len / 2; a.add(up);
-      const hand = new THREE.Group(); hand.position.y = -len - 0.02; a.add(hand);
-      return { arm: a, hand };
-    };
-    const mkLeg = (s, x, len, color) => {
-      const l = new THREE.Group(); l.position.set(s * x, 0.8, 0); root.add(l);
-      const th = cyl(0.13, 0.11, len, color || dark, { seg: 8 }); th.position.y = -len / 2; l.add(th);
-      return l;
-    };
     const t = def.type;
-    let L, Rr, legL, legR, cape = null, float = 0, quad = false;
+    let armL, armR, legL, legR, cape = null, float = 0, quad = false, jaw = null, pulse = null;
+    const limbs = {};
     const orbs = [];
-    const glowTip = (parent, color, size, x, y, z) => { const g = glowSprite(color, size, 0.9); g.position.set(x || 0, y || 0, z || 0); parent.add(g); return g; };
+    const tailChain = (parent, x, y, z, sizes, col1, col2, tipCol, amp, sp, ph) => {
+      let par = parent;
+      sizes.forEach((r, i) => {
+        const g = new THREE.Group(); g.position.set(i ? 0 : x, i ? 0.02 : y, i ? -sizes[i - 1] * 1.7 : z); par.add(g);
+        const b = ball(r, i % 2 ? col1 : col2); b.position.z = -r * 0.5; g.add(b);
+        if (i) { const jt = ball(r * 0.6, col2, { noOutline: true }); jt.position.z = r * 0.3; g.add(jt); }
+        swayOf(g, 'y', amp, sp, (ph || 0) + i * 0.6); par = g;
+        if (i === sizes.length - 1 && tipCol) { const tp = ball(r * 0.9, tipCol, { emissive: tipCol, ei: 0.9, noOutline: true }); g.add(at(tp, 0, 0, -r * 1.6)); glowTip(g, tipCol, 1.2, 0, 0, -r * 1.6); }
+      });
+    };
 
     if (t === 'sword') {            // ほのおのドラゴン（四足歩行）
       quad = true; upper.position.y = 0.74;
-      const body = ball(0.5, main, { scale: [0.88, 0.82, 1.5] }); upper.add(body);
-      const belly = ball(0.4, light, { noOutline: true, scale: [0.72, 0.5, 1.25] }); upper.add(at(belly, 0, -0.2, 0.05));
-      for (let i = 0; i < 6; i++) { const sp = cone(0.1 - i * 0.008, 0.3 - i * 0.025, ec, { emissive: ec, ei: 0.35 }); sp.rotation.x = -0.5; upper.add(at(sp, 0, 0.42 - Math.abs(i - 2) * 0.025, 0.65 - i * 0.24)); }
-      const neck = cyl(0.2, 0.26, 0.55, main, { seg: 10 }); neck.rotation.x = 0.85; upper.add(at(neck, 0, 0.3, 0.78));
-      head.position.set(0, 0.68, 1.12); upper.add(head);
-      const skull = ball(0.33, main, { scale: [1.0, 0.88, 1.1] }); head.add(skull);
-      const snout = box(0.26, 0.16, 0.34, main.clone().lerp(new THREE.Color(0xffe0b0), 0.35), { ol: 1.1 }); head.add(at(snout, 0, -0.07, 0.34));
+      const chest = ball(0.46, main, { scale: [0.9, 0.86, 1.05] }); upper.add(at(chest, 0, 0, 0.38));
+      const hip = ball(0.44, main, { scale: [0.88, 0.84, 1.0] }); upper.add(at(hip, 0, -0.01, -0.4));
+      const waist = ball(0.3, dark, { scale: [1, 0.9, 1.2] }); upper.add(at(waist, 0, -0.04, 0));
+      const belly = ball(0.4, light, { noOutline: true, scale: [0.72, 0.5, 1.3] }); upper.add(at(belly, 0, -0.2, 0.0));
+      for (let i = 0; i < 7; i++) { const sp = cone(0.09 - i * 0.006, 0.28 - i * 0.02, ec, { emissive: ec, ei: 0.35 }); sp.rotation.x = -0.5; upper.add(at(sp, 0, 0.4 - Math.abs(i - 3) * 0.02, 0.74 - i * 0.22)); }
+      // 首（2つの骨と関節）
+      const n1 = cyl(0.22, 0.2, 0.34, main); n1.rotation.x = 0.55; upper.add(at(n1, 0, 0.32, 0.78));
+      upper.add(at(ball(0.2, dark, { noOutline: true }), 0, 0.46, 0.93));
+      const n2 = cyl(0.19, 0.17, 0.3, main); n2.rotation.x = 0.95; upper.add(at(n2, 0, 0.58, 1.04));
+      head.position.set(0, 0.68, 1.14);
+      head.add(ball(0.33, main, { scale: [1.0, 0.88, 1.1] }));
+      head.add(at(box(0.26, 0.1, 0.34, main.clone().lerp(new THREE.Color(0xffe0b0), 0.35), { ol: 1.1 }), 0, -0.02, 0.34));
+      jaw = new THREE.Group(); jaw.position.set(0, -0.1, 0.08); head.add(jaw);
+      jaw.add(at(box(0.22, 0.07, 0.3, dark, { ol: 1.1 }), 0, -0.03, 0.22));
       for (const sd of [-1, 1]) {
-        head.add(at(ball(0.026, 0x222222, { noOutline: true }), sd * 0.06, -0.02, 0.52));
+        jaw.add(at(cone(0.02, 0.07, 0xf8f0e0, { noOutline: true, seg: 4 }), sd * 0.08, 0.02, 0.34));
+        head.add(at(cone(0.02, 0.07, 0xf8f0e0, { noOutline: true, seg: 4 }), sd * 0.09, -0.1, 0.45));
+        head.add(at(ball(0.026, 0x222222, { noOutline: true }), sd * 0.06, 0.02, 0.52));
         const horn = cone(0.06, 0.38, 0xf2e6c8, { seg: 6 }); horn.rotation.x = -0.9; horn.rotation.z = -sd * 0.25; head.add(at(horn, sd * 0.17, 0.3, -0.14));
-        head.add(at(ball(0.075, 0xffe040, { emissive: 0xffe040, ei: 0.5, noOutline: true }), sd * 0.17, 0.08, 0.2));
+        const ey = ball(0.075, 0xffe040, { emissive: 0xffe040, ei: 0.5, noOutline: true }); ey.scale.set(1, 1, 0.8); head.add(at(ey, sd * 0.17, 0.08, 0.2)); eyeList.push({ mesh: ey, sy: 1 });
         head.add(at(box(0.025, 0.1, 0.02, 0x222222, { noOutline: true }), sd * 0.17, 0.08, 0.27));
+        const ear = cone(0.05, 0.2, ec, { emissive: ec, ei: 0.4, seg: 4 }); ear.rotation.z = -sd * 1.2; head.add(at(ear, sd * 0.3, 0.08, -0.02)); swayOf(ear, 'y', 0.25, 3, sd);
       }
       const hl = cone(0.06, 0.2, ec, { emissive: ec, ei: 0.6 }); hl.rotation.x = -0.5; head.add(at(hl, 0, 0.34, 0));
+      // 翼（肩 → ひじ → 先）
       for (const sd of [-1, 1]) {
         const wg = new THREE.Group(); wg.position.set(sd * 0.3, 0.38, 0.2); upper.add(wg);
-        const w1 = cone(0.3, 0.95, dark, { seg: 3, ol: 1.05 }); w1.scale.z = 0.18; w1.rotation.z = -sd * 1.05; wg.add(at(w1, sd * 0.38, 0.4, 0));
-        const w2 = cone(0.2, 0.68, ec, { seg: 3, emissive: ec, ei: 0.3, noOutline: true }); w2.scale.z = 0.12; w2.rotation.z = -sd * 1.05; wg.add(at(w2, sd * 0.38, 0.4, 0.02));
-        swayOf(wg, 'z', 0.2, 4, sd);
+        const bone1 = cyl(0.04, 0.035, 0.5, dark, { seg: 5 }); bone1.rotation.z = Math.PI / 2; wg.add(at(bone1, sd * 0.25, 0.1, 0));
+        const m1 = cone(0.28, 0.7, dark, { seg: 3, ol: 1.05 }); m1.scale.z = 0.16; m1.rotation.z = -sd * 1.05; wg.add(at(m1, sd * 0.3, 0.3, 0));
+        const el = new THREE.Group(); el.position.set(sd * 0.5, 0.1, 0); wg.add(el); wg.add(at(ball(0.06, dark, { noOutline: true }), sd * 0.5, 0.1, 0));
+        const bone2 = cyl(0.03, 0.025, 0.5, dark, { seg: 5 }); bone2.rotation.z = Math.PI / 2 - sd * 0.5; el.add(at(bone2, sd * 0.22, 0.12, 0));
+        const m2 = cone(0.2, 0.62, ec, { seg: 3, emissive: ec, ei: 0.3, noOutline: true }); m2.scale.z = 0.12; m2.rotation.z = -sd * 1.05; el.add(at(m2, sd * 0.22, 0.28, 0.02));
+        swayOf(wg, 'z', 0.2, 4, sd); swayOf(el, 'z', 0.3 * sd, 4, sd + 1.2);
       }
-      let par = upper; const sizes = [0.3, 0.26, 0.21, 0.16, 0.12];
-      sizes.forEach((r, i) => {
-        const g = new THREE.Group(); g.position.set(0, i ? 0 : 0.0, i ? -r * 1.9 : -0.78); par.add(g);
-        const b = ball(r, i % 2 ? main : dark); b.position.z = -r * 0.9; g.add(b);
-        swayOf(g, 'y', 0.35, 3, i * 0.7); par = g;
-        if (i === sizes.length - 1) { const f = cone(0.14, 0.4, 0xffb02a, { emissive: ec, ei: 0.9, noOutline: true }); f.rotation.x = -Math.PI / 2; g.add(at(f, 0, 0, -r * 2.3)); glowTip(g, 0xff7a2a, 1.3, 0, 0, -r * 2.3); }
-      });
-      const legQ = (parentG, x, y, z, len, thick) => {
-        const g = new THREE.Group(); g.position.set(x, y, z); parentG.add(g);
-        const th = cyl(thick, thick * 0.78, len, main, { seg: 8 }); th.position.y = -len / 2; g.add(th);
-        const hand = new THREE.Group(); hand.position.y = -len; g.add(hand);
-        hand.add(at(box(0.26, 0.14, 0.38, dark), 0, -0.04, 0.08));
-        for (let i = -1; i <= 1; i++) hand.add(at(cone(0.03, 0.15, 0xf2e6c8, { noOutline: true, seg: 4 }), i * 0.08, -0.05, 0.3));
-        return { arm: g, hand };
+      tailChain(upper, 0, -0.02, -0.84, [0.3, 0.26, 0.22, 0.18, 0.14, 0.1], main, dark, 0xff9a2a, 0.3, 3, 0);
+      // 前脚（肩 → ひじ → 手首 → 指とつめ）、後脚（もも → ひざ → 足首 → つま先）
+      const fl = (s) => {
+        const L = limb(upper, s * 0.34, -0.12, 0.55, 0.3, 0.3, 0.13, main, main, { jointCol: dark });
+        L.hand.add(at(box(0.24, 0.1, 0.26, dark), 0, -0.02, 0.06)); fingers(L.hand, 3, 0.1, 0.035, dark, 0.08, -0.04, 0.2, true); return L;
       };
-      L = legQ(upper, -0.34, -0.14, 0.55, 0.5, 0.16); Rr = legQ(upper, 0.34, -0.14, 0.55, 0.5, 0.16);
-      const hl2 = legQ(root, -0.34, 0.64, -0.5, 0.52, 0.18), hr2 = legQ(root, 0.34, 0.64, -0.5, 0.52, 0.18);
-      legL = hl2.arm; legR = hr2.arm;
-    } else if (t === 'mage') {      // ふわふわクラゲ
-      float = 0.4;
-      head.position.set(0, 0.95, 0);
-      const dome = part(new THREE.SphereGeometry(0.7, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), main, { transparent: true, opacity: 0.88, ol: 1.04 }); head.add(at(dome, 0, -0.1, 0));
-      const inner = ball(0.4, light, { noOutline: true, transparent: true, opacity: 0.7 }); head.add(at(inner, 0, 0.1, 0));
-      const core = ball(0.16, ec, { emissive: ec, ei: 1, noOutline: true }); head.add(at(core, 0, 0.35, -0.1)); glowTip(head, ec, 1.6, 0, 0.35, -0.1);
-      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, b = ball(0.07, ec, { emissive: ec, ei: 0.7, noOutline: true }); head.add(at(b, Math.cos(a) * 0.5, 0.18 + Math.sin(a * 2) * 0.05, Math.sin(a) * 0.5)); }
-      eyes(head, 0.0, 0.58, 0.2, 0.09);
-      for (const s of [-1, 1]) { const ch = ball(0.07, 0xff9ab8, { noOutline: true, scale: [1.3, 0.6, 0.3] }); head.add(at(ch, s * 0.34, -0.1, 0.55)); }
-      const star = cone(0.12, 0.3, 0xffe27a, { emissive: 0xffe27a, ei: 0.7, noOutline: true, seg: 5 }); head.add(at(star, 0, 0.7, 0));
-      for (let i = 0; i < 8; i++) {
-        const a = i / 8 * Math.PI * 2, g = new THREE.Group(); g.position.set(Math.cos(a) * 0.42, 0.55, Math.sin(a) * 0.42); upper.add(g);
-        const len = 0.9 + (i % 3) * 0.25, tn = cyl(0.07, 0.025, len, i % 2 ? light : main, { seg: 6, transparent: true, opacity: 0.85, ol: 1.05 }); tn.position.y = -len / 2; g.add(tn);
-        swayOf(g, i % 2 ? 'x' : 'z', 0.3, 2.2, i);
-      }
-      L = mkArm(-1, 0.55, 0.55, light); Rr = mkArm(1, 0.55, 0.55, light);
-      L.arm.position.y = 0.55; Rr.arm.position.y = 0.55;
-      for (const h of [L.hand, Rr.hand]) { h.add(ball(0.12, ec, { emissive: ec, ei: 0.8, noOutline: true })); glowTip(h, ec, 0.9); }
-      legL = mkLeg(-1, 0.2, 0.3); legR = mkLeg(1, 0.2, 0.3); legL.visible = legR.visible = false;
-      orbs.push(glowTip(upper, ec, 0.01, 0, 0, 0));
-    } else if (t === 'heavy') {     // いわのゴーレム
-      const rock = new THREE.Color(0x8a7f78).lerp(main, 0.45).multiplyScalar(0.62);
-      const body = box(1.0, 0.95, 0.8, rock, { ol: 1.05 }); upper.add(at(body, 0, 0.42, 0));
-      const chest = box(0.55, 0.45, 0.2, ec, { emissive: ec, ei: 0.7, noOutline: true }); upper.add(at(chest, 0, 0.5, 0.4)); glowTip(upper, ec, 0.9, 0, 0.5, 0.5);
-      for (let i = 0; i < 3; i++) { const cr = box(0.05, 0.5, 0.05, ec, { emissive: ec, ei: 0.9, noOutline: true }); cr.rotation.z = (i - 1) * 0.5; upper.add(at(cr, (i - 1) * 0.3, 0.2, 0.41)); }
-      for (let i = 0; i < 5; i++) { const cs = cone(0.1, 0.4 + (i % 2) * 0.2, ec, { emissive: ec, ei: 0.5, seg: 5 }); cs.rotation.x = -2.3; upper.add(at(cs, (i - 2) * 0.2, 0.85, -0.42)); }
-      for (let i = 0; i < 4; i++) { const mo = ball(0.15, 0x4a8a3a, { noOutline: true, scale: [1.2, 0.5, 1] }); upper.add(at(mo, rnd(-0.35, 0.35), 0.92, rnd(-0.3, 0.3))); }
-      head.position.set(0, 1.2, 0.1);
-      const sk = box(0.62, 0.5, 0.55, rock, { ol: 1.07 }); head.add(sk);
-      for (const s of [-1, 1]) { const ey = box(0.14, 0.08, 0.05, ec, { emissive: ec, ei: 1, noOutline: true }); head.add(at(ey, s * 0.14, 0.04, 0.29)); }
-      const br = box(0.5, 0.07, 0.1, dark, { noOutline: true }); head.add(at(br, 0, 0.14, 0.28));
-      for (const s of [-1, 1]) { const sh = part(new THREE.DodecahedronGeometry(0.34, 0), rock); upper.add(at(sh, s * 0.68, 0.95, 0)); }
-      L = mkArm(-1, 0.72, 0.5, rock); Rr = mkArm(1, 0.72, 0.5, rock);
-      for (const h of [L.hand, Rr.hand]) { h.add(at(box(0.5, 0.45, 0.5, rock, { ol: 1.07 }), 0, -0.15, 0)); h.add(at(box(0.52, 0.06, 0.52, ec, { emissive: ec, ei: 0.5, noOutline: true }), 0, 0.02, 0)); }
-      legL = mkLeg(-1, 0.28, 0.5, rock); legR = mkLeg(1, 0.28, 0.5, rock);
-      for (const l of [legL, legR]) l.add(at(box(0.45, 0.28, 0.55, dark), 0, -0.62, 0.05));
-      upper.scale.setScalar(1.08);
-    } else if (t === 'archer') {    // かぜの小鳥
-      const body = ball(0.52, main, { scale: [0.95, 1.1, 0.95] }); upper.add(at(body, 0, 0.5, 0));
-      const belly = ball(0.4, light, { noOutline: true, scale: [0.85, 1, 0.55] }); upper.add(at(belly, 0, 0.42, 0.28));
-      head.position.set(0, 1.25, 0.1);
-      const sk = ball(0.36, main); head.add(sk);
-      const beak = cone(0.12, 0.3, 0xffb030, { seg: 5 }); beak.rotation.x = Math.PI / 2; head.add(at(beak, 0, -0.04, 0.4));
-      eyes(head, 0.08, 0.3, 0.16, 0.09);
-      for (const s of [-1, 1]) { const ch = ball(0.06, 0xff9a9a, { noOutline: true, scale: [1.3, 0.6, 0.3] }); head.add(at(ch, s * 0.26, -0.07, 0.26)); }
-      for (let i = 0; i < 3; i++) { const f = cone(0.07, 0.4 - i * 0.04, ec, { emissive: ec, ei: 0.4, seg: 4 }); f.rotation.z = (i - 1) * 0.45; f.rotation.x = -0.3; head.add(at(f, (i - 1) * 0.1, 0.42, -0.05)); }
-      for (let i = 0; i < 3; i++) { const f = cone(0.1, 0.8, i === 1 ? ec : dark, { emissive: i === 1 ? ec : 0, ei: 0.3, seg: 4 }); f.rotation.x = -2.0; f.rotation.z = (i - 1) * 0.4; upper.add(at(f, (i - 1) * 0.18, 0.3, -0.62)); }
-      const mkWing = s => {
-        const a = new THREE.Group(); a.position.set(s * 0.48, 0.82, 0); upper.add(a);
-        for (let i = 0; i < 4; i++) { const f = box(0.14, 0.62 - i * 0.04, 0.04, i % 2 ? ec : main, { emissive: i % 2 ? ec : 0, ei: 0.25, ol: 1.1 }); f.position.set(s * (0.1 + i * 0.12), -0.3 - i * 0.02, 0); f.rotation.z = s * (0.1 + i * 0.12); a.add(f); }
-        const hand = new THREE.Group(); hand.position.y = -0.7; a.add(hand);
-        return { arm: a, hand };
+      const hl2 = (s) => {
+        const L = limb(root, s * 0.34, 0.66, -0.5, 0.3, 0.3, 0.16, main, main, { jointCol: dark });
+        const foot = new THREE.Group(); L.hand.add(foot); L.foot = foot;
+        foot.add(at(box(0.26, 0.1, 0.3, dark), 0, -0.02, 0.1)); fingers(foot, 3, 0.1, 0.035, dark, 0.08, -0.04, 0.24, true); return L;
       };
-      L = mkWing(-1); Rr = mkWing(1);
-      legL = mkLeg(-1, 0.18, 0.5, 0xffb030); legR = mkLeg(1, 0.18, 0.5, 0xffb030);
-      for (const l of [legL, legR]) for (let i = -1; i <= 1; i++) { const c = cone(0.03, 0.22, 0xffb030, { noOutline: true, seg: 4 }); c.rotation.x = Math.PI / 2; l.add(at(c, i * 0.07, -0.55, 0.14)); }
+      const fL = fl(-1), fR = fl(1), hL = hl2(-1), hR = hl2(1);
+      armL = fL.arm; armR = fR.arm; legL = hL.arm; legR = hR.arm;
+      limbs.armL = fL; limbs.armR = fR; limbs.legL = hL; limbs.legR = hR;
     } else if (t === 'dual') {      // ふたつ尾のキツネ（四足歩行）
       quad = true; upper.position.y = 0.7;
-      const body = ball(0.42, main, { scale: [0.82, 0.78, 1.55] }); upper.add(body);
-      const belly = ball(0.34, light, { noOutline: true, scale: [0.7, 0.5, 1.25] }); upper.add(at(belly, 0, -0.16, 0.06));
+      const chest = ball(0.4, main, { scale: [0.82, 0.8, 1.05] }); upper.add(at(chest, 0, 0, 0.38));
+      const hip = ball(0.38, main, { scale: [0.8, 0.78, 1.0] }); upper.add(at(hip, 0, -0.01, -0.4));
+      upper.add(at(ball(0.26, dark, { scale: [1, 0.9, 1.2] }), 0, -0.03, 0));
+      upper.add(at(ball(0.34, light, { noOutline: true, scale: [0.7, 0.5, 1.3] }), 0, -0.16, 0));
       const ruff = cone(0.3, 0.45, light, { seg: 8 }); ruff.rotation.x = Math.PI / 2 + 0.2; upper.add(at(ruff, 0, 0.0, 0.72));
       const gem = ball(0.07, ec, { emissive: ec, ei: 1, noOutline: true }); upper.add(at(gem, 0, 0.12, 0.98)); glowTip(upper, ec, 0.8, 0, 0.12, 1.0);
-      const neck = cyl(0.17, 0.22, 0.5, main, { seg: 10 }); neck.rotation.x = 0.7; upper.add(at(neck, 0, 0.26, 0.78));
-      head.position.set(0, 0.62, 1.1); upper.add(head);
-      const sk = ball(0.3, main, { scale: [1.1, 0.92, 1] }); head.add(sk);
-      const snout = cone(0.13, 0.36, light, { seg: 8 }); snout.rotation.x = Math.PI / 2; head.add(at(snout, 0, -0.06, 0.36));
-      head.add(at(ball(0.04, 0x222222, { noOutline: true }), 0, -0.04, 0.54));
+      const n1 = cyl(0.19, 0.17, 0.3, main); n1.rotation.x = 0.6; upper.add(at(n1, 0, 0.3, 0.8));
+      upper.add(at(ball(0.17, dark, { noOutline: true }), 0, 0.42, 0.93));
+      const n2 = cyl(0.16, 0.15, 0.26, main); n2.rotation.x = 0.9; upper.add(at(n2, 0, 0.52, 1.04));
+      head.position.set(0, 0.62, 1.12);
+      head.add(ball(0.3, main, { scale: [1.1, 0.92, 1] }));
+      const snout = cone(0.12, 0.34, light, { seg: 8 }); snout.rotation.x = Math.PI / 2; head.add(at(snout, 0, -0.04, 0.36));
+      jaw = new THREE.Group(); jaw.position.set(0, -0.1, 0.1); head.add(jaw);
+      const jw = cone(0.09, 0.28, light, { seg: 6, noOutline: true }); jw.rotation.x = Math.PI / 2; jaw.add(at(jw, 0, -0.01, 0.2));
+      head.add(at(ball(0.04, 0x222222, { noOutline: true }), 0, -0.02, 0.54));
       eyes(head, 0.06, 0.25, 0.15, 0.075);
       for (const sd of [-1, 1]) {
-        const ear = cone(0.12, 0.46, main, { seg: 4 }); ear.rotation.z = -sd * 0.25; head.add(at(ear, sd * 0.2, 0.4, -0.04));
-        const ei = cone(0.07, 0.3, sd > 0 ? 0xf0e6ff : 0x3a2a5a, { noOutline: true, seg: 4 }); ei.rotation.z = -sd * 0.25; head.add(at(ei, sd * 0.2, 0.39, 0.0));
+        const ear = new THREE.Group(); ear.position.set(sd * 0.2, 0.3, -0.04); head.add(ear);
+        const e1 = cone(0.12, 0.46, main, { seg: 4 }); e1.rotation.z = -sd * 0.25; ear.add(at(e1, 0, 0.1, 0));
+        const e2 = cone(0.07, 0.3, sd > 0 ? 0xf0e6ff : 0x3a2a5a, { noOutline: true, seg: 4 }); e2.rotation.z = -sd * 0.25; ear.add(at(e2, 0, 0.09, 0.03));
+        swayOf(ear, 'x', 0.18, 2.4, sd);
         const ck = cone(0.08, 0.18, light, { noOutline: true, seg: 4 }); ck.rotation.z = sd * 1.4; head.add(at(ck, sd * 0.32, -0.07, 0.08));
         head.add(at(ball(0.05, ec, { emissive: ec, ei: 0.6, noOutline: true }), sd * 0.13, 0.24, 0.24));
       }
-      [[-1, 0xf4f0ff, 0xffe27a], [1, 0x3a2a5a, 0x8a5ad6]].forEach(([sd, col, tip]) => {
-        let par = upper; const sizes = [0.24, 0.23, 0.2, 0.15];
-        sizes.forEach((r, i) => {
-          const g = new THREE.Group(); g.position.set(i ? 0 : sd * 0.14, i ? 0.05 : 0.12, i ? -r * 1.9 : -0.68); par.add(g);
-          g.rotation.x = i ? 0 : 0.5;
-          const b = ball(r, col); b.position.z = -r * 0.9; g.add(b);
-          swayOf(g, 'y', 0.4 * sd, 2.5, i * 0.6 + sd); par = g;
-          if (i === sizes.length - 1) { const tp = ball(0.13, tip, { emissive: tip, ei: 0.9, noOutline: true }); g.add(at(tp, 0, 0, -r * 2.1)); glowTip(g, tip, 1.2, 0, 0, -r * 2.1); }
-        });
-      });
-      const legQ = (parentG, x, y, z, len, thick) => {
-        const g = new THREE.Group(); g.position.set(x, y, z); parentG.add(g);
-        const th = cyl(thick, thick * 0.7, len, main, { seg: 8 }); th.position.y = -len / 2; g.add(th);
-        const hand = new THREE.Group(); hand.position.y = -len; g.add(hand);
-        hand.add(at(cyl(thick * 0.8, thick * 0.8, 0.2, 0x2a2238, { seg: 8 }), 0, 0.1, 0));
-        hand.add(at(box(0.2, 0.12, 0.3, 0x2a2238), 0, -0.04, 0.06));
-        return { arm: g, hand };
+      tailChain(upper, -0.14, 0.12, -0.7, [0.24, 0.22, 0.2, 0.17, 0.14, 0.1], 0xf4f0ff, 0xdcd4f0, 0xffe27a, 0.4, 2.5, 0);
+      tailChain(upper, 0.14, 0.12, -0.7, [0.24, 0.22, 0.2, 0.17, 0.14, 0.1], 0x3a2a5a, 0x2a1e44, 0x8a5ad6, -0.4, 2.5, 1.5);
+      const sock = 0x2a2238;
+      const fl = (s) => {
+        const L = limb(upper, s * 0.27, -0.12, 0.55, 0.26, 0.28, 0.1, main, sock, { jointCol: main });
+        L.hand.add(at(box(0.18, 0.1, 0.24, sock), 0, -0.02, 0.05)); fingers(L.hand, 3, 0.07, 0.025, sock, 0.06, -0.04, 0.16, false); return L;
       };
-      L = legQ(upper, -0.27, -0.12, 0.55, 0.5, 0.12); Rr = legQ(upper, 0.27, -0.12, 0.55, 0.5, 0.12);
-      const hl2 = legQ(root, -0.27, 0.6, -0.5, 0.52, 0.14), hr2 = legQ(root, 0.27, 0.6, -0.5, 0.52, 0.14);
-      legL = hl2.arm; legR = hr2.arm;
+      const hl2 = (s) => {
+        const L = limb(root, s * 0.27, 0.62, -0.5, 0.28, 0.28, 0.12, main, sock, { jointCol: main });
+        const foot = new THREE.Group(); L.hand.add(foot); L.foot = foot;
+        foot.add(at(box(0.2, 0.1, 0.26, sock), 0, -0.02, 0.07)); fingers(foot, 3, 0.07, 0.025, sock, 0.06, -0.04, 0.18, false); return L;
+      };
+      const fL = fl(-1), fR = fl(1), hL = hl2(-1), hR = hl2(1);
+      armL = fL.arm; armR = fR.arm; legL = hL.arm; legR = hR.arm;
+      limbs.armL = fL; limbs.armR = fR; limbs.legL = hL; limbs.legR = hR;
       for (let i = 0; i < 3; i++) { const o = glowSprite(i % 2 ? 0x8a5ad6 : 0xffe27a, 0.7, 0.9); o.userData.ph = i * 2.1; root.add(o); orbs.push(o); }
+    } else if (t === 'mage') {      // ふわふわクラゲ
+      float = 0.4;
+      head.position.set(0, 0.95, 0);
+      pulse = new THREE.Group(); head.add(pulse);
+      pulse.add(at(part(new THREE.SphereGeometry(0.7, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), main, { transparent: true, opacity: 0.88 }), 0, -0.1, 0));
+      pulse.add(at(ball(0.4, light, { noOutline: true, transparent: true, opacity: 0.7 }), 0, 0.1, 0));
+      const core = ball(0.16, ec, { emissive: ec, ei: 1, noOutline: true }); pulse.add(at(core, 0, 0.35, -0.1)); glowTip(pulse, ec, 1.6, 0, 0.35, -0.1);
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; pulse.add(at(ball(0.07, ec, { emissive: ec, ei: 0.7, noOutline: true }), Math.cos(a) * 0.5, 0.18 + Math.sin(a * 2) * 0.05, Math.sin(a) * 0.5)); }
+      eyes(pulse, 0.0, 0.58, 0.2, 0.09);
+      for (const s of [-1, 1]) pulse.add(at(ball(0.07, 0xff9ab8, { noOutline: true, scale: [1.3, 0.6, 0.3] }), s * 0.34, -0.1, 0.55));
+      const star = cone(0.12, 0.3, 0xffe27a, { emissive: 0xffe27a, ei: 0.7, noOutline: true, seg: 5 }); head.add(at(star, 0, 0.7, 0)); swayOf(star, 'z', 0.15, 2, 0);
+      for (let i = 0; i < 8; i++) {   // 触手：3つに分かれて、関節ごとに揺れる
+        const a = i / 8 * Math.PI * 2; let par = upper; const base = new THREE.Group(); base.position.set(Math.cos(a) * 0.42, 0.55, Math.sin(a) * 0.42); upper.add(base); par = base;
+        const lens = [0.34 + (i % 3) * 0.08, 0.3, 0.26];
+        lens.forEach((len, k) => {
+          const g = new THREE.Group(); g.position.y = k ? -lens[k - 1] : 0; par.add(g);
+          const tn = cyl(0.07 - k * 0.018, 0.05 - k * 0.015, len, i % 2 ? light : main, { seg: 6, transparent: true, opacity: 0.85 }); tn.position.y = -len / 2; g.add(tn);
+          g.add(at(ball(0.06 - k * 0.015, ec, { emissive: ec, ei: 0.5, noOutline: true }), 0, -len, 0));
+          swayOf(g, i % 2 ? 'x' : 'z', 0.28, 2.2, i + k * 0.8); par = g;
+        });
+      }
+      const mk = s => {
+        const L = limb(upper, s * 0.55, 0.55, 0, 0.3, 0.28, 0.07, light, light, { jointCol: ec });
+        L.hand.add(ball(0.12, ec, { emissive: ec, ei: 0.8, noOutline: true })); glowTip(L.hand, ec, 0.9);
+        fingers(L.hand, 3, 0.07, 0.022, ec, 0.06, -0.06, 0.04, false); return L;
+      };
+      const aL = mk(-1), aR = mk(1);
+      armL = aL.arm; armR = aR.arm; limbs.armL = aL; limbs.armR = aR;
+      const ln = new THREE.Group(); legL = ln; legR = new THREE.Group(); legL.visible = legR.visible = false; root.add(legL); root.add(legR);
+    } else if (t === 'heavy') {     // いわのゴーレム
+      const rock = new THREE.Color(0x8a7f78).lerp(main, 0.45).multiplyScalar(0.62);
+      upper.scale.setScalar(1.08);
+      upper.add(at(box(0.7, 0.4, 0.62, dark, { ol: 1.05 }), 0, 0.06, 0));           // 腰
+      upper.add(at(part(new THREE.DodecahedronGeometry(0.2, 0), rock), 0, 0.3, 0));  // 腰の関節
+      const chestB = box(1.0, 0.7, 0.8, rock, { ol: 1.05 }); upper.add(at(chestB, 0, 0.7, 0));
+      const chest = box(0.55, 0.42, 0.2, ec, { emissive: ec, ei: 0.7, noOutline: true }); upper.add(at(chest, 0, 0.74, 0.4)); glowTip(upper, ec, 0.9, 0, 0.74, 0.5);
+      for (let i = 0; i < 3; i++) { const cr = box(0.05, 0.5, 0.05, ec, { emissive: ec, ei: 0.9, noOutline: true }); cr.rotation.z = (i - 1) * 0.5; upper.add(at(cr, (i - 1) * 0.3, 0.5, 0.41)); }
+      for (let i = 0; i < 5; i++) { const cs = cone(0.1, 0.4 + (i % 2) * 0.2, ec, { emissive: ec, ei: 0.5, seg: 5 }); cs.rotation.x = -2.3; upper.add(at(cs, (i - 2) * 0.2, 1.1, -0.42)); }
+      for (let i = 0; i < 4; i++) upper.add(at(ball(0.15, 0x4a8a3a, { noOutline: true, scale: [1.2, 0.5, 1] }), (Math.random() - 0.5) * 0.7, 1.07, (Math.random() - 0.5) * 0.6));
+      upper.add(at(box(0.26, 0.16, 0.26, dark), 0, 1.1, 0));                          // 首
+      head.position.set(0, 1.4, 0.1);
+      head.add(box(0.62, 0.5, 0.55, rock, { ol: 1.07 }));
+      for (const s of [-1, 1]) { const ey = box(0.14, 0.08, 0.05, ec, { emissive: ec, ei: 1, noOutline: true }); head.add(at(ey, s * 0.14, 0.04, 0.29)); eyeList.push({ mesh: ey, sy: 1 }); }
+      head.add(at(box(0.5, 0.07, 0.1, dark, { noOutline: true }), 0, 0.14, 0.28));
+      jaw = new THREE.Group(); jaw.position.set(0, -0.2, 0.12); head.add(jaw); jaw.add(at(box(0.4, 0.1, 0.3, dark), 0, -0.04, 0.12));
+      const mk = s => {
+        upper.add(at(part(new THREE.DodecahedronGeometry(0.34, 0), rock), s * 0.68, 1.05, 0));
+        const L = limb(upper, s * 0.72, 0.98, 0, 0.36, 0.34, 0.15, rock, rock, { blocky: true, jointCol: dark });
+        L.hand.add(at(box(0.48, 0.28, 0.42, rock, { ol: 1.07 }), 0, -0.1, 0));
+        L.hand.add(at(box(0.5, 0.05, 0.44, ec, { emissive: ec, ei: 0.5, noOutline: true }), 0, 0.04, 0));
+        fingers(L.hand, 3, 0.14, 0.07, dark, 0.15, -0.26, 0.12, false); return L;
+      };
+      const aL = mk(-1), aR = mk(1); armL = aL.arm; armR = aR.arm; limbs.armL = aL; limbs.armR = aR;
+      const ml = s => {
+        const L = limb(root, s * 0.28, 0.8, 0, 0.34, 0.34, 0.16, rock, rock, { blocky: true, jointCol: dark });
+        const foot = new THREE.Group(); L.hand.add(foot); L.foot = foot;
+        foot.add(at(box(0.45, 0.2, 0.56, dark), 0, -0.04, 0.06)); return L;
+      };
+      const lL = ml(-1), lR = ml(1); legL = lL.arm; legR = lR.arm; limbs.legL = lL; limbs.legR = lR;
+    } else if (t === 'archer') {    // かぜの小鳥
+      upper.add(at(ball(0.34, dark, { noOutline: false, scale: [0.9, 0.9, 0.9] }), 0, 0.12, 0));   // 腰
+      upper.add(at(ball(0.5, main, { scale: [0.95, 1.05, 0.95] }), 0, 0.55, 0));
+      upper.add(at(ball(0.4, light, { noOutline: true, scale: [0.85, 1, 0.55] }), 0, 0.46, 0.28));
+      upper.add(at(cyl(0.14, 0.17, 0.24, main), 0, 1.0, 0.04));                      // 首
+      head.position.set(0, 1.28, 0.1);
+      head.add(ball(0.36, main));
+      head.add(at(cone(0.12, 0.28, 0xffb030, { seg: 5 }), 0, 0.02, 0.4)); head.children[1].rotation.x = Math.PI / 2;
+      jaw = new THREE.Group(); jaw.position.set(0, -0.08, 0.2); head.add(jaw);
+      const lb = cone(0.09, 0.2, 0xe89a20, { seg: 5, noOutline: true }); lb.rotation.x = Math.PI / 2; jaw.add(at(lb, 0, -0.02, 0.14));
+      eyes(head, 0.1, 0.3, 0.16, 0.09);
+      for (const s of [-1, 1]) head.add(at(ball(0.06, 0xff9a9a, { noOutline: true, scale: [1.3, 0.6, 0.3] }), s * 0.26, -0.05, 0.26));
+      for (let i = 0; i < 3; i++) { const f = cone(0.07, 0.4 - i * 0.04, ec, { emissive: ec, ei: 0.4, seg: 4 }); f.rotation.z = (i - 1) * 0.45; f.rotation.x = -0.3; head.add(at(f, (i - 1) * 0.1, 0.42, -0.05)); swayOf(f, 'x', 0.15, 3, i); }
+      for (let i = 0; i < 3; i++) { const g = new THREE.Group(); g.position.set((i - 1) * 0.18, 0.3, -0.5); upper.add(g); const f = cone(0.1, 0.8, i === 1 ? ec : dark, { emissive: i === 1 ? ec : 0, ei: 0.3, seg: 4 }); f.rotation.x = -2.0; f.rotation.z = (i - 1) * 0.4; g.add(at(f, 0, 0, -0.1)); swayOf(g, 'x', 0.12, 3, i); }
+      const mkWing = s => {   // 肩 → ひじ → 手首（羽根）
+        const a = new THREE.Group(); a.position.set(s * 0.46, 0.85, 0); upper.add(a);
+        a.add(at(cyl(0.07, 0.06, 0.3, main, { seg: 6 }), s * 0.1, -0.05, 0)).rotation.z = 0;
+        a.children[0].rotation.z = s * Math.PI / 2 * 0.8;
+        const lower = new THREE.Group(); lower.position.set(s * 0.26, -0.05, 0); a.add(lower); lower.add(at(ball(0.08, dark, { noOutline: true }), 0, 0, 0));
+        for (let i = 0; i < 4; i++) { const f = box(0.14, 0.58 - i * 0.04, 0.04, i % 2 ? ec : main, { emissive: i % 2 ? ec : 0, ei: 0.25, ol: 1.1 }); f.position.set(s * (0.06 + i * 0.1), -0.3 - i * 0.02, 0); f.rotation.z = s * (0.1 + i * 0.12); lower.add(f); }
+        const hand = new THREE.Group(); hand.position.y = -0.6; lower.add(hand);
+        return { arm: a, lower, hand, wing: true, s };
+      };
+      const wL = mkWing(-1), wR = mkWing(1); armL = wL.arm; armR = wR.arm; limbs.armL = wL; limbs.armR = wR;
+      const bl = s => {   // もも（羽毛の中）→ すね（ひざ）→ 足首 → 3本のつま先
+        const L = limb(root, s * 0.18, 0.8, 0, 0.26, 0.5, 0.05, main, 0xffb030, { jointCol: 0xffb030 });
+        const foot = new THREE.Group(); L.hand.add(foot); L.foot = foot;
+        fingers(foot, 3, 0.1, 0.025, 0xffb030, 0.07, -0.02, 0.1, true); return L;
+      };
+      const lL = bl(-1), lR = bl(1); legL = lL.arm; legR = lR.arm; limbs.legL = lL; limbs.legR = lR;
     } else {                         // fist: ゴリラ
       const fur = main;
-      const body = ball(0.6, fur, { scale: [1.1, 1, 0.95] }); upper.add(at(body, 0, 0.45, 0));
-      const chest = ball(0.4, light, { noOutline: true, scale: [1, 0.9, 0.5] }); upper.add(at(chest, 0, 0.5, 0.35));
-      head.position.set(0, 1.18, 0.15);
-      const sk = ball(0.3, dark); head.add(sk);
-      const mz = ball(0.22, light, { scale: [1.1, 0.85, 0.8] }); head.add(at(mz, 0, -0.07, 0.2));
-      const br = box(0.5, 0.1, 0.18, dark, { noOutline: true }); head.add(at(br, 0, 0.1, 0.22));
+      upper.add(at(ball(0.34, dark, { scale: [1.1, 0.9, 0.95] }), 0, 0.1, 0));                       // 腰
+      upper.add(at(ball(0.58, fur, { scale: [1.1, 1, 0.95] }), 0, 0.58, 0));                          // 胸
+      upper.add(at(ball(0.4, light, { noOutline: true, scale: [1, 0.9, 0.5] }), 0, 0.6, 0.34));
+      upper.add(at(cyl(0.2, 0.24, 0.2, dark), 0, 1.06, 0.04));                                      // 首
+      head.position.set(0, 1.3, 0.15);
+      head.add(ball(0.3, dark));
+      head.add(at(ball(0.22, light, { scale: [1.1, 0.85, 0.8] }), 0, -0.07, 0.2));
+      head.add(at(box(0.5, 0.1, 0.18, dark, { noOutline: true }), 0, 0.1, 0.22));
+      jaw = new THREE.Group(); jaw.position.set(0, -0.14, 0.12); head.add(jaw); jaw.add(at(box(0.26, 0.07, 0.22, dark, { noOutline: true }), 0, -0.02, 0.14));
       eyes(head, 0.04, 0.27, 0.12, 0.06);
-      head.add(at(box(0.16, 0.025, 0.02, 0x222222, { noOutline: true }), 0, -0.12, 0.4));
       for (const s of [-1, 1]) head.add(at(ball(0.09, light, { noOutline: true }), s * 0.3, 0.02, 0));
-      const band = cyl(0.31, 0.31, 0.07, ec, { emissive: ec, ei: 0.5, noOutline: true, seg: 14 }); head.add(at(band, 0, 0.2, 0));
-      L = mkArm(-1, 0.72, 0.6, fur); Rr = mkArm(1, 0.72, 0.6, fur);
-      L.arm.scale.y = Rr.arm.scale.y = 1.25;
-      for (const h of [L.hand, Rr.hand]) { h.add(at(ball(0.3, dark, { scale: [1, 0.95, 1] }), 0, -0.1, 0)); h.add(at(ball(0.2, ec, { emissive: ec, ei: 0.45, noOutline: true }), 0, -0.1, 0.12)); glowTip(h, ec, 0.9, 0, -0.1, 0.1); }
-      legL = mkLeg(-1, 0.28, 0.5, dark); legR = mkLeg(1, 0.28, 0.5, dark);
-      for (const l of [legL, legR]) l.add(at(box(0.36, 0.2, 0.46, fur), 0, -0.6, 0.06));
+      head.add(at(cyl(0.31, 0.31, 0.07, ec, { emissive: ec, ei: 0.5, noOutline: true, seg: 14 }), 0, 0.2, 0));
+      const mk = s => {
+        upper.add(at(ball(0.2, fur, { noOutline: true }), s * 0.66, 0.98, 0));
+        const L = limb(upper, s * 0.72, 0.98, 0, 0.42, 0.4, 0.14, fur, fur, { jointCol: dark });
+        L.hand.add(at(ball(0.28, dark, { scale: [1, 0.9, 1] }), 0, -0.12, 0)); L.hand.add(at(ball(0.17, ec, { emissive: ec, ei: 0.45, noOutline: true }), 0, -0.12, 0.14)); glowTip(L.hand, ec, 0.9, 0, -0.12, 0.12);
+        fingers(L.hand, 4, 0.1, 0.05, dark, 0.1, -0.32, 0.12, false); return L;
+      };
+      const aL = mk(-1), aR = mk(1); armL = aL.arm; armR = aR.arm; limbs.armL = aL; limbs.armR = aR;
+      const ml = s => {
+        const L = limb(root, s * 0.28, 0.8, 0, 0.34, 0.32, 0.16, dark, fur, { jointCol: dark });
+        const foot = new THREE.Group(); L.hand.add(foot); L.foot = foot; foot.add(at(box(0.36, 0.18, 0.46, fur), 0, -0.03, 0.06)); fingers(foot, 3, 0.08, 0.05, dark, 0.12, -0.05, 0.28, false); return L;
+      };
+      const lL = ml(-1), lR = ml(1); legL = lL.arm; legR = lR.arm; limbs.legL = lL; limbs.legR = lR;
     }
 
     // 影・オーラ・防御/ガード表示
@@ -335,7 +416,7 @@ const FX = (() => {
     const chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.08, 28), new THREE.MeshBasicMaterial({ color: ec, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     chargeRing.rotation.x = -Math.PI / 2; chargeRing.position.y = 0.06; root.add(chargeRing);
 
-    return { root, upper, head, armL: L.arm, armR: Rr.arm, handL: L.hand, handR: Rr.hand, legL, legR, cape, orbs, sway, float, quad, baseY: upper.position.y, mats, shadow, aura, guardMesh, barrier, chargeRing, type: t, ec };
+    return { root, upper, head, armL, armR, handL: limbs.armL.hand, handR: limbs.armR.hand, legL, legR, limbs, jaw, pulse, eyeList, fingerList, seed: Math.random() * 10, cape, orbs, sway, float, quad, baseY: upper.position.y, mats, shadow, aura, guardMesh, barrier, chargeRing, type: t, ec };
   }
 
   // s: { moving, atk(0〜1の進行), style, stun, guard, dead, charge, buff, idleOnly }
@@ -400,6 +481,33 @@ const FX = (() => {
     if (p.type === 'archer') { const fl = s.moving ? Math.sin(t * 22) * 0.7 : Math.sin(t * 3) * 0.12; aRz = 0.35 + fl + (s.atk > 0 ? 0.5 : 0); aLz = -(0.35 + fl + (s.atk > 0 ? 0.5 : 0)); if (!s.atk) { aR = 0; aL = 0; } }
     p.armR.rotation.set(aR, 0, aRz); p.armL.rotation.set(aL, 0, aLz);
     if (p.sway) p.sway.forEach(w => { w.o.rotation[w.axis] = Math.sin(t * w.sp * (s.moving ? 1.6 : 1) + w.ph) * w.amp; });
+    // ---- 関節：肘・膝・足首・指・あご・まばたき ----
+    {
+      const J = p.limbs, qa = s.atk > 0 ? 1 - s.atk : 0, swing = s.atk > 0 ? Math.sin(qa * Math.PI) : 0;
+      const armBend = (L, g, sd) => {
+        if (!L) return;
+        if (L.wing) { const fl = s.moving ? Math.sin(t * 22) : Math.sin(t * 3) * 0.12; L.lower.rotation.z = -sd * (0.25 + (s.atk > 0 ? 0.6 * swing : 0.5 * Math.abs(fl)) + (s.stun ? 0.5 : 0)); return; }
+        const a = g.rotation.x;
+        let b = p.quad ? 0.18 + Math.max(0, a) * 0.5 : 0.22 + (a > 0 ? a * 0.55 : -a * 0.18);
+        if (s.guard) b += 0.7; if (s.stun) b += 0.3;
+        L.lower.rotation.x = p.quad ? b : -b;
+      };
+      const legBend = (L, g) => {
+        if (!L) return;
+        const a = g.rotation.x, rest = p.quad ? 0.55 : p.type === 'archer' ? 0.08 : 0.12;
+        let b = rest + (s.moving ? Math.max(0, a + 0.15) * 0.9 : 0);
+        if (s.guard) b += 0.25;
+        L.lower.rotation.x = b; if (L.foot) L.foot.rotation.x = -b * (p.quad ? 0.9 : 0.55);
+      };
+      armBend(J.armL, p.armL, -1); armBend(J.armR, p.armR, 1); legBend(J.legL, p.legL); legBend(J.legR, p.legR);
+      const curl = 0.3 + 0.9 * swing + (s.guard ? 0.6 : 0) + (s.stun ? 0.4 : 0);
+      p.fingerList.forEach(f => { f.g.rotation.x = -curl; f.tip.rotation.x = -curl * 0.8; });
+      if (p.jaw) p.jaw.rotation.x = s.atk > 0 ? swing * 0.7 : (s.stun ? 0.5 : 0.03 + 0.03 * Math.sin(t * 2 + p.seed));
+      const blink = ((t * 0.8 + p.seed) % 3.6) < 0.12;
+      p.eyeList.forEach(e => { e.mesh.scale.y = e.sy * (blink ? 0.1 : 1); });
+      p.head.rotation.y = (!s.atk && !s.moving && !s.dead && !s.guard) ? Math.sin(t * 0.7 + p.seed) * 0.2 : 0;
+      if (p.pulse) { const k = Math.sin(t * 3); p.pulse.scale.set(1 + k * 0.04, 1 - k * 0.05, 1 + k * 0.04); }
+    }
     u.rotation.set(lean, twist, 0); p.head.rotation.x = headX;
     if (p.cape) p.cape.rotation.x = 0.12 + (s.moving ? 0.45 : Math.sin(t * 3) * 0.06);
     p.orbs.forEach((o, i) => { if (o.userData.ph !== undefined) { const a = t * 1.8 + o.userData.ph; o.position.set(Math.cos(a) * 1.1, 1.2 + Math.sin(a * 1.3) * 0.25, Math.sin(a) * 1.1); } });

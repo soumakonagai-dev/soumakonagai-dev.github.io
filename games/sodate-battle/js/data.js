@@ -84,7 +84,7 @@ const SKILLS = [
   { id: 'aqua_lance', shape: 'spear', name: 'アクアランス', type: 'magic', elem: 'water', power: 66, ct: 4, range: 'line', speed: 19, learn: { MAG: 30 }, users: ['miruru', 'ruina'], desc: '水の槍をまっすぐ飛ばす' },
   { id: 'frost_ring', vfx: 'spikes', name: '凍てつく波', type: 'magic', elem: 'water', power: 60, ct: 6, range: 'circle', r: 4.8, delay: 0.2, slow: 3, learn: { MAG: 140 }, users: ['miruru'], desc: '周囲を凍らせ動きを鈍らせる' },
   { id: 'thunder', shape: 'spear', name: 'サンダー', type: 'magic', elem: 'wind', power: 95, ct: 5, range: 'line', speed: 32, learn: { MAG: 200 }, users: ['miruru', 'shizuku'], desc: '目にも止まらぬ雷' },
-  { id: 'teleport', name: 'テレポート', type: 'move', elem: 'none', power: 0, ct: 7, range: 'tele', learn: { MAG: 90 }, users: ['miruru', 'ruina'], desc: '相手の背後（反対側）へ瞬間移動' },
+  { id: 'teleport', name: 'テレポート', type: 'move', elem: 'none', power: 0, ct: 7, range: 'tele', learn: { MAG: 90 }, users: ['leo', 'miruru', 'gantetsu', 'shizuku', 'ruina'], desc: '相手の背後（反対側）へ瞬間移動' },
   { id: 'meteor', name: 'メテオ', type: 'magic', elem: 'fire', power: 155, ct: 12, range: 'circle', at: 'target', r: 4.6, delay: 1.1, learn: { MAG: 450 }, users: ['miruru'], desc: '空から巨大な火の玉を落とす' },
   // 重戦
   { id: 'quake', vfx: 'spikes', name: '地ならし', type: 'physical', elem: 'earth', power: 72, ct: 5, range: 'circle', r: 4, delay: 0.25, learn: { ATK: 40 }, users: ['gantetsu'], desc: '地面を叩いて衝撃波を出す' },
