@@ -93,7 +93,9 @@ const Workshop = (function () {
         tearP = Math.max(0, tearP - dt * 2); return 0;
       }
       if (len > lim) tearP += dt / tt; else tearP = Math.max(0, tearP - dt * 0.8);
-      const D = len > lim ? h.D.clone().multiplyScalar(lim / len) : h.D, eff = Math.min(len, lim); level = eff;
+      let D = len > lim ? h.D.clone().multiplyScalar(lim / len) : h.D.clone(); const eff = Math.min(len, lim); level = eff;
+      const nrm = h.local.clone().normalize(), dn = D.dot(nrm);
+      if (dn < 0) { const maxDent = pressDepth() * 1.7; D.addScaledVector(nrm, -dn + Math.max(dn, -maxDent)); }   // 内側へは、へこむ深さまで
       const Rl = (0.62 - 0.1 * st.bouncy) / (1 + 0.9 * eff * (0.4 + st.ooze * 2)) * (1 - 0.75 * tearP);
       for (let i = 0; i < n; i++) {
         const bx = blobBase[i * 3], by = blobBase[i * 3 + 1], bz = blobBase[i * 3 + 2];
@@ -108,13 +110,15 @@ const Workshop = (function () {
       const sEff = Math.min(s, sLim); level = Math.max(0, sEff - 1);
       const dir1 = len1 > 1e-4 ? ax1.clone().multiplyScalar(1 / len1) : a0, B1c = A1.clone().addScaledVector(dir1, L0 * sEff);
       const thin = (1 / Math.sqrt(Math.max(sEff, 0.6))) * (1 - 0.82 * tearP), Rl = 0.66;
+      const rotM = new T.Matrix4().makeRotationFromQuaternion(new T.Quaternion().setFromUnitVectors(a0, dir1)), re = rotM.elements;
       for (let i = 0; i < n; i++) {
         const px = blobBase[i * 3] - A0.x, py = blobBase[i * 3 + 1] - A0.y, pz = blobBase[i * 3 + 2] - A0.z;
         const qa = px * a0.x + py * a0.y + pz * a0.z, t = qa / L0;
         const perpx = px - a0.x * qa, perpy = py - a0.y * qa, perpz = pz - a0.z * qa, pd = Math.hypot(perpx, perpy, perpz);
         const g = smooth(-0.55, -0.15, t) * (1 - smooth(1.15, 1.55, t)), w = Math.exp(-(pd * pd) / (Rl * Rl)) * g;
         if (w < 0.01) continue;
-        const nx = A1.x + (B1c.x - A1.x) * t + perpx * thin, ny = A1.y + (B1c.y - A1.y) * t + perpy * thin, nz = A1.z + (B1c.z - A1.z) * t + perpz * thin;
+        const rx = re[0] * perpx + re[4] * perpy + re[8] * perpz, ry = re[1] * perpx + re[5] * perpy + re[9] * perpz, rz = re[2] * perpx + re[6] * perpy + re[10] * perpz;
+        const nx = A1.x + (B1c.x - A1.x) * t + rx * thin, ny = A1.y + (B1c.y - A1.y) * t + ry * thin, nz = A1.z + (B1c.z - A1.z) * t + rz * thin;
         kw[i] = w; tgtD[i * 3] = (nx - (px + A0.x)) * w; tgtD[i * 3 + 1] = (ny - (py + A0.y)) * w; tgtD[i * 3 + 2] = (nz - (pz + A0.z)) * w;
       }
     }
@@ -329,7 +333,7 @@ const Workshop = (function () {
       } else if (type === 'move') {
         const hd = hands.find(x => x.id === id && !x.pinned); if (!hd) return;
         const rc = rayFrom(e), pl = new T.Plane().setFromNormalAndCoplanarPoint(World.camera.getWorldDirection(tmpV).clone(), hd.world), P = new T.Vector3();
-        if (rc.ray.intersectPlane(pl, P)) { const dw = P.sub(hd.world); blob.updateMatrixWorld(); hd.D.set(dw.x / blob.scale.x, dw.y / blob.scale.y, dw.z / blob.scale.z); }
+        if (rc.ray.intersectPlane(pl, P)) { const dw = P.sub(hd.world); blob.updateMatrixWorld(); hd.D.set(dw.x / blob.scale.x, dw.y / blob.scale.y, dw.z / blob.scale.z); const minY = (bowlBottom + 0.04 - hd.world.y) / blob.scale.y; if (hd.D.y < minY) hd.D.y = minY; }
         hd.moved += Math.hypot(dx || 0, dy || 0); if (hd.moved > 8) hd.pull = true;
       } else if (type === 'up') {
         const i = hands.findIndex(x => x.id === id && !x.pinned); if (i < 0) return;
@@ -410,12 +414,13 @@ const Workshop = (function () {
       bounceT -= dt; if (st.bouncy > 0.5 && st.hard < 0.5 && st.solid > 0.6 && bounceT <= 0) { st.sqv += 2.2; bounceT = 1.3; }
       stepSoft(dt);
       const pos = blob.geometry.attributes.position, wob = (1 - st.hard) * 0.018, oo = st.ooze * 0.05;
+      const yMin = (bowlBottom + 0.005 - blob.position.y) / blob.scale.y;   // 机の面
       for (let i = 0; i < pos.count; i++) {
         const bx = blobBase[i * 3], by = blobBase[i * 3 + 1], bz = blobBase[i * 3 + 2];
         let d = Math.sin(t * (3 + 5 * st.bouncy) + by * 4 + bx * 3) * wob + Math.sin(t * 1.3 + bx * 2 + bz) * oo;
         d += st.hard * (Math.sin(bx * 11) * Math.sin(by * 9) * Math.sin(bz * 10)) * 0.06;
         d += st.stirring ? Math.sin(t * 14 + bx * 5 + st.spoonA * 3) * 0.01 : 0;
-        pos.setXYZ(i, bx * (1 + d) + disp[i * 3], by * (1 + d) + disp[i * 3 + 1], bz * (1 + d) + disp[i * 3 + 2]);
+        pos.setXYZ(i, bx * (1 + d) + disp[i * 3], Math.max(yMin, by * (1 + d) + disp[i * 3 + 1]), bz * (1 + d) + disp[i * 3 + 2]);
       }
       pos.needsUpdate = true; blob.geometry.computeVertexNormals(); blob.geometry.computeBoundingSphere();
     } else { st.sq *= 0.9; st.sqv *= 0.9; }
