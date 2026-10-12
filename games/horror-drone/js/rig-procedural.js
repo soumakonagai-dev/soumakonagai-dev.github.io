@@ -265,13 +265,15 @@ const RigProcedural = (() => {
       // 腕: だらりと下げて、歩きに合わせて遅れて揺れる。止まっていても、わずかに揺れる
       const idle = moving ? 0 : Math.sin(t * 1.3) * 0.03;
       armL.rotation.x = -sw * amp * 0.5 + 0.05 + idle; armR.rotation.x = sw * amp * 0.5 + 0.05 - idle;
-      armL.rotation.z = 0.07; armR.rotation.z = -0.07;
+      armL.rotation.z = 0.07 + p.tilt * 0.95; armR.rotation.z = -0.07 - p.tilt * 0.95;   // 振りかぶり: 腕を大きく広げる
+      armL.rotation.x -= p.tilt * 0.4; armR.rotation.x -= p.tilt * 0.4;
       arms.ArmL.el.rotation.x = -0.2 - Math.abs(sw) * amp * 0.35 + idle; arms.ArmR.el.rotation.x = -0.2 - Math.abs(sw) * amp * 0.35 - idle;
       body.position.y = moving ? Math.abs(sw) * 0.04 : 0;
-      body.rotation.x = p.state === 'lunge' ? 0.5 : (moving ? 0.16 : 0.1); // 猫背
+      body.rotation.x = (p.state === 'lunge' ? 0.5 : (moving ? 0.16 : 0.1)) - p.tilt * 0.4; // 猫背。予兆ではのけぞる
+      body.position.x = Math.sin(performance.now() / 1000 * 44) * 0.014 * p.tilt;
       rags.forEach((r, i) => { r.rotation.x = Math.sin(t * 2 + i * 1.7) * 0.08 + (moving ? 0.18 + Math.abs(sw) * 0.2 : 0.03); });
-      head.rotation.z = p.tilt * 0.65; head.rotation.x = -p.tilt * 0.16; // tilt は 0〜1(予兆の強さ)
-      jaw.rotation.x = p.jaw * 0.95;
+      head.rotation.z = p.tilt * 1.15; head.rotation.x = -p.tilt * 0.5; // tilt は 0〜1(予兆の強さ)。大きくのけぞる
+      jaw.rotation.x = p.jaw * 0.95 + (p.state === 'tell' ? p.tilt * 0.35 : 0);
       const open = p.jaw > 0.15;
       cavity.visible = open; slit.visible = !open;
       cavity.scale.set(1.1, 0.6 + p.jaw * 0.9, 1);

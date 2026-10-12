@@ -140,6 +140,8 @@ const Sfx = (() => {
       });
       noiseBurst(1.2, 0.9, 9000, 600);
     },
+    spit() { if (ctx) { noiseBurst(0.3, 0.55, 1100, 180); tone(190, 0.25, 0.3, 'sawtooth', 80); } },
+    grab() { if (ctx) { noiseBurst(0.18, 0.6, 2400, 300); tone(110, 0.4, 0.6, 'sawtooth', 50); } },
     pickup() { if (ctx) { tone(1100, 0.07, 0.22, 'sine'); setTimeout(() => tone(1650, 0.1, 0.22, 'sine'), 70); } },
     craft() { if (ctx) { tone(330, 0.15, 0.25, 'triangle'); setTimeout(() => tone(495, 0.15, 0.25, 'triangle'), 130); setTimeout(() => tone(660, 0.3, 0.25, 'triangle'), 260); } },
     home() { if (ctx) { tone(523, 0.3, 0.2, 'sine'); setTimeout(() => tone(659, 0.3, 0.2, 'sine'), 200); setTimeout(() => tone(784, 0.5, 0.2, 'sine'), 400); } },

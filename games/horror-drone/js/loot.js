@@ -31,8 +31,8 @@ const Loot = (() => {
   // 各部屋に戦利品を少しだけばらまく(全部で十数個)
   function scatter() {
     clear();
-    for (let r = 0; r < 9; r++) {
-      const n = r === 3 ? 1 : 1 + ((Math.random() * 3) | 0);    // 控えめに: 自宅は1つ、他は1〜3つ
+    for (let r = 0; r < World.rooms.length; r++) {
+      const n = World.rooms[r].id === 'A' ? 1 : 1 + ((Math.random() * 2) | 0);    // 控えめに: 自宅は1つ、他は1〜2つ
       for (let i = 0; i < n; i++) { const s = World.freeSpot(r, 1.3); if (s) spawn(rollLoot(), s.x, s.z); }
     }
   }

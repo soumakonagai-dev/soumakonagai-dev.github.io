@@ -7,7 +7,7 @@ const Filter = (() => {
   const frag = `
 precision highp float;
 uniform sampler2D tDiffuse; uniform vec2 resolution;
-uniform float time, noise, glitch, vignette, night, scan, dark, droneMode, chroma, bright;
+uniform float time, noise, glitch, vignette, night, scan, dark, droneMode, chroma, bright, bloom;
 varying vec2 vUv;
 float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 void main(){
@@ -27,6 +27,18 @@ void main(){
   col.g = texture2D(tDiffuse, uv).g;
   col.b = texture2D(tDiffuse, uv - vec2(ca, 0.0)).b;
   col *= bright;
+  // 光のにじみ(ブルーム): 明るい所の周りをぼかして足す
+  vec2 asp = vec2(1.0, resolution.x / resolution.y);
+  vec3 bl = vec3(0.0);
+  for (int i = 0; i < 8; i++) {
+    float a = float(i) * 0.7853982;
+    bl += max(texture2D(tDiffuse, uv + vec2(cos(a), sin(a)) * 0.012 * asp).rgb - 0.5, 0.0);
+    bl += max(texture2D(tDiffuse, uv + vec2(cos(a + 0.39), sin(a + 0.39)) * 0.03 * asp).rgb - 0.5, 0.0) * 0.7;
+  }
+  col += bl * bloom * 0.2 * bright;
+  // 調色(徒歩の映像): 影は青緑に、明るい所は暖かく
+  float l0 = dot(col, vec3(0.299, 0.587, 0.114));
+  col = mix(col, col * vec3(1.08, 1.0, 0.9) + vec3(0.0, 0.012, 0.022) * (1.0 - l0), (1.0 - droneMode) * 0.65);
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   // 暗視(緑)
   col = mix(col, vec3(0.05, lum * 1.7 + 0.03, 0.09), night);
@@ -53,7 +65,7 @@ void main(){
       uniforms: {
         tDiffuse: { value: null }, resolution: { value: new THREE.Vector2(2, 2) }, time: { value: 0 },
         noise: { value: 0.1 }, glitch: { value: 0 }, vignette: { value: 0.4 }, night: { value: 0 },
-        scan: { value: 0.6 }, dark: { value: 0 }, droneMode: { value: 1 }, chroma: { value: 0 }, bright: { value: 1 },
+        scan: { value: 0.6 }, dark: { value: 0 }, droneMode: { value: 1 }, chroma: { value: 0 }, bright: { value: 1 }, bloom: { value: 0.5 },
       },
       vertexShader: vert, fragmentShader: frag, depthTest: false, depthWrite: false,
     });

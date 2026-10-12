@@ -31,60 +31,6 @@ const RigCreatures = (() => {
   const flashAll = (mats, f) => mats.forEach(m => m.emissive && m.emissive.setRGB(f * 0.6, 0, 0));
   const tooth = () => new THREE.MeshStandardMaterial({ color: 0xd9d2bd, roughness: 0.6 });
 
-  // ===================================================================== 這い蜘蛛
-  function spider() {
-    const root = new THREE.Group(); root.name = 'Spider';
-    const skin = skinMaterial({ base: [205, 196, 186], wounds: 4, blood: 0.35, bruise: 3, seed: 5 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1 });
-    const sacMat = new THREE.MeshStandardMaterial({ color: 0x7a1010, emissive: 0x200000, roughness: 0.5 });
-    const body = named(new THREE.Group(), 'Body'); body.position.y = 0.55; root.add(body);
-    add(body, ball(0.4, 1, 0.75, 1.3, skin), 0, 0, -0.4);        // 膨らんだ腹
-    add(body, ball(0.24, 1, 0.8, 1.1, skin), 0, 0.02, 0.15);      // 胸
-    const head = named(new THREE.Group(), 'Head'); head.position.set(0, 0.04, 0.52); body.add(head);
-    const skull = add(head, new THREE.Mesh(skullGeometry(), skin)); skull.scale.set(0.13, 0.15, 0.14);   // 人の顔のような頭
-    [[-0.05, 0.06], [0.05, 0.06], [-0.085, -0.01], [0.085, -0.01]].forEach(([x, y]) => add(head, ball(0.028, 1, 1, 0.7, dark), x, y, 0.125));
-    add(head, new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.02), dark), 0, -0.07, 0.13);
-    [-0.03, 0.03].forEach(x => { const f = cone(0.008, 0.06, tooth()); f.rotation.x = Math.PI; add(head, f, x, -0.1, 0.12); });
-    const sac = add(body, ball(0.15, 1, 0.9, 1.1, sacMat), 0, -0.27, -0.3);
-    wound(body, 0.3, 0.08, -0.4, 0.07, Math.PI / 2); wound(body, -0.3, 0.02, -0.3, 0.06, -Math.PI / 2); wound(body, 0.1, 0.22, -0.55, 0.05, 0.3);   // 腹の赤い袋(弱点)
-    const legs = [];
-    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
-      const hip = new THREE.Group(); hip.position.set(side * 0.2, 0, 0.28 - i * 0.2); body.add(hip);
-      const phi = (-0.7 + i * 0.47) * side; hip.rotation.y = phi;
-      const up = new THREE.Group(); hip.add(up); const a0 = side > 0 ? 0.9 - Math.PI / 2 : Math.PI / 2 - 0.9; up.rotation.z = a0;
-      up.add(seg(0.42, 0.045, 0.03, skin));
-      const knee = new THREE.Group(); knee.position.y = 0.42; up.add(knee);
-      const k0 = side > 0 ? -2.29 : 2.29; knee.rotation.z = k0;
-      knee.add(seg(0.9, 0.03, 0.012, skin)); knee.add(ball(0.04, 1, 1, 1, skin));
-      legs.push({ hip, up, knee, side, i, phi, a0, k0 });
-    }
-    const hit = {
-      body: hitMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.55, 8), body, 0, 0, -0.05),
-      head: hitMesh(new THREE.SphereGeometry(0.2, 8, 6), head, 0, 0, 0),
-      weak: hitMesh(new THREE.SphereGeometry(0.18, 8, 6), body, 0, -0.27, -0.3),
-    };
-    let P = { state: 'wander', walk: 0, tilt: 0, jaw: 0 }, flip = 0, G = false, F = 0;
-    function apply(p, glowOn, flash) { P = p; G = glowOn; F = flash; }
-    function update(dt) {
-      const t = performance.now() / 1000, p = P, flipT = (p.state === 'recover' || p.state === 'dead') ? 1 : 0;
-      flip += (flipT - flip) * Math.min(1, dt * 8);
-      const mv = moving(p), crouch = p.tilt;
-      body.position.y = 0.55 - crouch * 0.2 - flip * 0.15 + (mv ? Math.abs(Math.sin(p.walk * 1.3)) * 0.04 : 0);
-      body.rotation.z = flip * Math.PI; body.rotation.x = p.state === 'lunge' ? -0.3 : 0;
-      legs.forEach(L => {
-        const ph = p.walk * 1.3 + (L.i % 2 ? Math.PI : 0) + (L.side > 0 ? 0 : Math.PI * 0.5), sw = mv ? Math.sin(ph) : 0;
-        L.hip.rotation.y = L.phi + sw * 0.3;
-        L.knee.rotation.z = L.k0 + L.side * (mv ? Math.max(0, Math.cos(ph)) * 0.4 : 0) + L.side * crouch * 0.5;
-        L.up.rotation.z = L.a0 - L.side * crouch * 0.3;
-        if (flip > 0.5) L.up.rotation.z = L.a0 + Math.sin(t * 9 + L.i * 1.3 + L.side) * 0.25 * (p.state === 'dead' ? 0.1 : 1);
-      });
-      const g = G ? 0.6 + 0.4 * Math.sin(t * 11) : 0.1; sacMat.emissive.setRGB(g * 0.9, g * 0.05, 0);
-      skin.emissive.setRGB(F * 0.6, 0, 0);
-    }
-    return { root, hit, apply, update, syncHit() {}, kind: 'spider', handlesDeath: true,
-      weakForward: out => fwdOf(body, 0, -1, 0, out) };
-  }
-
   // ===================================================================== 水底の手
   function hand() {
     const root = new THREE.Group(); root.name = 'Hand'; root.scale.setScalar(1.25);
@@ -119,7 +65,7 @@ const RigCreatures = (() => {
       const t = performance.now() / 1000, p = P;
       let armT = 0.3 + Math.sin(t * 0.8) * 0.05, palmT = 0, curl = 0.4;
       if (p.state === 'chase') { armT = 0.12 + Math.sin(t * 2) * 0.06; curl = 0.3 + Math.sin(t * 6) * 0.15; }
-      else if (p.state === 'tell') { armT = 0.3 - 0.95 * p.tilt; curl = 0.1; }
+      else if (p.state === 'tell') { armT = 0.3 - 1.9 * p.tilt; curl = -0.25; }
       else if (p.state === 'act') armT = 1.45;
       else if (p.state === 'recover') { armT = 1.32; palmT = Math.PI; curl = 0.05; }
       else if (p.state === 'dead') { armT = 1.5; palmT = Math.PI; curl = 0.7; }
@@ -207,9 +153,9 @@ const RigCreatures = (() => {
       const t = performance.now() / 1000, p = P, mv = moving(p), sw = Math.sin(p.walk * 0.9);
       legL.rotation.x = mv ? sw * 0.45 : 0; legR.rotation.x = mv ? -sw * 0.45 : 0;
       body.position.y = mv ? Math.abs(sw) * 0.05 : 0;
-      body.rotation.x = p.state === 'act' ? 0.2 : 0.05; body.rotation.z = mv ? sw * 0.04 : 0;
+      body.rotation.x = p.state === 'act' ? 0.35 : 0.05 - p.tilt * 0.4; body.rotation.z = mv ? sw * 0.04 : 0;
       armL.rotation.x = mv ? -sw * 0.25 : 0.05;
-      const target = p.state === 'tell' ? -p.tilt * 2.7 : p.state === 'act' ? 0.7 : p.state === 'recover' ? 0.3 : (mv ? sw * 0.2 : 0.1);
+      const target = p.state === 'tell' ? -p.tilt * 3.3 : p.state === 'act' ? 0.7 : p.state === 'recover' ? 0.3 : (mv ? sw * 0.2 : 0.1);
       armR.rotation.x += (target - armR.rotation.x) * Math.min(1, dt * (p.state === 'act' ? 22 : 7));
       lantern.rotation.z = Math.sin(t * 2) * 0.1;
       const g = G ? 0.6 + 0.4 * Math.sin(t * 11) : 0; seamMat.color.setRGB(0.55 + g * 0.45, 0.24 + g * 0.3, 0.12 + g * 0.1);
@@ -258,10 +204,10 @@ const RigCreatures = (() => {
     function apply(p, glowOn, flash) { P = p; G = glowOn; F = flash; }
     function update() {
       const t = performance.now() / 1000, p = P;
-      const reach = p.state === 'chase' ? 0.9 : p.state === 'tell' ? 0.5 + p.tilt * 0.5 : p.state === 'act' ? 1.4 : 0.15;
+      const reach = p.state === 'chase' ? 0.9 : p.state === 'tell' ? 1.3 + p.tilt * 0.8 : p.state === 'act' ? 1.4 : 0.15;
       arms[0].rotation.x = -reach + Math.sin(t * 1.7) * 0.06; arms[1].rotation.x = -reach + Math.sin(t * 1.7 + 1) * 0.06;
       arms[0].rotation.z = 0.1; arms[1].rotation.z = -0.1;
-      head.rotation.z = p.tilt * 0.35 + Math.sin(t * 1.1) * 0.04; head.rotation.x = p.jaw * -0.35;
+      head.rotation.z = p.tilt * 0.35 + Math.sin(t * 1.1) * 0.04; head.rotation.x = p.jaw * -0.35 - p.tilt * 0.55; root.rotation.x = -p.tilt * 0.3;
       jaw.rotation.x = p.jaw * 1.0;
       hairFront.scale.y = 1 - p.jaw * 0.85; hairFront.rotation.x = -p.jaw * 0.5;     // 髪が上がって、顔と口があらわれる
       rags.forEach((r, i) => { r.rotation.x = Math.sin(t * 2 + i) * 0.12; });
@@ -316,19 +262,20 @@ const RigCreatures = (() => {
       const t = performance.now() / 1000, p = P;
       let open = p.jaw;                                                  // 弱点(舌)が出るのは、飛びかかったあとの隙
       if (p.state === 'lunge') open = 0.7;
-      else if (p.state === 'tell') open = 0.06 + Math.sin(t * 40) * 0.03;  // 蓋がカタカタ鳴る
+      else if (p.state === 'tell') open = 0.3 + Math.sin(t * 26) * 0.28;  // 蓋が大きくカタカタ開閉する
       lid.rotation.x = -open * 1.15;
       tongueG.scale.z = 0.05 + Math.max(0, p.jaw) * 0.95;
       const vis = open > 0.08; teeth.forEach(m => { m.visible = vis; }); tongueG.visible = p.jaw > 0.05;
       const mv = moving(p);
       body.position.y = mv ? Math.abs(Math.sin(p.walk * 1.4)) * 0.16 : 0;
-      body.rotation.x = p.state === 'lunge' ? -0.3 : (mv ? Math.sin(p.walk * 1.4) * 0.12 : 0);
-      body.scale.y = p.state === 'tell' ? 0.88 : 1;
+      body.rotation.x = p.state === 'lunge' ? -0.3 : p.state === 'tell' ? -0.5 * p.tilt + Math.sin(t * 30) * 0.05 : (mv ? Math.sin(p.walk * 1.4) * 0.12 : 0);
+      body.position.x = p.state === 'tell' ? Math.sin(t * 34) * 0.03 : 0;
+      body.scale.y = p.state === 'tell' ? 0.78 : 1;
       const g = G ? 0.5 + 0.4 * Math.sin(t * 11) : 0; tongueMat.emissive.setRGB(g, g * 0.1, 0);
       wood.emissive.setRGB(F * 0.6, 0, 0);
     }
     return { root, hit, apply, update, syncHit() {}, kind: 'mimic', handlesDeath: false, weakForward: out => out.set(0, 0, 1) };
   }
 
-  return { spider, hand, shadow, guard, weeper, mimic };
+  return { hand, shadow, guard, weeper, mimic, kit: { named, add, ball, seg, segDown, cone, hitMesh, moving, fwdOf, wound, tooth } };
 })();

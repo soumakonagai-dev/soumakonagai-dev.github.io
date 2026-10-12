@@ -9,6 +9,8 @@
   const canvas = $('c');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
+  renderer.shadowMap.enabled = !isTouch;                       // 影はPCだけ(スマホは重いので省く)
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020203);
   scene.fog = new THREE.FogExp2(0x040506, 0.055);
@@ -22,6 +24,7 @@
   if (qs.has('hit')) Monsters.setHitVisible(true);
   Loot.init(scene);
   Gore.init(scene);
+  Proj.init(scene);
   Filter.init(renderer);
 
   function resize() {
@@ -211,7 +214,7 @@
   function startObserve() {
     Sfx.init();
     Drone.reset(); Monsters.reset('observe'); Monsters.list.forEach(m => m.setReveal(false)); World.setNight(false);
-    Loot.scatter(); Gore.clear(); pb = null; curRoom = -1; scanFocus = null; endLock = false;
+    Loot.scatter(); Gore.clear(); Proj.clear(); pb = null; curRoom = -1; scanFocus = null; endLock = false;
     setPhase('observe'); showScreen(null); updateScanPanel(null);
     hint(isTouch ? '' : 'W・S 移動 / A・D 向き / Q・E 上下の向き / Space・Shift 上下 / F 解析(長押し) / R 録画 / P 再生 / N 暗視 / X 帰還');
     toast('ドローンを飛ばして、怪物を探そう。叫んだ瞬間が狙い目', '', 3400);
@@ -224,7 +227,7 @@
   function startSortie(loadout) {
     Sfx.init();
     Hunt.reset(loadout); Monsters.reset('hunt'); Monsters.refreshReveal(); World.setNight(false); World.setSpot(1.8);
-    Loot.scatter(); Gore.clear(); huntTime = 0; endLock = false; curRoom = -1; lastAttacker = null; warnT = 0;
+    Loot.scatter(); Gore.clear(); Proj.clear(); huntTime = 0; endLock = false; curRoom = -1; lastAttacker = null; warnT = 0;
     setPhase('hunt'); showScreen(null); updateWeaponHud();
     hint(isTouch ? '' : 'W・S 移動 / A・D 向き / Q・E 上下の向き / クリック・F 撃つ / 1・2 武器 / 帰還点でX');
     toast('出撃。戦利品を拾って、生きて帰還点へ戻ろう', '', 3400);
@@ -288,6 +291,16 @@
   }
   function actSwap(i) { if (phase === 'hunt' && Hunt.swap(i)) { Sfx.click(); updateWeaponHud(); } }
 
+  // ---------- 酸の命中 ----------
+  // 徒歩ではHPが減り、ドローンでは機体の耐久が減る
+  let acidFlash = 0;
+  function onAcid(h) {
+    if (h.kind === 'direct') { glitchBoost = 0.7; shake = 0.4; Sfx.hurt(); flashOn(el.hurt, 300); }
+    else if ((acidFlash -= 0.016) <= 0) { acidFlash = 0.4; flashOn(el.hurt, 200); }
+    if (phase === 'hunt') { Hunt.damage(h.dmg); if (h.owner) lastAttacker = h.owner; }
+    else if (phase === 'observe') Drone.s.hp -= h.dmg / 80;
+  }
+
   // ---------- 怪物のイベント ----------
   function onEvents(mode, T) {
     for (const ev of Monsters.popEvents()) {
@@ -305,19 +318,33 @@
             if (mode === 'hunt') { Hunt.damage(15); lastAttacker = m; Sfx.hurt(); flashOn(el.hurt, 350); }
             else { Drone.s.battery = Math.max(0, Drone.s.battery - 0.1); toast('泣き声で映像が乱れる。バッテリーが減った', 'bad'); }
           }
-        } else { Sfx.thump(1.4); shake = Math.max(shake, 0.4); }
+        } else if (ev.kind === 'reach') { Sfx.scream(mp.x, 1.8, mp.z, 0.55); shake = Math.max(shake, 0.3); }
+        else if (ev.kind === 'spit') { Sfx.spit(); }
+        else if (ev.kind === 'lash') { Sfx.thump(1.2); shake = Math.max(shake, 0.35); }
+        else if (ev.kind === 'birth') { Sfx.scream(mp.x, 1.2, mp.z, 0.8); shake = Math.max(shake, 0.3); }
+        else { Sfx.thump(1.4); shake = Math.max(shake, 0.4); }
       } else if (ev.type === 'attack') {
         if (mode === 'observe') {
           if (dist < ev.range + 0.6 && Drone.pos.y < 2.8) { Drone.s.hp -= 0.34; Sfx.hurt(); glitchBoost = 1; flashOn(el.hurt, 300); shake = 0.5; }
         } else if (dist < ev.range + 0.5) {
           Hunt.damage(ev.dmg); lastAttacker = m; Sfx.hurt(); glitchBoost = 0.8; flashOn(el.hurt, 350); shake = 0.6;
         }
+      } else if (ev.type === 'grab') {                      // 口から伸びた腕につかまれて、引きずられる
+        Sfx.grab(); glitchBoost = 0.9; shake = 0.7;
+        if (mode === 'hunt') { Hunt.damage(ev.dmg); lastAttacker = m; Hunt.pullTo(mp.x, mp.z); flashOn(el.hurt, 400); toast('つかまれた!', 'bad', 1200); }
+        else if (dist < ev.range + 0.6) { Drone.s.hp -= 0.34; flashOn(el.hurt, 300); }
+      } else if (ev.type === 'spit') {                       // 酸を吐く
+        Proj.fire(ev.from, ev.to, ev.speed, ev.dmg, m); Sfx.spit();
+      } else if (ev.type === 'summon') {                     // 腹が裂けて、子が生まれる
+        for (let i = 0; i < ev.n; i++) Monsters.spawn(ev.def, ev.x + (Math.random() - 0.5) * 1.6, ev.z + (Math.random() - 0.5) * 1.6, mode);
+        Sfx.thump(1.3); toast('子が産まれた!', 'bad', 1400);
       } else if (ev.type === 'dead') onKill(m);
     }
   }
   function onKill(m) {
     const def = m.def, mp = m.pos();
     Know.addKill(def.id); Hunt.p.kills.push(def.id); Gore.pool(mp.x, mp.z);
+    if (def.onDeath) { for (let i = 0; i < def.onDeath.n; i++) Monsters.spawn(def.onDeath.def, mp.x + (Math.random() - 0.5) * 1.4, mp.z + (Math.random() - 0.5) * 1.4, 'hunt'); toast('腹から子が飛び出した!', 'bad', 1600); }
     def.drops.forEach(d => { if (Math.random() < d.p) for (let i = 0; i < d.n; i++) Loot.spawn(d.item, mp.x + (Math.random() - 0.5) * 1.2, mp.z + (Math.random() - 0.5) * 1.2); });
     toast(`${def.name}を倒した! 素材が落ちた`, 'good', 2800); Sfx.win();
   }
@@ -333,6 +360,7 @@
     const hl = Math.hypot(_fw.x, _fw.z) || 1;
     const T = { x: Drone.pos.x, z: Drone.pos.z, fx: _fw.x / hl, fz: _fw.z / hl };
     Monsters.update(dt, T, 'observe'); onEvents('observe', T);
+    Proj.update(dt, { x: Drone.pos.x, y: Drone.pos.y, z: Drone.pos.z }, onAcid);
     Drone.recTick(dt);
 
     // 解析
@@ -386,6 +414,7 @@
     Hunt.update(dt, In); Hunt.applyCam(cam);
     const p = Hunt.p, T = { x: p.x, z: p.z, fx: -Math.sin(p.yaw), fz: -Math.cos(p.yaw) };
     Monsters.update(dt, T, 'hunt'); onEvents('hunt', T);
+    Proj.update(dt, { x: p.x, y: 1.0, z: p.z }, onAcid);
     if (In.fire) tryFire();
 
     // 戦利品を拾う
@@ -459,7 +488,7 @@
     Filter.render(scene, cam, {
       glitch: scare ? 1 : clamp(g, 0, 1), noise: scare ? 0.3 : drone ? 0.10 : 0.05, scan: drone ? 0.7 : 0.15, vignette: drone ? 0.5 : 0.7,
       night: night ? 1 : 0, dark: phase === 'observe' && bat < 0.2 ? (0.2 - bat) * 5 : 0, droneMode: drone ? 1 : 0,
-      chroma: scare ? 0.02 : shake * 0.01, bright: scare ? 1.4 : phase === 'hunt' ? 1.3 : 1.12,
+      chroma: scare ? 0.02 : shake * 0.01, bloom: scare ? 0.9 : 0.55, bright: scare ? 1.4 : phase === 'hunt' ? 1.3 : 1.12,
     });
     // 音
     Sfx.setListener(cam);

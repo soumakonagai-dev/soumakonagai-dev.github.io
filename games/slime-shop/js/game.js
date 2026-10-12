@@ -586,11 +586,10 @@ const UI = (function () {
     ];
   }
   function openOffice(t) {
-    tab = t || 'today';
+    if (t) tab = t;
     openUI(() => {
       const head = `<div class="hd"><h2>🖥️ 事務机</h2><button data-act="close">× とじる</button></div><div class="tabs">${TABS.map(x => `<button class="${tab === x[0] ? 'on' : ''}" data-act="tab" data-t="${x[0]}">${x[1]}</button>`).join('')}</div>`;
-      let body; try { body = officeBody(); } catch (e) { console.error(e); body = '<p class="warn">このタブを表示できませんでした（' + esc(String(e.message)) + '）。ほかのタブを選んでね。</p>'; }
-      return head + `<div class="scroll">${body}</div>`;
+      return head + `<div class="scroll">${officeBody()}</div>`;
     }, { cls: 'wide' });
   }
   function officeBody() {
@@ -599,7 +598,7 @@ const UI = (function () {
       const nx = REP_STEPS[rl] ? `（次の★まで あと${Math.ceil(REP_STEPS[rl] - S.repPts)}）` : '（最高！）';
       return `<div class="card"><b>${S.day}日目 ${fmtTime(S.min)}</b>　${WEATHERS[S.weather].icon} ${WEATHERS[S.weather].name}<br>
         <small class="sub">${envHints().join(' / ')}</small><br>${S.trend ? `📈 流行：<b>${TRAIT_NAME[S.trend]}</b><br>` : ''}
-        評判 ${'★'.repeat(rl)}${'☆'.repeat(5 - rl)} ${nx}<br>営業時間 10:00〜19:00　家賃 ${yen(RENT)}/日　給料 ${yen(S.staff.reduce((a, s) => a + (ROLES[s.role] ? ROLES[s.role].wage : 0), 0))}/日</div>
+        評判 ${'★'.repeat(rl)}${'☆'.repeat(5 - rl)} ${nx}<br>営業時間 10:00〜19:00　家賃 ${yen(RENT)}/日　給料 ${yen(S.staff.reduce((a, s) => a + ROLES[s.role].wage, 0))}/日</div>
         <div class="card"><b>今日のここまで</b><br>売れた ${S.today.sold}個 / 売上 ${yen(S.today.rev)} / 作った ${S.today.made}個
         ${S.today.missed ? ` / 逃したお客さん ${S.today.missed}人（店番を雇おう）` : ''}</div>
         <div class="row"><button class="main" data-act="endday">今日を終える（決算へ）</button><button data-act="save">セーブ</button>
@@ -619,7 +618,7 @@ const UI = (function () {
       h += Object.keys(ROLES).map(r => `<p class="sub">${ROLES[r].icon} <b>${ROLES[r].name}</b>：${ROLES[r].desc}（給料 ${yen(ROLES[r].wage)}/日）</p>`).join('');
       S.staff.forEach(sf => {
         const tag = STAFF_TAGS.find(t => t.id === sf.tag);
-        h += `<div class="card"><div class="row between"><b>${(ROLES[sf.role] || ROLES.clerk).icon} ${sf.name}（${(ROLES[sf.role] || ROLES.clerk).name}）</b><span>${Biz.face(sf.mood == null ? 70 : sf.mood)} 機嫌${Math.round(sf.mood == null ? 70 : sf.mood)} <span class="tag">${tag ? tag.name : ''}</span>${S.absent && S.absent[sf.id] ? ' <span class="tag sale">欠席中</span>' : ''}${sf.branch ? ' <span class="tag">支店の店長</span>' : ''} 腕前 ${Math.round(sf.skill * 100)}</span></div>`;
+        h += `<div class="card"><div class="row between"><b>${ROLES[sf.role].icon} ${sf.name}（${ROLES[sf.role].name}）</b><span>${Biz.face(sf.mood == null ? 70 : sf.mood)} 機嫌${Math.round(sf.mood == null ? 70 : sf.mood)} <span class="tag">${tag.name}</span>${S.absent && S.absent[sf.id] ? ' <span class="tag sale">欠席中</span>' : ''}${sf.branch ? ' <span class="tag">支店の店長</span>' : ''} 腕前 ${Math.round(sf.skill * 100)}</span></div>`;
         if (sf.role === 'crafter') {
           h += `<div class="row"><select data-act="setrecipe" data-id="${sf.id}"><option value="">作るレシピを選ぶ…</option>${S.recipes.map(r => `<option value="${r.id}" ${sf.recipeId === r.id ? 'selected' : ''}>${esc(r.name)}（${r.q}）</option>`).join('')}</select> <small class="sub">${sf.msg || ''}</small></div>
             <small class="sub">レシピをそのまま再現します（ノリ300ml分）。腕前が低いと分量がぶれて、ギリギリのレシピは失敗しやすい。</small>`;

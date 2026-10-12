@@ -1,12 +1,12 @@
 // 出撃(徒歩の探索): 一人称の主人公・武器・拾った戦利品。生きて帰還点に戻れば、戦利品を持ち帰れる
 const Hunt = (() => {
-  const p = { x: 0, z: 0, yaw: -Math.PI / 2, pitch: 0, hp: 100, slow: 0, cur: 0, cd: 0, loadout: [], ammo: {}, bob: 0, kick: 0, carry: {}, kills: [] };
+  const p = { x: 0, z: 0, yaw: -Math.PI / 2, pitch: 0, hp: 100, slow: 0, cur: 0, cd: 0, loadout: [], ammo: {}, bob: 0, kick: 0, carry: {}, kills: [], pull: null };
   const _dir = new THREE.Vector3(), _o = new THREE.Vector3(), _rc = new THREE.Raycaster();
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   function reset(loadout) {
     p.x = World.spawn.x; p.z = World.spawn.z; p.yaw = -Math.PI / 2; p.pitch = 0; p.hp = 100; p.slow = 0; p.cur = 0; p.cd = 0; p.kick = 0;
-    p.loadout = loadout.slice(); p.ammo = {}; p.carry = {}; p.kills = [];
+    p.loadout = loadout.slice(); p.ammo = {}; p.carry = {}; p.kills = []; p.pull = null;
     loadout.forEach(id => { p.ammo[id] = Weapons[id].ammo; });
   }
   const weapon = () => Weapons[p.loadout[p.cur]];
@@ -14,6 +14,13 @@ const Hunt = (() => {
   function update(dt, In) {
     p.yaw -= In.lookX; p.pitch = clamp(p.pitch - In.lookY, -1.3, 1.3);
     p.cd -= dt; p.slow = Math.max(0, p.slow - dt); p.kick = Math.max(0, p.kick - dt * 6);
+    if (p.pull) {                                                // つかまれて、怪物の方へ引きずられる
+      p.pull.t -= dt;
+      const dx = p.pull.x - p.x, dz = p.pull.z - p.z, d = Math.hypot(dx, dz);
+      if (d > 1.3 && p.pull.t > 0) { const q = { x: p.x + dx / d * 9 * dt, y: 0, z: p.z + dz / d * 9 * dt }; World.resolve(q, 0.35, 0, 1.8); p.x = q.x; p.z = q.z; }
+      else p.pull = null;
+      return;
+    }
     const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
     const wx = -sy * In.my + cy * In.mx, wz = -cy * In.my - sy * In.mx;
     const l = Math.hypot(wx, wz), sp = (p.slow > 0 ? 1.7 : 3.6) / Math.max(1, l);
@@ -52,10 +59,11 @@ const Hunt = (() => {
   }
 
   function swap(i) { if (i < p.loadout.length && i !== p.cur) { p.cur = i; return true; } return false; }
+  function pullTo(x, z) { p.pull = { x, z, t: 0.7 }; }
   function damage(n) { p.hp = Math.max(0, p.hp - n); }
   function addCarry(item, n) { p.carry[item] = (p.carry[item] || 0) + (n || 1); }
   function heal(n) { p.hp = Math.min(100, p.hp + n); }
   function addAmmo() { p.loadout.forEach(id => { const w = Weapons[id]; if (w.ammo < 90) p.ammo[id] += Math.max(2, Math.ceil(w.ammo * 0.35)); }); }
 
-  return { p, reset, update, applyCam, fire, swap, damage, weapon, addCarry, heal, addAmmo };
+  return { p, reset, update, applyCam, fire, swap, pullTo, damage, weapon, addCarry, heal, addAmmo };
 })();

@@ -16,6 +16,10 @@ const Items = {
   shard:   { name: '影のかけら', color: 0x9a66ff, kind: 'mat' },
   chain:   { name: '番人の鎖',   color: 0x9a9a9a, kind: 'mat' },
   tear:    { name: '涙の結晶',   color: 0x8ad8ff, kind: 'mat' },
+  acid:    { name: '酸の袋',     color: 0xa8ff40, kind: 'mat' },
+  hair:    { name: '髪の束',     color: 0x6a4a8a, kind: 'mat' },
+  finger:  { name: '長い指',     color: 0xe8d8c8, kind: 'mat' },
+  heart:   { name: '割れた心臓', color: 0xff4060, kind: 'mat' },
   // 拾うとすぐ使うもの
   bandage: { name: '包帯',       color: 0x66ff88, kind: 'heal', note: 'HPが回復する' },
   ammo:    { name: '弾薬',       color: 0xffd060, kind: 'ammo', note: '持っている武器の弾が増える' },
@@ -58,6 +62,15 @@ const Weapons = {
     desc: '強力ライトの改良型。光に弱い相手を素早く焼く。',
     recipe: { battery: 2, shard: 1 } },
 };
+
+Object.assign(Weapons, {
+  rifle: { id: 'rifle', name: 'ライフル', attr: 'phys', dmg: 30, pellets: 1, spread: 0.002, rate: 0.9, ammo: 8, snd: 'heavy',
+    desc: '一発が重い。遠くの弱点を狙い撃つ。', recipe: { scrap: 4, powder: 2, finger: 1 } },
+  arcgun: { id: 'arcgun', name: 'アーク放電銃', attr: 'elec', dmg: 9, pellets: 3, spread: 0.05, rate: 0.35, ammo: 20, snd: 'zap',
+    desc: '三本の電光を放つ。濡れた体や水の怪物に。', recipe: { battery: 3, hair: 1, acid: 1 } },
+  holyflame: { id: 'holyflame', name: '聖炎放射器', attr: 'holy', dmg: 6, pellets: 1, spread: 0.02, rate: 0.12, ammo: 40, snd: 'flame',
+    desc: '清めた炎を浴びせ続ける。霊のようなものに。', recipe: { oil: 2, salt: 2, tear: 1, heart: 1 } },
+});
 
 const ATTR_NAME = { phys: '物理', fire: '炎', elec: '電気', light: '光', holy: '聖' };
 
