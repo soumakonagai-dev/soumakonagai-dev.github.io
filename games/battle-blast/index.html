@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<style>html{touch-action:manipulation;-webkit-text-size-adjust:100%}input,select,textarea{font-size:max(16px,1em)}</style><script>(function(){var l=0,o={passive:false};document.addEventListener("touchstart",function(e){if(e.touches.length>1&&e.cancelable)e.preventDefault();},o);document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},o);["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();});});})();</script>
+<style>html{touch-action:manipulation;-webkit-text-size-adjust:100%}input,select,textarea{font-size:max(16px,1em)}</style><script>(function(){var l=0,o={passive:false,capture:true},m=document.querySelector('meta[name="viewport"]'),c=m&&m.content;document.addEventListener("touchstart",function(e){if(e.touches.length>1&&e.cancelable)e.preventDefault();},o);document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},o);["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();},o);});document.addEventListener("dblclick",function(e){e.preventDefault();},o);var v=window.visualViewport;if(v&&m)v.addEventListener("resize",function(){if(v.scale>1.01){m.content=c+",maximum-scale=1.0001";setTimeout(function(){m.content=c;},60);}});})();</script>
 <meta name="game-version" content="96f1db86">
 <title>バトルブラスト</title>
 <style>
