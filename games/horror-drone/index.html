@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>ドローン観測ホラー(試作)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="ph-title">
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="topL">
+    <div class="obs"><div id="rec"><i></i><span id="recTxt">REC 待機</span></div></div>
+    <div class="bar obs"><span>BAT</span><div><b id="batBar"></b></div></div>
+    <div class="bar obs"><span>機体</span><div><b id="durBar"></b></div></div>
+    <div class="bar hnt"><span>HP</span><div><b id="hpBar"></b></div></div>
+  </div>
+  <div id="topR" class="obs"><div id="modeTxt">通常</div><div id="distTxt">DIST --</div></div>
+  <div id="room"></div>
+  <div id="scanPanel" class="obs">
+    <div class="sp-title" id="spName">解析</div>
+    <div class="sp-row" id="sp-body"><span>体</span><div><b></b></div></div>
+    <div class="sp-row" id="sp-head"><span>頭</span><div><b></b></div></div>
+    <div class="sp-row" id="sp-weak"><span>弱</span><div><b></b></div></div>
+  </div>
+  <div id="homeBox" class="hnt"><span id="homeArrow">▲</span><span id="homeTxt"></span></div>
+  <div id="carry" class="hnt"></div>
+  <div id="reticle"></div>
+  <div id="hitm"></div>
+  <div id="msg"></div>
+  <div id="weapon" class="hnt"></div>
+  <div id="warn">!</div>
+  <div id="hint"></div>
+</div>
+<div id="hurt"></div>
+<div id="flash"></div>
+<div id="lockhint">画面をクリックして操作開始</div>
+
+<div id="touch">
+  <div id="stick"><i></i></div>
+  <div id="lookzone"></div>
+  <div class="tbtns obs">
+    <button id="tUp">▲</button><button id="tDown">▼</button>
+    <button id="tScan">解析</button><button id="tRec">REC</button>
+    <button id="tPlay">▶</button><button id="tNight">暗視</button><button id="tBack">帰還</button>
+  </div>
+  <div class="tbtns hnt">
+    <button id="tFire">撃つ</button><button id="tSwap">武器</button><button id="tHome">帰還</button>
+  </div>
+</div>
+
+<div id="screen-title" class="screen">
+  <div class="card">
+    <h1>観測者</h1>
+    <p class="sub">ドローンで見て、調べて、備えて、倒して、持ち帰る。</p>
+    <ul class="how">
+      <li><b>観測</b> ドローンで怪物を撮影・録画し、図鑑に弱点を記録する</li>
+      <li><b>出撃</b> 弱点に合う武器を持って、広い廃屋へ。戦利品を拾い、怪物を倒す</li>
+      <li><b>帰還</b> 帰還点まで生きて戻れば、戦利品が戦利品ボックスに入る。素材で新しい武器を開発できる</li>
+    </ul>
+    <div class="keys">
+      <div class="pc"><b>PC</b> W・S または 上下キー 前後に移動 / A・D または 左右キー 向き / Q・E 上下の向き(マウスでも向き) / Space・Shift 上昇・下降(ドローン) / F または左クリック 解析・射撃 / R 録画 / P 再生 / N 暗視 / X 帰還 / 1・2 武器</div>
+      <div class="sp"><b>スマホ</b> 左スティックで移動、右側をスワイプで向き、ボタンで操作</div>
+    </div>
+    <button id="btnStart" class="main">はじめる</button>
+    <p class="sub small">音が出ます。イヤホン推奨。</p>
+  </div>
+</div>
+
+<div id="screen-hub" class="screen hidden">
+  <div class="card wide">
+    <div class="hubhead"><h2>自宅</h2><span id="hubNote" class="sub"></span></div>
+    <div class="tabs">
+      <button id="tabDex" class="tab sel">図鑑</button>
+      <button id="tabBox" class="tab">戦利品・武器開発</button>
+      <button id="tabSortie" class="tab">出撃準備</button>
+    </div>
+    <div id="panelDex" class="panel"></div>
+    <div id="panelBox" class="panel hidden"></div>
+    <div id="panelSortie" class="panel hidden"></div>
+    <div class="row">
+      <button id="btnDrone">ドローンを飛ばす</button>
+      <button id="btnSortie" class="main" disabled>出撃する</button>
+    </div>
+    <button id="btnReset" class="tiny">データを消す</button>
+  </div>
+</div>
+
+<div id="screen-result" class="screen hidden">
+  <div class="card">
+    <h2 id="resTitle"></h2>
+    <div id="resText"></div>
+    <div class="row"><button id="btnRes" class="main">自宅へ</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="js/items.js?v=d67667c7"></script>
+<script src="js/know.js?v=d67667c7"></script>
+<script src="js/audio.js?v=d67667c7"></script>
+<script src="js/filter.js?v=d67667c7"></script>
+<script src="js/world.js?v=d67667c7"></script>
+<script src="js/monster-defs.js?v=d67667c7"></script>
+<script src="js/rig-procedural.js?v=d67667c7"></script>
+<script src="js/rig-creatures.js?v=d67667c7"></script>
+<script src="js/rig-gltf.js?v=d67667c7"></script>
+<script src="js/monster.js?v=d67667c7"></script>
+<script src="js/loot.js?v=d67667c7"></script>
+<script src="js/gore.js?v=d67667c7"></script>
+<script src="js/drone.js?v=d67667c7"></script>
+<script src="js/hunt.js?v=d67667c7"></script>
+<script src="js/hub.js?v=d67667c7"></script>
+<script src="js/main.js?v=d67667c7"></script>
+</body>
+</html>
