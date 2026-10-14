@@ -1,14 +1,14 @@
 // ドローン: 移動・バッテリー・耐久・録画(録画には、全部の怪物の姿勢を一緒に残す)
 const Drone = (() => {
   const START = { x: -15, y: 1.4, z: 1 };       // 自宅の部屋(帰還点の上)から飛ばす
-  const pos = new THREE.Vector3(START.x, START.y, START.z);
+  const pos = new THREE.Vector3(World.spawn.x, START.y, World.spawn.z);
   const vel = new THREE.Vector3();
   const s = { yaw: -Math.PI / 2, pitch: 0, battery: 1, hp: 1, night: false, rec: false, frames: [], clip: null, acc: 0, bob: 0 };
   const MAX_FRAMES = 200; // 0.1秒ごと × 20秒
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   function reset() {
-    pos.set(START.x, START.y, START.z); vel.set(0, 0, 0);
+    pos.set(World.spawn.x, START.y, World.spawn.z); vel.set(0, 0, 0);
     s.yaw = -Math.PI / 2; s.pitch = 0; s.battery = 1; s.hp = 1; s.night = false; s.rec = false; s.frames = []; s.acc = 0;
   }
   function forward(out) {

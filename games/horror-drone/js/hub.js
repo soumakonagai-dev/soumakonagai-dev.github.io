@@ -54,7 +54,7 @@ const Hub = (() => {
       }).join('');
       h += `<div class="recipe ${have ? 'have' : ''}"><div class="rh"><b>${esc(w.name)} <small class="sub">属性: ${ATTR_NAME[w.attr]}</small></b>` +
         (have ? '<span class="sub">開発済み</span>' : `<button data-craft="${id}" ${Know.canCraft(id) ? '' : 'disabled'}>開発する</button>`) +
-        `</div><div class="rd">${esc(w.desc)} 弾 ${w.ammo > 90 ? '∞' : w.ammo}</div>${have ? '' : `<div class="need">${need}</div>`}</div>`;
+        `</div><div class="rd">${esc(w.desc)} 装弾 ${w.ammo > 90 ? '∞' : w.ammo}(弾は無限)</div>${have ? '' : `<div class="need">${need}</div>`}</div>`;
     }
     $('panelBox').innerHTML = h;
     $('panelBox').querySelectorAll('[data-craft]').forEach(b => {
@@ -65,13 +65,15 @@ const Hub = (() => {
   // ---- 出撃準備 ----
   function renderSortie() {
     sel = sel.filter(id => Know.hasWeapon(id));
-    let h = '<div class="hint2">持っていく武器を2つ選ぶ。怪物ごとに弱点の属性が違う。図鑑で調べた弱点に合う武器を持っていこう。帰還点は自宅の部屋の緑の輪。</div>';
+    const ri = Ruins.info(Know.s.ruin.n), left = ri.total - Know.s.ruin.slain.length;
+    let h = `<div class="ruinbox"><b>${esc(ri.name)}</b><br>広さ ${ri.widthM}m × ${ri.depthM}m / 怪物 残り ${left} / ${ri.total}体。全部倒すと、次の廃墟へ進める。倒した怪物は、復活しない。</div>`;
+    h += '<div class="hint2">持っていく武器を2つ選ぶ。怪物ごとに弱点の属性が違う。図鑑で調べた弱点に合う武器を持っていこう。帰還点は自宅の部屋の緑の輪。</div>';
     const weakAttrs = {};
     MONSTER_ORDER.forEach(id => { if (Know.weakKnown(id)) (weakAttrs[MonsterDefs[id].weakAttr] = weakAttrs[MonsterDefs[id].weakAttr] || []).push(MonsterDefs[id].name); });
     for (const w of Object.values(Weapons)) {
       if (!Know.hasWeapon(w.id)) continue;
       const tag = weakAttrs[w.attr] ? `<span class="tag">★ ${esc(weakAttrs[w.attr].join('・'))}に効く</span>` : '';
-      h += `<button class="wbtn ${sel.includes(w.id) ? 'sel' : ''}" data-w="${w.id}">${tag}<b>${esc(w.name)}</b> <small>属性: ${ATTR_NAME[w.attr]} / 弾 ${w.ammo > 90 ? '∞' : w.ammo}</small><small>${esc(w.desc)}</small></button>`;
+      h += `<button class="wbtn ${sel.includes(w.id) ? 'sel' : ''}" data-w="${w.id}">${tag}<b>${esc(w.name)}</b> <small>属性: ${ATTR_NAME[w.attr]} / 装弾 ${w.ammo > 90 ? '∞' : w.ammo}(弾は無限)</small><small>${esc(w.desc)}</small></button>`;
     }
     h += `<div class="runs">生還 ${Know.s.runs.ok} 回 / やられた ${Know.s.runs.died} 回</div>`;
     $('panelSortie').innerHTML = h;
@@ -86,7 +88,7 @@ const Hub = (() => {
   function updateButtons() {
     const ok = sel.length === 2;
     $('btnSortie').disabled = !ok;
-    $('btnSortie').textContent = ok ? '出撃する' : '武器を2つ選んで出撃';
+    $('btnSortie').textContent = ok ? `第${Know.s.ruin.n + 1}廃墟へ出撃` : '武器を2つ選んで出撃';
   }
 
   function render() {

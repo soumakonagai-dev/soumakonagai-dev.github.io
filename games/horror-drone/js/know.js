@@ -1,7 +1,7 @@
 // 記録: 図鑑(怪物ごとの解析・発見・討伐数) / 戦利品ボックス / 開発済みの武器。localStorage に保存する
 const Know = (() => {
   const KEY = 'horrorDrone.v2';
-  const s = { dex: {}, box: {}, weapons: [], runs: { ok: 0, died: 0 } };
+  const s = { dex: {}, box: {}, weapons: [], runs: { ok: 0, died: 0 }, ruin: { n: 0, slain: [], cleared: false } };
   const startWeapons = () => Object.values(Weapons).filter(w => w.start).map(w => w.id);
 
   function load() {
@@ -12,11 +12,12 @@ const Know = (() => {
         Object.assign(s.dex, j.dex || {}); Object.assign(s.box, j.box || {});
         (j.weapons || []).forEach(w => { if (Weapons[w] && !s.weapons.includes(w)) s.weapons.push(w); });
         Object.assign(s.runs, j.runs || {});
+        if (j.ruin) { s.ruin.n = j.ruin.n | 0; s.ruin.slain = Array.isArray(j.ruin.slain) ? j.ruin.slain : []; s.ruin.cleared = !!j.ruin.cleared; }
       }
     } catch (e) { /* 保存できない環境では毎回リセットされるだけ */ }
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
-  function reset() { s.dex = {}; s.box = {}; s.weapons = startWeapons(); s.runs = { ok: 0, died: 0 }; save(); }
+  function reset() { s.dex = {}; s.box = {}; s.weapons = startWeapons(); s.runs = { ok: 0, died: 0 }; s.ruin = { n: 0, slain: [], cleared: false }; save(); }
 
   // 図鑑
   const ent = id => s.dex[id] || (s.dex[id] = { scan: { body: 0, head: 0, weak: 0 }, tell: false, seen: false, kills: 0 });
@@ -49,6 +50,11 @@ const Know = (() => {
     s.weapons.push(wid); save(); return true;
   }
 
+  // 廃墟の進み具合: 倒した怪物は、その廃墟では復活しない。全部倒したら、次の廃墟へ
+  const slay = uid => { if (!s.ruin.slain.includes(uid)) { s.ruin.slain.push(uid); save(); } };
+  const isSlain = uid => s.ruin.slain.includes(uid);
+  function advanceRuin() { s.ruin.n++; s.ruin.slain = []; s.ruin.cleared = false; save(); }
+
   load();
-  return { s, load, save, reset, ent, markSeen, addScan, learnTell, addKill, weakKnown, tellKnown, bank, count, hasWeapon, canCraft, craft };
+  return { slay, isSlain, advanceRuin, s, load, save, reset, ent, markSeen, addScan, learnTell, addKill, weakKnown, tellKnown, bank, count, hasWeapon, canCraft, craft };
 })();

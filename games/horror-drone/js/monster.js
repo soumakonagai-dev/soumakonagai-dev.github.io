@@ -1,16 +1,29 @@
 // 怪物の行動と当たり判定。見た目は「リグ」(rig-*.js)に任せ、性格は monster-defs.js の数値で決まる
 //
 // 状態: idle(待ち伏せ) → wander(うろつく) → chase(追う) → tell(予兆: 大きく振りかぶる) → act(攻撃) / lunge(飛びかかる) → recover(隙)
-//        frozen(影の子: 見られている間は固まる) / dead
+//        stunned(弱点を撃たれてスタン: 動けず、弱点がむき出し) / frozen(影の子: 見られている間は固まる) / dead
 // 攻撃(actKind): scream 叫ぶ / wail 泣き叫ぶ / slam 叩きつける / swing 振り下ろす / reach 口から腕を伸ばしてつかむ
 //                spit 酸を吐く / lash 髪を振り回す / birth 子を産む
-// 弱点は、exposeIn で決めた時にだけ開く(その間だけ狙える)
+// 体力は3つの区切り(segments)。区切りは、弱点を撃たないと壊せない。弱点に当たると怪物はスタンして、
+// むき出しになった弱点を撃ち抜くと区切りが壊れる。3つ壊すと倒れる
+
+// 敵を弱くする係数(速さ・攻撃の威力・攻撃の頻度・体力)
+const MONSTER_EASE = { dmg: 0.6, speed: 0.85, freq: 1.5, hp: 1.0, stun: 4.0 };
+
 function createMonster(def, spawn, scene, idx) {
   const ai = Object.assign({}, AI_DEFAULT, def.ai);
+  ai.wander *= MONSTER_EASE.speed; ai.chase *= MONSTER_EASE.speed;
+  if (ai.lunge) ai.lunge = Object.assign({}, ai.lunge, { speed: ai.lunge.speed * MONSTER_EASE.speed });
+  ai.actEvery = [ai.actEvery[0] * MONSTER_EASE.freq, ai.actEvery[1] * MONSTER_EASE.freq];
+  ['melee', 'slam', 'swing', 'reach', 'lash', 'spit'].forEach(k => { if (ai[k]) ai[k] = Object.assign({}, ai[k], { dmg: Math.max(1, Math.round(ai[k].dmg * MONSTER_EASE.dmg)) }); });
+  const segs = def.segments || 3, maxHp = Math.round(def.hp * MONSTER_EASE.hp);
+
   const wrapper = new THREE.Group(); scene.add(wrapper);   // 位置・向き・倒れる動きはここで掛ける(見た目に関係なく共通)
+  const stars = new THREE.Group(); stars.visible = false; scene.add(stars);   // スタン中に頭の上を回る星
+  for (let i = 0; i < 3; i++) { const s = new THREE.Mesh(new THREE.OctahedronGeometry(0.07), new THREE.MeshBasicMaterial({ color: 0xffe14a })); s.position.set(Math.cos(i * 2.09) * 0.4, 0, Math.sin(i * 2.09) * 0.4); stars.add(s); }
   let rig = null, revealGlow = false, showHit = false;
   const events = [], st = {};
-  const _fwd = new THREE.Vector3();
+  const _fwd = new THREE.Vector3(), _hp = new THREE.Vector3();
   const rand = (a, b) => a + Math.random() * (b - a);
   const alwaysExposed = ai.exposeIn === 'always';
 
@@ -39,11 +52,12 @@ function createMonster(def, spawn, scene, idx) {
   function reset(mode) {
     Gore.clearWounds(st);   // 前の傷あとを消す
     Object.assign(st, {
-      state: ai.special === 'ambush' ? 'idle' : 'wander', age: 0, x: spawn.x, z: spawn.z, yaw: rand(0, Math.PI * 2), hp: def.hp, wp: (Math.random() * 4) | 0,
+      state: ai.special === 'ambush' ? 'idle' : 'wander', age: 0, x: spawn.x, z: spawn.z, yaw: rand(0, Math.PI * 2), hp: maxHp, wp: (Math.random() * 4) | 0,
       walk: 0, tilt: 0, jaw: alwaysExposed ? 1 : 0, ext: 0, y: ai.hover || 0, atkCd: 0, dead: false, flash: 0, lx: 0, lz: 0, fall: 0,
       actTimer: rand(ai.actEvery[0], ai.actEvery[1]) * (mode === 'hunt' ? 0.8 : 0.6), loseT: 0, swung: false, lunged: false, spits: 0, hits: 0,
+      seg: segs, segHp: maxHp / segs, stun: 0, shield: 0,
     });
-    events.length = 0;
+    stars.visible = false; events.length = 0;
     const p = { x: st.x, y: 0, z: st.z }; World.resolve(p, def.radius, 0, 2); st.x = p.x; st.z = p.z;
     apply(snapshot(), false);
   }
@@ -80,15 +94,18 @@ function createMonster(def, spawn, scene, idx) {
   function startLunge(dx, dz) {
     const l = Math.hypot(dx, dz) || 1; st.lx = dx / l; st.lz = dz / l; st.lunged = false; setState('lunge'); events.push({ type: 'lunge' });
   }
+  function startStun() { st.stun = ai.stun || MONSTER_EASE.stun; setState('stunned'); events.push({ type: 'stun' }); }
+  function endStun() { st.stun = 0; if (st.state === 'stunned') { setState('recover'); st.shield = Math.max(st.shield, 0.5); st.actTimer = Math.min(st.actTimer, 2.5); } }   // 復帰したら、すぐ次の攻撃(=弱点が開く機会)
 
   // T: 追う相手 { x, z, fx, fz }(fx,fz は向いている方向)。mode: 'observe'(ドローン) | 'hunt'(徒歩)
   function update(dt, T, mode) {
-    st.age += dt; st.atkCd -= dt; st.flash = Math.max(0, st.flash - dt * 3);
+    st.age += dt; st.atkCd -= dt; st.flash = Math.max(0, st.flash - dt * 3); st.shield = Math.max(0, st.shield - dt);
     if (st.dead) {
       st.fall = Math.min(1, st.fall + dt * 1.2);
       st.jaw += (1 - st.jaw) * Math.min(1, dt * 3);
       st.ext += (0 - st.ext) * Math.min(1, dt * 2);
       if (st.y > 0) st.y = Math.max(0, st.y - dt * 6);       // 天井にいた怪物は落ちてくる
+      stars.visible = false;
       apply(snapshot(), false); return;
     }
     const hunt = mode === 'hunt';
@@ -131,6 +148,12 @@ function createMonster(def, spawn, scene, idx) {
         if (st.actTimer <= 0 && dist < ai.actRange && depth === 0 && (ai.actKind || ai.lunge) && (!ranged || World.lineOfSight(st.x, st.z, T.x, T.z))) startTell();
         if (dist > ai.giveUp || depth > 1) { st.loseT += dt; if (st.loseT > 3) { st.loseT = 0; setState('wander'); } } else st.loseT = 0;
         if (!hunt && dist > 8) setState('wander');
+        break;
+      }
+      case 'stunned': {                    // 弱点を撃たれて、動けない。むき出しの弱点を撃ち抜かれる
+        tiltT = 0.3; st.stun -= dt;
+        st.yaw += Math.sin(st.age * 5) * dt * 0.6;                     // ふらふらする
+        if (st.stun <= 0) endStun();
         break;
       }
       case 'frozen': {
@@ -187,7 +210,7 @@ function createMonster(def, spawn, scene, idx) {
         st.walk += dt * 14;
         st.yaw = Math.atan2(st.lx, st.lz);
         const p = { x: st.x, y: 0, z: st.z }; World.resolve(p, def.radius, 0, 2.0); st.x = p.x; st.z = p.z;
-        const mel = ai.melee || { range: 1.5, dmg: 20, cd: 1.4 };
+        const mel = ai.melee || { range: 1.5, dmg: Math.round(20 * MONSTER_EASE.dmg), cd: 1.4 };
         if (dist < mel.range + 0.1 && !st.lunged && st.atkCd <= 0) { st.lunged = true; st.atkCd = mel.cd; events.push({ type: 'attack', dmg: mel.dmg, range: mel.range + 0.1 }); }
         if (st.age > ai.lunge.dur) setState('recover');
         break;
@@ -200,22 +223,24 @@ function createMonster(def, spawn, scene, idx) {
         break;
       }
     }
-    const exposed = alwaysExposed || (ai.exposeIn === 'act' && st.state === 'act') || (ai.exposeIn === 'recover' && st.state === 'recover');
+    const stunned = st.state === 'stunned';
+    const exposed = alwaysExposed || stunned || (ai.exposeIn === 'act' && st.state === 'act') || (ai.exposeIn === 'recover' && st.state === 'recover');
     st.jaw += ((exposed ? 1 : 0) - st.jaw) * Math.min(1, dt * 9);
     st.tilt += (tiltT - st.tilt) * Math.min(1, dt * 5);
-    // ext: 腕・髪が伸びる / 腹がふくらむ / 腹が開く(攻撃の前ぶれと攻撃中)
-    const extT = st.state === 'tell' ? ai.tellExt * Math.min(1, st.age / ai.tell) : st.state === 'act' ? ai.actExt : 0;
+    // ext: 腕・髪が伸びる / 腹がふくらむ / 腹が開く(攻撃の前ぶれと攻撃中。スタン中は、弱点が見える形のまま)
+    const extT = st.state === 'tell' ? ai.tellExt * Math.min(1, st.age / ai.tell) : (st.state === 'act' || (stunned && ai.exposeIn === 'act')) ? ai.actExt : 0;
     st.ext += (extT - st.ext) * Math.min(1, dt * (extT > st.ext ? 9 : 3));
     st.y = ai.hover ? ai.hover + Math.sin(performance.now() / 650 + idx) * 0.08 : 0;
     apply(snapshot(), false);
+    if (stunned) { headPos(_hp); stars.position.set(_hp.x, _hp.y + 0.42, _hp.z); stars.rotation.y += dt * 5; stars.visible = true; } else stars.visible = false;
   }
 
-  // 姿勢を見た目に反映する。録画の再生でも同じ関数で姿勢を再現する
+  // 姿勢を見た目に反映する。録画の再生でも同じ関数で姿勢を再現する(スタンは「隙」の姿で見せる)
   function apply(p, reveal) {
     wrapper.position.set(p.x, p.y || 0, p.z);
     wrapper.rotation.y = p.yaw;
     wrapper.rotation.x = rig && rig.handlesDeath ? 0 : -(p.fall || 0) * Math.PI / 2;
-    if (rig) rig.apply(p, p.jaw > 0.15 && (reveal || revealGlow), st.flash);
+    if (rig) rig.apply(p.state === 'stunned' ? Object.assign({}, p, { state: 'recover' }) : p, p.jaw > 0.15 && (reveal || revealGlow), st.flash);
   }
   // 毎フレーム呼ぶ。見た目のアニメ再生と当たり判定の追従(録画の再生中も呼ぶ)
   function animate(dt) { if (rig) rig.update(dt); }
@@ -231,7 +256,7 @@ function createMonster(def, spawn, scene, idx) {
     if (!hits.length) return null;
     const w = hits.find(h => h.object === rig.hit.weak);
     if (w) {
-      let ok = def.weakFacing === 'any';
+      let ok = def.weakFacing === 'any' || st.state === 'stunned';       // スタン中は、どこから撃っても弱点に当たる
       if (!ok) { rig.weakForward(_fwd); ok = ray.ray.direction.dot(_fwd) < -0.15; }
       if (ok) return { part: 'weak', dist: w.distance };
     }
@@ -241,14 +266,29 @@ function createMonster(def, spawn, scene, idx) {
   }
 
   // ダメージ: 弱点 × 属性が合う ×3 / 弱点 ×1 / それ以外 属性が合う ×0.25 / それ以外 ×0.1
+  // 弱点に当たると、スタンする。体力の区切りは、弱点を撃たないと壊せない(区切りが壊れるとスタンが解け、少しの間、無敵)
+  const lastHit = { weak: false, match: false, broke: false };
   function hurt(part, attr, base) {
-    if (st.dead) return 0;
+    lastHit.weak = lastHit.broke = false;
+    if (st.dead || st.shield > 0) return 0;
     const weakNow = part === 'weak' || (part === 'head' && def.weakPart === 'head' && st.jaw > 0.55);
     const match = attr === def.weakAttr;
     const dmg = base * (weakNow ? (match ? 3 : 1) : (match ? 0.25 : 0.1));
-    st.hp -= dmg; st.flash = 1;
-    if (st.hp <= 0) { st.hp = 0; st.dead = true; setState('dead'); events.push({ type: 'dead' }); }
-    return dmg;
+    lastHit.weak = weakNow; lastHit.match = match;
+    st.flash = 1;
+    if (weakNow && st.state !== 'stunned') startStun();
+    const floor = (st.seg - 1) * st.segHp;
+    let hp = st.hp - dmg;
+    if (!weakNow) hp = Math.max(hp, floor + 0.01);
+    const broke = weakNow && hp <= floor;
+    if (broke) hp = floor;
+    const dealt = st.hp - hp; st.hp = hp;
+    if (broke) {
+      lastHit.broke = true; st.seg--;
+      if (st.seg <= 0) { st.hp = 0; st.dead = true; stars.visible = false; setState('dead'); events.push({ type: 'dead' }); }
+      else { st.shield = 0.9; st.stun = Math.min(st.stun, 0.9); events.push({ type: 'segbreak', seg: st.seg }); }   // 区切りが壊れても、少しの間スタンのまま(その間は無敵)
+    }
+    return dealt;
   }
 
   // 顔の位置(ジャンプスケアでカメラを寄せる先)
@@ -258,7 +298,7 @@ function createMonster(def, spawn, scene, idx) {
     st.yaw = Math.atan2(tx - st.x, tz - st.z); st.state = 'act'; st.tilt = 0.9; st.jaw = 1; st.ext = Math.max(st.ext, 0.8);
     apply(snapshot(), true); animate(dt);
   }
-  function destroy() { Gore.clearWounds(st); scene.remove(wrapper); }
+  function destroy() { Gore.clearWounds(st); scene.remove(wrapper); scene.remove(stars); }
 
   idx = idx || 0;
   setRig(makeRig());
@@ -270,7 +310,7 @@ function createMonster(def, spawn, scene, idx) {
   reset('observe');
 
   return {
-    def, ai, st, wrapper, idx,
+    def, ai, st, wrapper, idx, uid: spawn.uid || def.id, segs, lastHit,
     reset, update, animate, apply, snapshot, hitTest, hurt, setHitVisible, headPos, scarePose, destroy,
     get rig() { return rig; },
     popEvents() { const e = events.slice(); events.length = 0; return e; },
@@ -284,19 +324,22 @@ function createMonster(def, spawn, scene, idx) {
 const Monsters = (() => {
   const list = [];
   let hitVisible = false, sceneRef = null;
-  function build(scene, only) {
-    sceneRef = scene;
-    const ids = MONSTER_ORDER.concat(Object.keys(MonsterDefs).filter(k => !MONSTER_ORDER.includes(k)));
-    for (const id of ids) {
-      const def = MonsterDefs[id];
-      if (!def || (only ? id !== only : def.dev)) continue;
-      for (const sp of def.spawns) list.push(createMonster(def, sp, scene, list.length));
+  function init(scene) { sceneRef = scene; }
+  function clearAll() { list.forEach(m => m.destroy()); list.length = 0; }
+  // 廃墟の名簿から怪物を出す。この廃墟ですでに倒した怪物は出さない(復活しない)。only: 試しにその怪物だけ出す
+  function populate(plan, only) {
+    clearAll();
+    const sp = only ? [{ uid: only + '#0', def: only, x: World.spawn.x + 10, z: World.spawn.z }] : plan.monsters;
+    for (const s of sp) {
+      if (!only && Know.isSlain(s.uid)) continue;
+      const def = MonsterDefs[s.def]; if (!def) continue;
+      list.push(createMonster(def, s, sceneRef, list.length));
     }
   }
   // 戦いの途中で、新しい怪物を出す(子を産む・倒れると子が飛び出す)
   function spawn(defId, x, z, mode) {
     const def = MonsterDefs[defId]; if (!def) return null;
-    const m = createMonster(def, { x, z }, sceneRef, list.length + 100);
+    const m = createMonster(def, { x, z, uid: defId + '*' }, sceneRef, list.length + 100);
     m.dynamic = true; m.reset(mode); m.st.state = 'chase'; m.st.age = 0;
     list.push(m); return m;
   }
@@ -314,11 +357,13 @@ const Monsters = (() => {
     return { m: best, dist: bd };
   }
   function reset(mode) {
-    for (let i = list.length - 1; i >= 0; i--) if (list[i].dynamic) { list[i].destroy(); list.splice(i, 1); }   // 途中で出た怪物は消す
+    for (let i = list.length - 1; i >= 0; i--) {                    // 途中で出た怪物と、倒した怪物は消す(倒した怪物は復活しない)
+      if (list[i].dynamic || Know.isSlain(list[i].uid)) { list[i].destroy(); list.splice(i, 1); }
+    }
     list.forEach(m => m.reset(mode));
   }
   return {
-    list, build, spawn, hitTest, nearest, reset,
+    list, init, populate, spawn, hitTest, nearest, reset,
     update: (dt, T, mode) => list.slice().forEach(m => m.update(dt, T, mode)),
     animate: dt => list.forEach(m => m.animate(dt)),
     snapshots: () => list.map(m => m.snapshot()),
@@ -328,6 +373,7 @@ const Monsters = (() => {
     setHitVisible(on) { hitVisible = on; list.forEach(m => m.setHitVisible(on)); },
     get hitVisible() { return hitVisible; },
     refreshReveal() { list.forEach(m => m.setReveal(Know.weakKnown(m.def.id))); },
+    remaining: () => list.filter(m => !m.dynamic && !m.st.dead).length,
     byId: id => list.filter(m => m.def.id === id),
   };
 })();

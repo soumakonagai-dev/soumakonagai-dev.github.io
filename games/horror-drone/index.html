@@ -20,6 +20,8 @@
   </div>
   <div id="topR" class="obs"><div id="modeTxt">通常</div><div id="distTxt">DIST --</div></div>
   <div id="room"></div>
+  <div id="remain"></div>
+  <div id="target"></div>
   <div id="scanPanel" class="obs">
     <div class="sp-title" id="spName">解析</div>
     <div class="sp-row" id="sp-body"><span>体</span><div><b></b></div></div>
@@ -48,9 +50,11 @@
     <button id="tPlay">▶</button><button id="tNight">暗視</button><button id="tBack">帰還</button>
   </div>
   <div class="tbtns hnt">
-    <button id="tFire">撃つ</button><button id="tSwap">武器</button><button id="tHome">帰還</button>
+    <button id="tFire">撃つ</button><button id="tSwap">武器</button><button id="tHome">帰還</button><button id="tReload">リロード</button>
   </div>
 </div>
+
+<div id="loading" class="screen hidden"><div class="card"><div id="loadTxt"></div><p class="sub small">廃墟を作っています…</p></div></div>
 
 <div id="screen-title" class="screen">
   <div class="card">
@@ -62,7 +66,7 @@
       <li><b>帰還</b> 帰還点まで生きて戻れば、戦利品が戦利品ボックスに入る。素材で新しい武器を開発できる</li>
     </ul>
     <div class="keys">
-      <div class="pc"><b>PC</b> W・S または 上下キー 前後に移動 / A・D または 左右キー 向き / Q・E 上下の向き(マウスでも向き) / Space・Shift 上昇・下降(ドローン) / F または左クリック 解析・射撃 / R 録画 / P 再生 / N 暗視 / X 帰還 / 1・2 武器</div>
+      <div class="pc"><b>PC</b> W・S または 上下キー 前後に移動 / A・D または 左右キー 体の向き(視線はマウスの位置) / Space・Shift 上昇・下降(ドローン) / F または左クリック 解析・射撃 / R 録画(出撃中はリロード) / P 再生 / N 暗視 / X 帰還 / 1・2 武器</div>
       <div class="sp"><b>スマホ</b> 左スティックで移動、右側をスワイプで向き、ボタンで操作</div>
     </div>
     <button id="btnStart" class="main">はじめる</button>
@@ -99,23 +103,24 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="js/items.js?v=af0ca3fc"></script>
-<script src="js/know.js?v=af0ca3fc"></script>
-<script src="js/audio.js?v=af0ca3fc"></script>
-<script src="js/filter.js?v=af0ca3fc"></script>
-<script src="js/world.js?v=af0ca3fc"></script>
-<script src="js/monster-defs.js?v=af0ca3fc"></script>
-<script src="js/rig-procedural.js?v=af0ca3fc"></script>
-<script src="js/rig-creatures.js?v=af0ca3fc"></script>
-<script src="js/rig-creatures-b.js?v=af0ca3fc"></script>
-<script src="js/rig-gltf.js?v=af0ca3fc"></script>
-<script src="js/monster.js?v=af0ca3fc"></script>
-<script src="js/loot.js?v=af0ca3fc"></script>
-<script src="js/gore.js?v=af0ca3fc"></script>
-<script src="js/proj.js?v=af0ca3fc"></script>
-<script src="js/drone.js?v=af0ca3fc"></script>
-<script src="js/hunt.js?v=af0ca3fc"></script>
-<script src="js/hub.js?v=af0ca3fc"></script>
-<script src="js/main.js?v=af0ca3fc"></script>
+<script src="js/items.js?v=8185bba9"></script>
+<script src="js/know.js?v=8185bba9"></script>
+<script src="js/audio.js?v=8185bba9"></script>
+<script src="js/filter.js?v=8185bba9"></script>
+<script src="js/ruin.js?v=8185bba9"></script>
+<script src="js/world.js?v=8185bba9"></script>
+<script src="js/monster-defs.js?v=8185bba9"></script>
+<script src="js/rig-procedural.js?v=8185bba9"></script>
+<script src="js/rig-creatures.js?v=8185bba9"></script>
+<script src="js/rig-creatures-b.js?v=8185bba9"></script>
+<script src="js/rig-gltf.js?v=8185bba9"></script>
+<script src="js/monster.js?v=8185bba9"></script>
+<script src="js/loot.js?v=8185bba9"></script>
+<script src="js/gore.js?v=8185bba9"></script>
+<script src="js/proj.js?v=8185bba9"></script>
+<script src="js/drone.js?v=8185bba9"></script>
+<script src="js/hunt.js?v=8185bba9"></script>
+<script src="js/hub.js?v=8185bba9"></script>
+<script src="js/main.js?v=8185bba9"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@ const Items = {
 // 戦利品の出やすさ(マップに落ちているもの)
 const LootTable = [
   { item: 'scrap', w: 5 }, { item: 'powder', w: 2.5 }, { item: 'oil', w: 2.5 }, { item: 'salt', w: 2.5 },
-  { item: 'battery', w: 3 }, { item: 'bottle', w: 2 }, { item: 'bandage', w: 2.5 }, { item: 'ammo', w: 3 },
+  { item: 'battery', w: 3 }, { item: 'bottle', w: 2 }, { item: 'bandage', w: 3 },
 ];
 function rollLoot() {
   const total = LootTable.reduce((s, e) => s + e.w, 0);
@@ -71,6 +71,10 @@ Object.assign(Weapons, {
   holyflame: { id: 'holyflame', name: '聖炎放射器', attr: 'holy', dmg: 6, pellets: 1, spread: 0.02, rate: 0.12, ammo: 40, snd: 'flame',
     desc: '清めた炎を浴びせ続ける。霊のようなものに。', recipe: { oil: 2, salt: 2, tear: 1, heart: 1 } },
 });
+
+// リロードの時間(秒)。弾は無限で、弾倉(ammo の数)を撃ち切るとリロードして満タンになる。ライトは弾切れしない
+const RELOAD = { handgun: 1.3, shotgun: 2.2, flamer: 2.4, taser: 1.7, saltgun: 1.9, heavy: 1.7, rifle: 2.3, arcgun: 1.9, holyflame: 2.5 };
+for (const k in RELOAD) Weapons[k].reload = RELOAD[k];
 
 const ATTR_NAME = { phys: '物理', fire: '炎', elec: '電気', light: '光', holy: '聖' };
 

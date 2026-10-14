@@ -27,7 +27,7 @@ const Proj = (() => {
       q.life -= dt;
       if (q.life <= 0) { scene.remove(q.m); pools.splice(i, 1); continue; }
       q.m.material.opacity = 0.55 * Math.min(1, q.life / 1.5);
-      if (T.y < 1.5 && Math.hypot(q.x - T.x, q.z - T.z) < q.r) hit({ kind: 'acid', dmg: 6 * dt, owner: q.owner });
+      if (T.y < 1.5 && Math.hypot(q.x - T.x, q.z - T.z) < q.r) hit({ kind: 'acid', dmg: 4 * dt, owner: q.owner });
     }
   }
   function land(x, z) {

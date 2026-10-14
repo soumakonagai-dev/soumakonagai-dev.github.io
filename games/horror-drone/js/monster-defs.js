@@ -1,7 +1,8 @@
 // 怪物の設定。1体ぶんが1つのかたまり。ここを足すと怪物が増える(見た目は rig に名前を書く)
 //
 //   rig         見た目の種類(rig-procedural / rig-creatures)。3Dモデルを使うときは model を書く(下の sample を見本に)
-//   spawns      出現する場所 [{x, z}](世界の座標。部屋の位置は world.js の間取りを参照)
+//   (出現する場所は、廃墟ごとに ruin.js が決める。?only=<id> で試すときだけ、入口の近くに出る)
+//   hp          体力。3つの区切りに分かれていて、区切りは弱点を撃たないと壊せない(segments で数を変えられる)
 //   weakPart    弱点の部位: 'weak'(専用の弱点) か 'head'(頭)。weakAttr がその属性。weakFacing: 'normal'=弱点の向く側から狙う / 'any'
 //   ai          行動の数値(下の AI_DEFAULT を参照)
 //   scare       やられたときのジャンプスケアで、顔にどこまで寄るか(m)
@@ -23,7 +24,7 @@ const AI_DEFAULT = {
 
 const MonsterDefs = {
   nosless: {
-    id: 'nosless', name: '鼻なし', kana: 'はななし', hp: 100, radius: 0.4, rig: 'nosless',
+    id: 'nosless', name: '鼻なし', kana: 'はななし', hp: 240, radius: 0.4, rig: 'nosless',
     spawns: [{ x: 3, z: 2.5 }],
     weakPart: 'weak', weakAttr: 'phys', weakFacing: 'normal',
     ai: { wander: 0.8, chase: 2.1, sense: 9, actEvery: [4, 7], actRange: 14, tell: 1.6, act: 1.7, recover: 1.2, actKind: 'scream',
@@ -40,7 +41,7 @@ const MonsterDefs = {
   },
 
   weeper: {
-    id: 'weeper', name: '泣き女', kana: 'なきおんな', hp: 70, radius: 0.35, rig: 'weeper',
+    id: 'weeper', name: '泣き女', kana: 'なきおんな', hp: 190, radius: 0.35, rig: 'weeper',
     spawns: [{ x: -11, z: -11 }],
     weakPart: 'weak', weakAttr: 'holy', weakFacing: 'normal',
     ai: { wander: 0.7, chase: 1.1, turn: 1.6, sense: 11, giveUp: 18, actEvery: [4, 6], actRange: 10, tell: 1.5, act: 1.6, recover: 1.0,
@@ -57,7 +58,7 @@ const MonsterDefs = {
   },
 
   shadow: {
-    id: 'shadow', name: '影の子', kana: 'かげのこ', hp: 40, radius: 0.3, rig: 'shadow',
+    id: 'shadow', name: '影の子', kana: 'かげのこ', hp: 60, radius: 0.3, rig: 'shadow',
     spawns: [{ x: 7, z: -11 }, { x: 13, z: -9 }],
     weakPart: 'head', weakAttr: 'light', weakFacing: 'any',
     ai: { wander: 1.0, chase: 2.3, turn: 6, sense: 11, giveUp: 20, special: 'freeze', melee: { range: 1.2, dmg: 15, cd: 1.2 }, exposeIn: 'always' },
@@ -74,7 +75,7 @@ const MonsterDefs = {
 
   // 人の体を逆さに反らせ、人の腕を脚にして這う。腹が開くと、心臓がのぞく
   spider: {
-    id: 'spider', name: '這い蜘蛛', kana: 'はいぐも', hp: 60, radius: 0.5, rig: 'spider',
+    id: 'spider', name: '這い蜘蛛', kana: 'はいぐも', hp: 200, radius: 0.5, rig: 'spider',
     spawns: [{ x: -9, z: 10 }],
     weakPart: 'weak', weakAttr: 'elec', weakFacing: 'any',
     ai: { wander: 1.2, chase: 3.4, turn: 5, sense: 9, giveUp: 14, actEvery: [2.5, 4], actRange: 9, tell: 0.95, recover: 1.8,
@@ -91,7 +92,7 @@ const MonsterDefs = {
   },
 
   mimic: {
-    id: 'mimic', name: 'ミミック', kana: 'みみっく', hp: 80, radius: 0.45, rig: 'mimic',
+    id: 'mimic', name: 'ミミック', kana: 'みみっく', hp: 200, radius: 0.45, rig: 'mimic',
     spawns: [{ x: -19, z: 14.2 }, { x: -6, z: 4.5 }],
     weakPart: 'weak', weakAttr: 'fire', weakFacing: 'any',
     ai: { wander: 0, chase: 2.4, turn: 5, sense: 8, giveUp: 14, special: 'ambush', ambushRange: 2.6, actEvery: [2, 3.5], actRange: 5,
@@ -108,7 +109,7 @@ const MonsterDefs = {
   },
 
   hand: {
-    id: 'hand', name: '水底の手', kana: 'みなそこのて', hp: 90, radius: 0.5, rig: 'hand',
+    id: 'hand', name: '水底の手', kana: 'みなそこのて', hp: 220, radius: 0.5, rig: 'hand',
     spawns: [{ x: 17, z: 8 }],
     weakPart: 'weak', weakAttr: 'elec', weakFacing: 'normal',
     ai: { wander: 0, chase: 0, turn: 1.6, sense: 5.5, giveUp: 7, anchored: true, actEvery: [2, 3], actRange: 4.6, tell: 1.3, act: 0.5, recover: 2.2,
@@ -125,7 +126,7 @@ const MonsterDefs = {
   },
 
   guard: {
-    id: 'guard', name: '首なし番人', kana: 'くびなしのばんにん', hp: 160, radius: 0.55, rig: 'guard',
+    id: 'guard', name: '首なし番人', kana: 'くびなしのばんにん', hp: 330, radius: 0.55, rig: 'guard',
     spawns: [{ x: 4, z: 12 }],
     weakPart: 'weak', weakAttr: 'phys', weakFacing: 'normal',
     ai: { wander: 0.6, chase: 1.5, turn: 1.0, sense: 10, giveUp: 18, actEvery: [2, 3.5], actRange: 3.2, tell: 1.2, act: 0.45, recover: 1.5,
@@ -143,7 +144,7 @@ const MonsterDefs = {
 
   // 口が裂けて、口の中から長い腕が伸びる。つかまれると、口の前まで引きずられる
   tehaki: {
-    id: 'tehaki', name: '手吐き', kana: 'てはき', hp: 90, radius: 0.4, rig: 'tehaki',
+    id: 'tehaki', name: '手吐き', kana: 'てはき', hp: 220, radius: 0.4, rig: 'tehaki',
     spawns: [{ x: 9, z: -3 }],
     weakPart: 'weak', weakAttr: 'fire', weakFacing: 'normal',
     ai: { wander: 0.7, chase: 1.6, turn: 2.5, sense: 12, giveUp: 18, keep: [3.5, 7], actEvery: [3, 5], actRange: 8, tell: 1.4, act: 1.6, recover: 1.5,
@@ -161,7 +162,7 @@ const MonsterDefs = {
 
   // 腹がふくれて、酸を吐く。吐いた所に、酸だまりが残る
   hakibukuro: {
-    id: 'hakibukuro', name: '吐き袋', kana: 'はきぶくろ', hp: 80, radius: 0.5, rig: 'hakibukuro',
+    id: 'hakibukuro', name: '吐き袋', kana: 'はきぶくろ', hp: 200, radius: 0.5, rig: 'hakibukuro',
     spawns: [{ x: 20, z: -9 }],
     weakPart: 'weak', weakAttr: 'elec', weakFacing: 'normal',
     ai: { wander: 0.6, chase: 1.4, turn: 2, sense: 12, giveUp: 18, keep: [6, 11], actEvery: [3, 5], actRange: 12, tell: 1.5, act: 1.2, recover: 1.7,
@@ -179,7 +180,7 @@ const MonsterDefs = {
 
   // 天井に逆さにぶら下がり、髪を振り回す
   kamikui: {
-    id: 'kamikui', name: '髪食い', kana: 'かみくい', hp: 70, radius: 0.35, rig: 'kamikui',
+    id: 'kamikui', name: '髪食い', kana: 'かみくい', hp: 190, radius: 0.35, rig: 'kamikui',
     spawns: [{ x: 10, z: 7 }],
     weakPart: 'weak', weakAttr: 'holy', weakFacing: 'normal',
     ai: { wander: 0.5, chase: 1.3, turn: 2, sense: 11, giveUp: 18, hover: 3.0, actEvery: [3, 5], actRange: 4.5, tell: 1.4, act: 1.6, recover: 1.8,
@@ -197,7 +198,7 @@ const MonsterDefs = {
 
   // 腹が縦に裂けていて、中から子が生まれる。倒すと、腹から子が飛び出す
   harawari: {
-    id: 'harawari', name: '腹割れ', kana: 'はらわれ', hp: 130, radius: 0.55, rig: 'harawari',
+    id: 'harawari', name: '腹割れ', kana: 'はらわれ', hp: 280, radius: 0.55, rig: 'harawari',
     spawns: [{ x: -3, z: -6 }],
     weakPart: 'weak', weakAttr: 'phys', weakFacing: 'normal',
     ai: { wander: 0.7, chase: 1.2, turn: 2, sense: 10, giveUp: 18, actEvery: [6, 9], actRange: 9, tell: 1.3, act: 1.7, recover: 1.4,
@@ -216,7 +217,7 @@ const MonsterDefs = {
 
   // 腹割れが産む子。どこにも出現しない(産まれたときだけ出る)
   larva: {
-    id: 'larva', name: '子', kana: 'こ', hp: 14, radius: 0.22, rig: 'larva', dev: true,
+    id: 'larva', name: '子', kana: 'こ', hp: 14, segments: 1, radius: 0.22, rig: 'larva', dev: true,
     spawns: [],
     weakPart: 'head', weakAttr: 'phys', weakFacing: 'any',
     ai: { wander: 1.4, chase: 3.4, turn: 7, sense: 14, giveUp: 24, melee: { range: 1.0, dmg: 7, cd: 0.9 }, exposeIn: 'always' },
