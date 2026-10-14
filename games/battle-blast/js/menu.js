@@ -4,7 +4,7 @@ BB.menu = (function () {
   const D = BB.data, E = BB.equip, G = D.gacha, A = BB.art;
   const RC = { N: '#9aa3b8', R: '#4aa3ff', SR: '#b36bff', SSR: '#ffc53d', UR: '#ff5ac8' };
   const SLOT_ORDER = ['weapon', 'armor', 'acc'];
-  const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky', mush: 'mush', sea: 'sea', desert: 'desert', factory: 'factory', void: 'void', crystal: 'crystal', storm: 'storm', candy: 'candy', space: 'space', throne: 'throne', carnival: 'carnival', pirate: 'pirate', sakura: 'sakura', jurassic: 'jurassic', chaos: 'chaos' };
+  const THEME_ART = { forest: 'slime', meadow: 'dragon', grave: 'golem', castle: 'demon', ice: 'ice', volcano: 'volcano', sky: 'sky', mush: 'mush', sea: 'sea', desert: 'desert', factory: 'factory', void: 'void', crystal: 'crystal', storm: 'storm', candy: 'candy', space: 'space', throne: 'throne', carnival: 'carnival', pirate: 'pirate', sakura: 'sakura', jurassic: 'jurassic', chaos: 'chaos', academy: 'academy', treasure: 'treasure', haunted: 'haunted', heaven: 'heaven' };
   const LIST_TOP = 58, LIST_BOTTOM = 572, CARD_PITCH = 112;   // ステージ一覧の表示範囲（これをはみ出す分はスクロール）
   let stageScroll = 0, equipTab = 'weapon', pdrag = null, buddyScroll = 0, equipScroll = 0, fuseScroll = 0;
 

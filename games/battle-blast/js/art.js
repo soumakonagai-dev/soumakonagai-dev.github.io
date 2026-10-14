@@ -2062,6 +2062,263 @@
     c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(-34, -60); c.lineTo(-34, -90); c.lineTo(-20, -74); c.lineTo(-8, -102); c.lineTo(0, -80); c.lineTo(8, -102); c.lineTo(20, -74); c.lineTo(34, -90); c.lineTo(34, -60); c.quadraticCurveTo(0, -52, -34, -60); c.fill(); c.strokeStyle = '#7a5a10'; c.lineWidth = 3; c.stroke();
     [[-8, -100], [8, -100], [-34, -88], [34, -88]].forEach(([x, y]) => { c.fillStyle = '#ff6ad8'; ellipse(c, x, y, 3.5, 3.5); c.fill(); });
   };
+  // ================= ステージ 23〜26 の敵 =================
+  // ---- ステージ 23: 魔法学園 ----
+  ART.witch = function (c, t, m) {   // まじょ見習い
+    const ang = m === 'angry', b = Math.abs(Math.sin(t * 3)) * 4, sw = Math.sin(t * 2) * 4;
+    shadow(c, 94, 48);
+    c.save(); c.translate(0, -b);
+    // ほうき
+    c.save(); c.translate(0, 70); c.rotate(-.18 + sw * .01);
+    c.fillStyle = '#8a5a2a'; c.fillRect(-84, -4, 130, 8); c.strokeStyle = '#4a2a10'; c.lineWidth = 2; c.strokeRect(-84, -4, 130, 8);
+    c.fillStyle = '#e8c060'; c.beginPath(); c.moveTo(46, -10); c.lineTo(92, -18); c.lineTo(100, 0); c.lineTo(92, 18); c.lineTo(46, 10); c.closePath(); c.fill(); c.strokeStyle = '#7a5a10'; c.lineWidth = 2; c.stroke();
+    c.restore();
+    [-1, 1].forEach(sd => { c.fillStyle = '#2a1a3a'; ellipse(c, sd * 14, 78, 11, 7); c.fill(); });
+    c.fillStyle = grad(c, 0, 0, 0, 76, [[0, '#7a4ae8'], [1, '#3a1a8a']]); c.beginPath(); c.moveTo(-26, 8); c.lineTo(26, 8); c.lineTo(46, 74); c.quadraticCurveTo(0, 84, -46, 74); c.closePath(); c.fill(); c.strokeStyle = '#1a0a4a'; c.lineWidth = 3.5; c.stroke();
+    c.fillStyle = '#ffd24a'; [[-14, 40], [10, 56], [20, 30], [-24, 62]].forEach(([x, y]) => { ellipse(c, x, y, 3, 3); c.fill(); });
+    [-1, 1].forEach(sd => { const lf = ang && sd > 0 ? -26 : Math.sin(t * 3 + sd) * 4; c.strokeStyle = '#7a4ae8'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 22, 20); c.lineTo(sd * 48, 38 + lf); c.stroke(); c.fillStyle = '#ffe4c8'; ellipse(c, sd * 51, 41 + lf, 6, 6); c.fill(); });
+    // つえの光
+    const wl = ang ? -26 : Math.sin(t * 3 + 1) * 4; c.strokeStyle = '#8a5a2a'; c.lineWidth = 4; c.beginPath(); c.moveTo(56, 56 + wl); c.lineTo(66, -8 + wl); c.stroke();
+    c.save(); c.shadowColor = '#ff7ad8'; c.shadowBlur = 14; c.fillStyle = '#ff9ae8'; ellipse(c, 67, -14 + wl, 9, 9); c.fill(); c.restore();
+    // かお
+    c.fillStyle = '#ffe4c8'; ellipse(c, 0, -22, 26, 28); c.fill(); c.strokeStyle = '#4a2a1a'; c.lineWidth = 3.2; c.stroke();
+    c.fillStyle = '#e8483a'; c.beginPath(); c.moveTo(-26, -26); c.quadraticCurveTo(0, -52, 26, -26); c.quadraticCurveTo(10, -40, -26, -26); c.fill();
+    [-1, 1].forEach(sd => { c.fillStyle = '#e8483a'; ellipse(c, sd * 26, -8, 8, 22); c.fill(); });
+    eyes2(c, -20, 10, 7, 8, '#a040ff', ang, '#4a2a1a');
+    c.fillStyle = 'rgba(255,120,150,.5)'; ellipse(c, -16, -8, 5, 3.5); c.fill(); ellipse(c, 16, -8, 5, 3.5); c.fill();
+    c.strokeStyle = '#4a2a1a'; c.lineWidth = 2.5; c.beginPath(); if (ang) c.arc(0, 0, 6, Math.PI * 1.1, Math.PI * 1.9); else c.arc(0, -8, 6, .2 * Math.PI, .8 * Math.PI); c.stroke();
+    // ぼうし
+    c.fillStyle = grad(c, 0, -100, 0, -40, [[0, '#7a4ae8'], [1, '#3a1a8a']]); c.beginPath(); c.moveTo(-52, -38); c.quadraticCurveTo(0, -52, 52, -38); c.quadraticCurveTo(0, -30, -52, -38); c.fill(); c.strokeStyle = '#1a0a4a'; c.lineWidth = 3.5; c.stroke();
+    c.beginPath(); c.moveTo(-26, -42); c.quadraticCurveTo(-10, -70, 14, -96); c.quadraticCurveTo(22, -70, 26, -42); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#ffd24a'; c.fillRect(-26, -50, 52, 7); ellipse(c, 14, -98, 6, 6); c.fill();
+    c.restore();
+  };
+  ART.livingbook = function (c, t, m) {   // まよいの本
+    const ang = m === 'angry', fl = Math.sin(t * 5), hover = Math.sin(t * 2.4) * 6;
+    shadow(c, 96, 46);
+    c.save(); c.translate(0, hover - 6);
+    // ページがひらひら
+    for (let i = 0; i < 4; i++) { const a = -.5 + i * .35 + Math.sin(t * 3 + i) * .08; c.save(); c.translate(0, 8); c.rotate(a); c.fillStyle = '#fff4d8'; c.fillRect(-2, -78 - i * 4, 54, 70); c.strokeStyle = '#a08a50'; c.lineWidth = 2; c.strokeRect(-2, -78 - i * 4, 54, 70); c.restore(); }
+    [-1, 1].forEach(sd => { c.save(); c.scale(sd, 1); c.rotate(-fl * .12); c.fillStyle = '#b8283a'; c.beginPath(); c.moveTo(0, -56); c.lineTo(70, -66); c.lineTo(76, 56); c.lineTo(0, 62); c.closePath(); c.fill(); c.strokeStyle = '#4a0a14'; c.lineWidth = 4; c.stroke(); c.fillStyle = '#fff4d8'; c.beginPath(); c.moveTo(4, -46); c.lineTo(62, -54); c.lineTo(66, 46); c.lineTo(4, 52); c.closePath(); c.fill(); c.strokeStyle = '#a08a50'; c.lineWidth = 2; c.stroke(); c.strokeStyle = 'rgba(120,90,40,.5)'; c.lineWidth = 2; for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(12, -36 + i * 14); c.lineTo(54, -42 + i * 14); c.stroke(); } c.restore(); });
+    c.fillStyle = '#7a1a28'; c.fillRect(-5, -60, 10, 124); c.strokeStyle = '#2a0610'; c.lineWidth = 2.5; c.strokeRect(-5, -60, 10, 124);
+    // かお（ひらいたページの上）
+    [-1, 1].forEach(sd => { c.fillStyle = '#fff'; ellipse(c, sd * 24, -8, 12, 14); c.fill(); c.strokeStyle = '#3a1a0a'; c.lineWidth = 3; c.stroke(); c.save(); c.shadowColor = ang ? '#ff3a3a' : '#7a4aff'; c.shadowBlur = 8; c.fillStyle = ang ? '#ff5050' : '#7a4aff'; ellipse(c, sd * 24, -6, 6, 8); c.fill(); c.restore(); c.fillStyle = '#10062a'; ellipse(c, sd * 24, -6, 2.4, 5.5); c.fill(); brow(c, sd * 24, -12, sd, ang, '#3a1a0a'); });
+    c.fillStyle = '#3a0a1a'; ellipse(c, 0, 28, 24, ang ? 12 : 8); c.fill(); c.fillStyle = '#fff'; [-14, -5, 5, 14].forEach(x => { c.beginPath(); c.moveTo(x - 3, 20); c.lineTo(x, 29); c.lineTo(x + 3, 20); c.fill(); });
+    c.fillStyle = '#ffd24a'; ellipse(c, 0, -46, 6, 6); c.fill();
+    c.restore();
+  };
+  ART.archmage = function (c, t, m) {   // 大賢者（ボス）
+    const ang = m === 'angry', pulse = .6 + .4 * Math.sin(t * 3);
+    shadow(c, 98, 80);
+    const gl = c.createRadialGradient(0, 0, 20, 0, 0, 150); gl.addColorStop(0, 'rgba(150,110,255,' + (.34 * pulse) + ')'); gl.addColorStop(1, 'rgba(150,110,255,0)'); c.fillStyle = gl; c.fillRect(-160, -140, 320, 300);
+    // 魔法陣
+    c.save(); c.translate(0, 70); c.scale(1, .3); c.rotate(t * .6); c.strokeStyle = 'rgba(200,170,255,.8)'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, 80, 0, Math.PI * 2); c.stroke(); c.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; i ? c.lineTo(Math.cos(a) * 80, Math.sin(a) * 80) : c.moveTo(Math.cos(a) * 80, Math.sin(a) * 80); } c.closePath(); c.stroke(); c.restore();
+    c.fillStyle = grad(c, 0, -20, 0, 96, [[0, '#5a3ac8'], [1, '#1e1056']]); c.beginPath(); c.moveTo(-30, -6); c.lineTo(30, -6); c.lineTo(62, 92); c.quadraticCurveTo(0, 104, -62, 92); c.closePath(); c.fill(); c.strokeStyle = '#0a0624'; c.lineWidth = 4; c.stroke();
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(-8, 0); c.lineTo(8, 0); c.lineTo(12, 90); c.lineTo(-12, 90); c.closePath(); c.fill();
+    c.fillStyle = '#fff'; [[-34, 40], [30, 62], [-44, 74], [40, 28], [-20, 86]].forEach(([x, y]) => { ellipse(c, x, y, 2.6, 2.6); c.fill(); });
+    [-1, 1].forEach(sd => { const lf = ang ? -28 : Math.sin(t * 2.4 + sd) * 5; c.strokeStyle = '#4a2ab8'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 32, 8); c.lineTo(sd * 66, 32 + lf); c.stroke(); c.fillStyle = '#ffe4c8'; ellipse(c, sd * 70, 36 + lf, 8, 8); c.fill(); });
+    // つえ
+    const wl = ang ? -28 : Math.sin(t * 2.4 + 1) * 5; c.strokeStyle = '#8a5a2a'; c.lineWidth = 6; c.beginPath(); c.moveTo(74, 100); c.lineTo(78, -30 + wl); c.stroke();
+    c.save(); c.shadowColor = '#7ad8ff'; c.shadowBlur = 16; c.fillStyle = '#9ae8ff'; c.beginPath(); c.moveTo(78, -64 + wl); c.lineTo(90, -42 + wl); c.lineTo(78, -22 + wl); c.lineTo(66, -42 + wl); c.closePath(); c.fill(); c.restore();
+    // かお・ひげ
+    c.fillStyle = '#ffe4c8'; ellipse(c, 0, -30, 26, 28); c.fill(); c.strokeStyle = '#4a2a1a'; c.lineWidth = 3.5; c.stroke();
+    c.fillStyle = grad(c, 0, -20, 0, 50, [[0, '#fff'], [1, '#c8c8e0']]); c.beginPath(); c.moveTo(-24, -20); c.quadraticCurveTo(-30, 30, 0, 52); c.quadraticCurveTo(30, 30, 24, -20); c.quadraticCurveTo(0, -4, -24, -20); c.fill(); c.strokeStyle = '#7a7a9a'; c.lineWidth = 2.5; c.stroke();
+    [-1, 1].forEach(sd => { c.fillStyle = '#fff'; c.beginPath(); c.moveTo(sd * 6, -38); c.lineTo(sd * 24, -42 - (ang ? -3 : 0)); c.lineTo(sd * 22, -34); c.closePath(); c.fill(); c.save(); c.shadowColor = '#7ad8ff'; c.shadowBlur = 8; c.fillStyle = ang ? '#ff6a6a' : '#7ad8ff'; ellipse(c, sd * 12, -32, 5, 5); c.fill(); c.restore(); });
+    // ぼうし
+    c.fillStyle = grad(c, 0, -110, 0, -50, [[0, '#6a4ae8'], [1, '#2a1a8a']]); c.beginPath(); c.moveTo(-48, -52); c.quadraticCurveTo(0, -66, 48, -52); c.quadraticCurveTo(0, -44, -48, -52); c.fill(); c.strokeStyle = '#0a0624'; c.lineWidth = 3.5; c.stroke();
+    c.beginPath(); c.moveTo(-28, -56); c.quadraticCurveTo(-14, -90, 22, -118); c.quadraticCurveTo(24, -86, 28, -56); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#ffd24a'; c.fillRect(-28, -64, 56, 7); c.save(); c.shadowColor = '#ffd24a'; c.shadowBlur = 10; ellipse(c, 0, -60, 5, 5); c.fill(); c.restore();
+  };
+
+  // ---- ステージ 24: 財宝の洞窟 ----
+  ART.mimic = function (c, t, m) {   // ミミック
+    const ang = m === 'angry', b = Math.abs(Math.sin(t * 3.2)) * 4, lid = ang ? 34 : 12 + Math.sin(t * 3) * 5;
+    shadow(c, 94, 60);
+    c.save(); c.translate(0, -b);
+    [-1, 1].forEach(sd => { c.fillStyle = '#6a2a3a'; ellipse(c, sd * 38, 92, 16, 8); c.fill(); });
+    // 舌
+    c.fillStyle = '#e8384a'; c.beginPath(); c.moveTo(-18, 34); c.quadraticCurveTo(0, 74 + (ang ? 14 : 0), 18, 34); c.quadraticCurveTo(0, 46, -18, 34); c.fill(); c.strokeStyle = '#6a0a1a'; c.lineWidth = 2.5; c.stroke();
+    // 本体（下）
+    c.fillStyle = grad(c, 0, 20, 0, 90, [[0, '#a8683a'], [1, '#5a3418']]); c.beginPath(); c.moveTo(-62, 24); c.lineTo(62, 24); c.lineTo(66, 88); c.lineTo(-66, 88); c.closePath(); c.fill(); c.strokeStyle = '#2a1408'; c.lineWidth = 4; c.stroke();
+    c.fillStyle = '#ffd24a'; c.fillRect(-66, 52, 132, 8); c.fillRect(-8, 44, 16, 22);
+    c.fillStyle = '#2a0610'; c.beginPath(); c.moveTo(-58, 24); c.lineTo(58, 24); c.lineTo(52, 40); c.lineTo(-52, 40); c.closePath(); c.fill();
+    c.fillStyle = '#fff'; for (let i = 0; i < 7; i++) { c.beginPath(); c.moveTo(-50 + i * 16, 24); c.lineTo(-42 + i * 16, 38); c.lineTo(-34 + i * 16, 24); c.fill(); }
+    // ふた
+    c.save(); c.translate(0, 24); c.rotate(-lid * Math.PI / 180); c.translate(0, -24);
+    c.fillStyle = grad(c, 0, -50, 0, 24, [[0, '#c8844a'], [1, '#7a4a22']]); c.beginPath(); c.moveTo(-62, 24); c.lineTo(-62, -4); c.quadraticCurveTo(0, -64, 62, -4); c.lineTo(62, 24); c.closePath(); c.fill(); c.strokeStyle = '#2a1408'; c.lineWidth = 4; c.stroke();
+    c.fillStyle = '#ffd24a'; c.fillRect(-62, 4, 124, 8); c.strokeStyle = '#8a6a10'; c.lineWidth = 2; c.strokeRect(-62, 4, 124, 8);
+    c.fillStyle = '#fff'; for (let i = 0; i < 7; i++) { c.beginPath(); c.moveTo(-50 + i * 16, 24); c.lineTo(-42 + i * 16, 12); c.lineTo(-34 + i * 16, 24); c.fill(); }
+    [-1, 1].forEach(sd => { c.fillStyle = '#fff'; ellipse(c, sd * 22, -14, 11, 12); c.fill(); c.strokeStyle = '#2a1408'; c.lineWidth = 2.5; c.stroke(); c.fillStyle = ang ? '#ff3a3a' : '#2a1408'; ellipse(c, sd * 22, -12, 5, 7); c.fill(); brow(c, sd * 22, -18, sd, ang, '#2a1408'); });
+    c.restore();
+    // こぼれたコイン
+    [[-74, 84], [72, 90], [-50, 94]].forEach(([x, y]) => { c.fillStyle = '#ffd24a'; ellipse(c, x, y, 9, 4); c.fill(); c.strokeStyle = '#8a6a10'; c.lineWidth = 1.5; c.stroke(); });
+    c.restore();
+  };
+  ART.goldgolem = function (c, t, m) {   // ゴールドゴーレム
+    const ang = m === 'angry', pulse = .6 + .4 * Math.sin(t * 4);
+    shadow(c, 96, 70);
+    [-1, 1].forEach(sd => { c.fillStyle = grad(c, sd * 12, 50, sd * 44, 96, [[0, '#e8c040'], [1, '#8a6a10']]); c.beginPath(); c.moveTo(sd * 12, 52); c.lineTo(sd * 44, 52); c.lineTo(sd * 50, 96); c.lineTo(sd * 10, 96); c.closePath(); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 3; c.stroke(); });
+    [-1, 1].forEach(sd => { const lift = ang ? -18 : Math.sin(t * 2 + sd) * 3; c.fillStyle = grad(c, sd * 50, 0, sd * 90, 50, [[0, '#f0d060'], [1, '#8a6a10']]); ellipse(c, sd * 70, 28 + lift, 20, 36); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 3; c.stroke(); c.fillStyle = '#d8a82a'; ellipse(c, sd * 72, 62 + lift, 23, 19); c.fill(); c.stroke(); });
+    c.beginPath(); c.moveTo(-50, 56); c.lineTo(-58, -6); c.lineTo(-34, -36); c.lineTo(34, -36); c.lineTo(58, -6); c.lineTo(50, 56); c.closePath();
+    c.fillStyle = grad(c, 0, -36, 0, 56, [[0, '#f8e070'], [.5, '#e0b030'], [1, '#8a6a10']]); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 3.5; c.stroke();
+    c.save(); c.globalAlpha = .4 + .4 * pulse; c.fillStyle = '#fff'; c.beginPath(); c.moveTo(-30, -20); c.lineTo(-10, -30); c.lineTo(-18, 10); c.lineTo(-38, 20); c.fill(); c.restore();
+    c.fillStyle = '#d83a4a'; c.beginPath(); c.moveTo(0, 6); c.lineTo(14, 24); c.lineTo(0, 46); c.lineTo(-14, 24); c.closePath(); c.fill(); c.strokeStyle = '#4a0a14'; c.lineWidth = 2.5; c.stroke();
+    c.fillStyle = grad(c, 0, -52, 0, -6, [[0, '#f8e070'], [1, '#c8981a']]); ellipse(c, 0, -26, 28, 24); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 3; c.stroke();
+    [-1, 1].forEach(sd => glowEye(c, sd * 11, -28, 6, ang ? 4 : 6, ang ? '#ff4a3a' : '#5affc8'));
+    c.strokeStyle = '#4a3408'; c.lineWidth = 3; c.beginPath(); c.moveTo(-10, -12); c.lineTo(10, -12); c.stroke();
+  };
+  ART.goldendragon = function (c, t, m) {   // ゴールデンドラゴン（ボス）
+    const ang = m === 'angry', fl = Math.sin(t * 2), pulse = .6 + .4 * Math.sin(t * 3);
+    shadow(c, 98, 88);
+    const gl = c.createRadialGradient(0, 0, 20, 0, 0, 160); gl.addColorStop(0, 'rgba(255,220,80,' + (.4 * pulse) + ')'); gl.addColorStop(1, 'rgba(255,220,80,0)'); c.fillStyle = gl; c.fillRect(-170, -150, 340, 320);
+    // 財宝の山
+    [[-70, 90, 24], [-30, 94, 20], [30, 94, 20], [72, 90, 26], [0, 98, 22]].forEach(([x, y, r], i) => { c.fillStyle = i % 2 ? '#ffd24a' : '#f0b020'; ellipse(c, x, y, r, r * .34); c.fill(); c.strokeStyle = '#8a6a10'; c.lineWidth = 2; c.stroke(); });
+    [-1, 1].forEach(sd => { c.save(); c.scale(sd, 1); c.rotate(-fl * .07); for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(34, -2 + i * 8); c.lineTo(100 - i * 4, -80 + i * 28); c.lineTo(84 - i * 6, -16 + i * 28); c.lineTo(40, 14 + i * 8); c.closePath(); c.fillStyle = grad(c, 34, -60, 100, 40, [[0, '#fff0a0'], [1, i % 2 ? '#d89a10' : '#f0c020']]); c.fill(); c.strokeStyle = '#6a4a08'; c.lineWidth = 2.5; c.stroke(); } c.restore(); });
+    c.fillStyle = grad(c, 0, -10, 0, 96, [[0, '#f8d84a'], [1, '#b8821a']]); c.beginPath(); c.moveTo(-34, 90); c.quadraticCurveTo(-54, 30, -30, -8); c.lineTo(30, -8); c.quadraticCurveTo(54, 30, 34, 90); c.quadraticCurveTo(0, 100, -34, 90); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 4; c.stroke();
+    c.fillStyle = grad(c, 0, 10, 0, 92, [[0, '#fff8d8'], [1, '#e8c870']]); ellipse(c, 0, 52, 20, 38); c.fill(); c.strokeStyle = 'rgba(138,106,16,.5)'; c.lineWidth = 2; for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(-18, 28 + i * 11); c.quadraticCurveTo(0, 34 + i * 11, 18, 28 + i * 11); c.stroke(); }
+    [-1, 1].forEach(sd => { c.fillStyle = grad(c, sd * 20, -50, sd * 60, -110, [[0, '#fff8d8'], [1, '#c8981a']]); c.beginPath(); c.moveTo(sd * 18, -52); c.quadraticCurveTo(sd * 62, -58, sd * 64, -106); c.quadraticCurveTo(sd * 44, -78, sd * 8, -70); c.fill(); c.strokeStyle = '#6a4a08'; c.lineWidth = 3; c.stroke(); });
+    c.fillStyle = grad(c, 0, -80, 0, -6, [[0, '#ffe870'], [1, '#d09a1a']]); c.beginPath(); c.moveTo(-38, -46); c.quadraticCurveTo(-34, -82, 0, -80); c.quadraticCurveTo(34, -82, 38, -46); c.quadraticCurveTo(32, -6, 0, -2); c.quadraticCurveTo(-32, -6, -38, -46); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 4; c.stroke();
+    [-1, 1].forEach(sd => { glowEye(c, sd * 17, -46, 10, ang ? 6 : 9, ang ? '#ff3a3a' : '#5affc8'); c.fillStyle = '#1a0a04'; ellipse(c, sd * 17, -46, 2.5, 8); c.fill(); brow(c, sd * 17, -46, sd, true, '#4a3408'); });
+    c.fillStyle = '#4a1a08'; ellipse(c, 0, -12, 20, ang ? 11 : 6); c.fill();
+    c.fillStyle = '#fff'; [-14, -7, 7, 14].forEach(x => { c.beginPath(); c.moveTo(x - 2.5, -17); c.lineTo(x, -7); c.lineTo(x + 2.5, -17); c.fill(); });
+    for (let i = 0; i < 8; i++) { const u = (t * .5 + i * .13) % 1; c.fillStyle = 'rgba(255,240,150,' + (.9 * (1 - u)) + ')'; ellipse(c, -80 + i * 22 + Math.sin(t * 2 + i) * 6, 70 - u * 150, 2.6, 2.6); c.fill(); }
+  };
+
+  // ---- ステージ 25: 月夜のお化け屋敷 ----
+  ART.jack = function (c, t, m) {   // ジャックランタン
+    const ang = m === 'angry', b = Math.abs(Math.sin(t * 3)) * 5, fl = .7 + .3 * Math.sin(t * 9);
+    shadow(c, 94, 52);
+    c.save(); c.translate(0, -b);
+    c.fillStyle = '#2a1a3a'; [-1, 1].forEach(sd => { ellipse(c, sd * 20, 92, 15, 8); c.fill(); });
+    c.fillStyle = '#2a1a3a'; c.beginPath(); c.moveTo(-28, 52); c.lineTo(28, 52); c.lineTo(36, 88); c.lineTo(-36, 88); c.closePath(); c.fill(); c.strokeStyle = '#0a0410'; c.lineWidth = 3; c.stroke();
+    [-1, 1].forEach(sd => { c.strokeStyle = '#2a1a3a'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 28, 58); c.lineTo(sd * 52, 74 + (ang ? -22 : Math.sin(t * 3 + sd) * 4)); c.stroke(); });
+    // かぼちゃ
+    c.fillStyle = grad(c, 0, -60, 0, 60, [[0, '#ffa23a'], [1, '#d8601a']]);
+    [[-30, 0, 24, 44], [30, 0, 24, 44], [0, 0, 30, 48]].forEach(([x, y, rx, ry]) => { ellipse(c, x, y, rx, ry); c.fill(); c.strokeStyle = '#7a3008'; c.lineWidth = 3.5; c.stroke(); });
+    c.strokeStyle = 'rgba(122,48,8,.5)'; c.lineWidth = 2.5; [-14, 14].forEach(x => { c.beginPath(); c.moveTo(x, -42); c.quadraticCurveTo(x * 1.3, 0, x, 44); c.stroke(); });
+    c.fillStyle = '#4a8a2a'; c.beginPath(); c.moveTo(-6, -46); c.lineTo(-2, -66); c.quadraticCurveTo(8, -68, 10, -52); c.lineTo(6, -46); c.closePath(); c.fill(); c.strokeStyle = '#1a3a0a'; c.lineWidth = 2.5; c.stroke();
+    // 顔（光る）
+    c.save(); c.shadowColor = '#ffe45a'; c.shadowBlur = 14 * fl; c.fillStyle = '#fff2a0';
+    [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(sd * 10, -6); c.lineTo(sd * 26, ang ? -26 : -22); c.lineTo(sd * 30, -4); c.closePath(); c.fill(); });
+    c.beginPath(); c.moveTo(-8, 8); c.lineTo(8, 8); c.lineTo(0, 18); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-34, 20); c.lineTo(-22, 16); c.lineTo(-14, 30); c.lineTo(-4, 20); c.lineTo(4, 30); c.lineTo(14, 20); c.lineTo(22, 30); c.lineTo(34, 20); c.lineTo(28, 38 + (ang ? 6 : 0)); c.quadraticCurveTo(0, 50, -28, 38); c.closePath(); c.fill();
+    c.restore();
+    c.restore();
+  };
+  ART.vampire = function (c, t, m) {   // ヴァンパイア
+    const ang = m === 'angry', sw = Math.sin(t * 2) * 3;
+    shadow(c, 94, 56);
+    c.save();
+    // マント
+    c.fillStyle = grad(c, 0, -10, 0, 96, [[0, '#c8283a'], [1, '#4a0a1a']]); c.beginPath(); c.moveTo(-34, -12); c.quadraticCurveTo(-90 - sw, 40, -70, 92); c.lineTo(70, 92); c.quadraticCurveTo(90 + sw, 40, 34, -12); c.closePath(); c.fill(); c.strokeStyle = '#1a0408'; c.lineWidth = 4; c.stroke();
+    [-1, 1].forEach(sd => { c.fillStyle = '#1a1028'; ellipse(c, sd * 16, 92, 14, 7); c.fill(); });
+    c.fillStyle = '#1e1430'; c.beginPath(); c.moveTo(-24, 0); c.lineTo(24, 0); c.lineTo(30, 88); c.lineTo(-30, 88); c.closePath(); c.fill(); c.strokeStyle = '#0a0614'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(-10, 0); c.lineTo(10, 0); c.lineTo(0, 30); c.closePath(); c.fill();
+    c.fillStyle = '#e8283a'; ellipse(c, 0, 8, 5, 5); c.fill();
+    [-1, 1].forEach(sd => { c.strokeStyle = '#1e1430'; c.lineWidth = 10; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 26, 10); c.lineTo(sd * 54, 34 + (ang ? -22 : Math.sin(t * 3 + sd) * 4)); c.stroke(); c.fillStyle = '#e8dcf0'; ellipse(c, sd * 57, 38 + (ang ? -22 : Math.sin(t * 3 + sd) * 4), 7, 7); c.fill(); });
+    // えり
+    c.fillStyle = '#e8283a'; c.beginPath(); c.moveTo(-34, -14); c.lineTo(-30, -44); c.lineTo(-10, -14); c.closePath(); c.fill(); c.beginPath(); c.moveTo(34, -14); c.lineTo(30, -44); c.lineTo(10, -14); c.closePath(); c.fill(); c.strokeStyle = '#4a0a14'; c.lineWidth = 2.5; c.stroke();
+    // かお
+    c.fillStyle = '#eee4f4'; ellipse(c, 0, -34, 24, 28); c.fill(); c.strokeStyle = '#3a2a4a'; c.lineWidth = 3.2; c.stroke();
+    c.fillStyle = '#1a1028'; c.beginPath(); c.moveTo(-26, -34); c.quadraticCurveTo(-24, -68, 0, -64); c.quadraticCurveTo(24, -68, 26, -34); c.quadraticCurveTo(10, -50, 0, -42); c.quadraticCurveTo(-10, -50, -26, -34); c.fill();
+    [-1, 1].forEach(sd => { c.save(); c.shadowColor = '#ff3a4a'; c.shadowBlur = 8; c.fillStyle = '#ff4a5a'; c.beginPath(); c.ellipse(sd * 10, -34, 6, 5, sd * .3, 0, Math.PI * 2); c.fill(); c.restore(); c.fillStyle = '#10062a'; ellipse(c, sd * 10, -34, 1.6, 4); c.fill(); brow(c, sd * 10, -38, sd, true, '#1a1028'); });
+    c.fillStyle = '#3a0a1a'; ellipse(c, 0, -14, 9, ang ? 7 : 4.5); c.fill(); c.fillStyle = '#fff'; [-5, 5].forEach(x => { c.beginPath(); c.moveTo(x - 2, -17); c.lineTo(x, -8); c.lineTo(x + 2, -17); c.fill(); });
+    c.restore();
+  };
+  ART.reaper = function (c, t, m) {   // しにがみ（ボス）
+    const ang = m === 'angry', pulse = .6 + .4 * Math.sin(t * 3), sw = Math.sin(t * 2) * 4;
+    shadow(c, 98, 80);
+    const gl = c.createRadialGradient(0, 0, 20, 0, 0, 150); gl.addColorStop(0, 'rgba(120,255,170,' + (.28 * pulse) + ')'); gl.addColorStop(1, 'rgba(120,255,170,0)'); c.fillStyle = gl; c.fillRect(-160, -140, 320, 300);
+    // ローブ
+    c.fillStyle = grad(c, 0, -60, 0, 100, [[0, '#3a3a58'], [1, '#0e0e1e']]); c.beginPath(); c.moveTo(-34, -52); c.quadraticCurveTo(-66, 30, -76 - sw, 98); for (let i = 0; i <= 6; i++) c.lineTo(-76 - sw + i * 25 + sw * i / 6, 98 + (i % 2 ? 8 : -2)); c.quadraticCurveTo(66, 30, 34, -52); c.closePath(); c.fill(); c.strokeStyle = '#05050e'; c.lineWidth = 4; c.stroke();
+    // かま
+    const lf = ang ? -20 : Math.sin(t * 2.4) * 4;
+    c.strokeStyle = '#6a4a2a'; c.lineWidth = 6; c.beginPath(); c.moveTo(86, 100 + lf); c.lineTo(80, -80 + lf); c.stroke();
+    c.fillStyle = grad(c, 40, -110, 90, -60, [[0, '#fff'], [1, '#9aa6c8']]); c.beginPath(); c.moveTo(80, -84 + lf); c.quadraticCurveTo(30, -118 + lf, 10, -66 + lf); c.quadraticCurveTo(40, -88 + lf, 80, -70 + lf); c.closePath(); c.fill(); c.strokeStyle = '#2a3258'; c.lineWidth = 3; c.stroke();
+    // うで（ほね）
+    [-1, 1].forEach(sd => { c.strokeStyle = '#e8e8d8'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 36, -10); c.lineTo(sd * 62, 20 + (sd > 0 ? lf : 0)); c.stroke(); c.fillStyle = '#e8e8d8'; ellipse(c, sd * 64, 24 + (sd > 0 ? lf : 0), 8, 8); c.fill(); });
+    // フード
+    c.fillStyle = grad(c, 0, -100, 0, -20, [[0, '#2a2a48'], [1, '#0e0e1e']]); c.beginPath(); c.moveTo(-40, -30); c.quadraticCurveTo(-44, -100, 0, -104); c.quadraticCurveTo(44, -100, 40, -30); c.quadraticCurveTo(0, -12, -40, -30); c.fill(); c.strokeStyle = '#05050e'; c.lineWidth = 4; c.stroke();
+    c.fillStyle = '#e8e8d8'; ellipse(c, 0, -52, 24, 26); c.fill(); c.strokeStyle = '#4a4a3a'; c.lineWidth = 2.5; c.stroke();
+    c.fillStyle = '#0a0a14'; [-1, 1].forEach(sd => { ellipse(c, sd * 10, -56, 8, 9); c.fill(); }); [-1, 1].forEach(sd => glowEye(c, sd * 10, -55, 3.6, 3.6, ang ? '#ff4a4a' : '#7affb0'));
+    c.fillStyle = '#0a0a14'; c.beginPath(); c.moveTo(0, -46); c.lineTo(-3, -38); c.lineTo(3, -38); c.fill();
+    c.strokeStyle = '#0a0a14'; c.lineWidth = 2; for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(i * 5, -34); c.lineTo(i * 5, -28 + (ang ? 4 : 0)); c.stroke(); }
+    for (let i = 0; i < 6; i++) { const u = (t * .45 + i * .17) % 1; c.fillStyle = 'rgba(160,255,200,' + (.7 * (1 - u)) + ')'; ellipse(c, -70 + i * 26, 90 - u * 160, 3, 5); c.fill(); }
+  };
+
+  // ---- ステージ 26: 神々の頂 ----
+  ART.pegasus = function (c, t, m) {   // ペガサス
+    const ang = m === 'angry', fl = Math.sin(t * 4), hover = Math.sin(t * 2.4) * 5;
+    shadow(c, 96, 52);
+    c.save(); c.translate(0, hover - 4);
+    [-1, 1].forEach(sd => { c.save(); c.scale(sd, 1); c.rotate(-fl * .16); for (let i = 0; i < 5; i++) { c.fillStyle = i % 2 ? '#fff' : '#e8f0ff'; c.beginPath(); c.moveTo(10, -6 + i * 6); c.quadraticCurveTo(50 + i * 6, -80 + i * 16, 92 - i * 4, -50 + i * 24); c.quadraticCurveTo(66, -20 + i * 14, 20, 12 + i * 6); c.closePath(); c.fill(); c.strokeStyle = '#8a9ac8'; c.lineWidth = 2; c.stroke(); } c.restore(); });
+    // しっぽ
+    c.strokeStyle = '#ffb8e8'; c.lineWidth = 12; c.lineCap = 'round'; c.beginPath(); c.moveTo(34, 40); c.quadraticCurveTo(76, 50 + Math.sin(t * 3) * 8, 70, 92); c.stroke();
+    [[-30, 70], [-10, 76], [18, 76], [38, 70]].forEach(([x, y]) => { c.fillStyle = '#f4f8ff'; c.fillRect(x - 5, y, 10, 22); c.fillStyle = '#ffd24a'; c.fillRect(x - 6, y + 20, 12, 6); });
+    c.fillStyle = grad(c, 0, 0, 0, 80, [[0, '#ffffff'], [1, '#c8d4f0']]); ellipse(c, 2, 42, 46, 32); c.fill(); c.strokeStyle = '#6a7aa8'; c.lineWidth = 3.5; c.stroke();
+    // 首・頭
+    c.fillStyle = '#fafcff'; c.beginPath(); c.moveTo(-14, 40); c.quadraticCurveTo(-44, 10, -36, -34); c.lineTo(-6, -40); c.quadraticCurveTo(0, 0, 14, 36); c.closePath(); c.fill(); c.strokeStyle = '#6a7aa8'; c.lineWidth = 3.5; c.stroke();
+    c.strokeStyle = '#ffb8e8'; c.lineWidth = 8; c.beginPath(); c.moveTo(-8, -38); c.quadraticCurveTo(8, -10, 6, 28); c.stroke();
+    c.fillStyle = '#fafcff'; c.beginPath(); c.moveTo(-54, -34); c.quadraticCurveTo(-52, -56, -26, -52); c.quadraticCurveTo(-8, -50, -6, -36); c.quadraticCurveTo(-8, -18, -34, -20); c.quadraticCurveTo(-56, -16, -54, -34); c.fill(); c.strokeStyle = '#6a7aa8'; c.lineWidth = 3.5; c.stroke();
+    c.fillStyle = '#ffd24a'; c.beginPath(); c.moveTo(-26, -52); c.lineTo(-22, -84); c.lineTo(-16, -52); c.closePath(); c.fill(); c.strokeStyle = '#8a6a10'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#fafcff'; c.beginPath(); c.moveTo(-14, -50); c.lineTo(-6, -66); c.lineTo(-4, -48); c.fill(); c.stroke();
+    c.fillStyle = '#fff'; ellipse(c, -24, -38, 7, 8); c.fill(); c.fillStyle = ang ? '#ff4a6a' : '#3a7aff'; ellipse(c, -23, -37, 4.5, 6); c.fill(); c.fillStyle = '#10062a'; ellipse(c, -23, -37, 2, 4); c.fill(); brow(c, -24, -40, 1, ang, '#6a7aa8');
+    c.fillStyle = '#6a7aa8'; ellipse(c, -48, -28, 2.2, 2.8); c.fill();
+    c.restore();
+  };
+  ART.valkyrie = function (c, t, m) {   // ヴァルキリー
+    const ang = m === 'angry', b = Math.abs(Math.sin(t * 2.6)) * 4, fl = Math.sin(t * 2.4);
+    shadow(c, 94, 54);
+    c.save(); c.translate(0, -b);
+    [-1, 1].forEach(sd => { c.save(); c.scale(sd, 1); c.rotate(-fl * .08); for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#fff' : '#e8f0ff'; c.beginPath(); c.moveTo(14, -10 + i * 8); c.quadraticCurveTo(60 + i * 6, -76 + i * 14, 94 - i * 6, -40 + i * 22); c.quadraticCurveTo(66, -10 + i * 14, 24, 10 + i * 8); c.closePath(); c.fill(); c.strokeStyle = '#8a9ac8'; c.lineWidth = 2; c.stroke(); } c.restore(); });
+    [-1, 1].forEach(sd => { c.fillStyle = '#d8dff0'; ellipse(c, sd * 14, 90, 13, 8); c.fill(); c.strokeStyle = '#5a6a98'; c.lineWidth = 2.5; c.stroke(); });
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(-22, 36); c.lineTo(22, 36); c.lineTo(34, 88); c.lineTo(-34, 88); c.closePath(); c.fill(); c.strokeStyle = '#8a9ac8'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = grad(c, 0, -10, 0, 44, [[0, '#f0d870'], [1, '#c8981a']]); c.beginPath(); c.moveTo(-28, -8); c.lineTo(28, -8); c.lineTo(22, 40); c.lineTo(-22, 40); c.closePath(); c.fill(); c.strokeStyle = '#6a4a08'; c.lineWidth = 3.5; c.stroke();
+    c.fillStyle = '#e8283a'; c.beginPath(); c.moveTo(0, 2); c.lineTo(10, 16); c.lineTo(0, 32); c.lineTo(-10, 16); c.closePath(); c.fill();
+    // やり・たて
+    const lf = ang ? -22 : Math.sin(t * 3) * 4;
+    c.strokeStyle = '#8a6a2a'; c.lineWidth = 5; c.beginPath(); c.moveTo(72, 96 + lf); c.lineTo(72, -70 + lf); c.stroke();
+    c.fillStyle = '#e8f0ff'; c.beginPath(); c.moveTo(72, -100 + lf); c.lineTo(82, -66 + lf); c.lineTo(72, -72 + lf); c.lineTo(62, -66 + lf); c.closePath(); c.fill(); c.strokeStyle = '#5a6a98'; c.lineWidth = 2.5; c.stroke();
+    [-1, 1].forEach(sd => { c.strokeStyle = '#ffe4c8'; c.lineWidth = 9; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 28, 0); c.lineTo(sd * 62, 24 + (sd > 0 ? lf : 0)); c.stroke(); });
+    c.fillStyle = grad(c, -50, 10, -76, 60, [[0, '#f0d870'], [1, '#a8781a']]); ellipse(c, -62, 36, 20, 28); c.fill(); c.strokeStyle = '#4a3408'; c.lineWidth = 3; c.stroke(); c.fillStyle = '#e8283a'; ellipse(c, -62, 36, 7, 7); c.fill();
+    // かお
+    c.fillStyle = '#ffe4c8'; ellipse(c, 0, -30, 24, 26); c.fill(); c.strokeStyle = '#4a2a1a'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = '#f0d060'; c.beginPath(); c.moveTo(-26, -26); c.quadraticCurveTo(-30, -64, 0, -62); c.quadraticCurveTo(30, -64, 26, -26); c.quadraticCurveTo(14, -48, 0, -44); c.quadraticCurveTo(-14, -48, -26, -26); c.fill(); c.strokeStyle = '#8a6a10'; c.lineWidth = 2.5; c.stroke();
+    [-1, 1].forEach(sd => { c.fillStyle = '#f0d060'; ellipse(c, sd * 28, -4, 7, 26); c.fill(); });
+    eyes2(c, -30, 10, 6.5, 7.5, '#3a7aff', ang, '#8a6a10');
+    c.strokeStyle = '#4a2a1a'; c.lineWidth = 2.4; c.beginPath(); if (ang) c.arc(0, -14, 6, Math.PI * 1.1, Math.PI * 1.9); else c.arc(0, -20, 6, .2 * Math.PI, .8 * Math.PI); c.stroke();
+    // かぶと
+    c.fillStyle = grad(c, 0, -78, 0, -48, [[0, '#fff'], [1, '#c8d0e8']]); c.beginPath(); c.moveTo(-28, -48); c.quadraticCurveTo(0, -84, 28, -48); c.quadraticCurveTo(0, -56, -28, -48); c.fill(); c.strokeStyle = '#5a6a98'; c.lineWidth = 3; c.stroke();
+    [-1, 1].forEach(sd => { c.fillStyle = '#fff'; c.beginPath(); c.moveTo(sd * 26, -56); c.quadraticCurveTo(sd * 52, -64, sd * 54, -86); c.quadraticCurveTo(sd * 38, -72, sd * 22, -66); c.fill(); c.strokeStyle = '#8a9ac8'; c.lineWidth = 2.2; c.stroke(); });
+    c.restore();
+  };
+  ART.zeus = function (c, t, m) {   // ゼウス（ボス）
+    const ang = m === 'angry', pulse = .6 + .4 * Math.sin(t * 4);
+    shadow(c, 98, 84);
+    const gl = c.createRadialGradient(0, -10, 20, 0, -10, 160); gl.addColorStop(0, 'rgba(255,240,150,' + (.4 * pulse) + ')'); gl.addColorStop(1, 'rgba(255,240,150,0)'); c.fillStyle = gl; c.fillRect(-170, -150, 340, 320);
+    // 雲
+    [[-70, 88, 30], [-30, 96, 26], [30, 96, 28], [74, 88, 30], [0, 100, 30]].forEach(([x, y, r]) => { c.fillStyle = 'rgba(240,246,255,.92)'; ellipse(c, x, y, r, r * .5); c.fill(); });
+    // 光輪
+    c.save(); c.shadowColor = '#fff0a0'; c.shadowBlur = 16; c.strokeStyle = '#ffe870'; c.lineWidth = 5; c.beginPath(); c.arc(0, -42, 66, Math.PI * 1.05, Math.PI * 1.95); c.stroke(); c.restore();
+    // ローブ
+    c.fillStyle = grad(c, 0, -10, 0, 96, [[0, '#ffffff'], [1, '#b8c8ee']]); c.beginPath(); c.moveTo(-36, -8); c.lineTo(36, -8); c.lineTo(64, 92); c.quadraticCurveTo(0, 104, -64, 92); c.closePath(); c.fill(); c.strokeStyle = '#6a7aa8'; c.lineWidth = 4; c.stroke();
+    c.fillStyle = '#3a6ad8'; c.beginPath(); c.moveTo(-36, -8); c.lineTo(-8, -8); c.lineTo(36, 92); c.lineTo(10, 94); c.closePath(); c.fill(); c.strokeStyle = '#142a78'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = '#ffd24a'; c.fillRect(-48, 52, 96, 7);
+    // いかずち
+    const lf = ang ? -26 : Math.sin(t * 2.6) * 5;
+    [-1, 1].forEach(sd => { c.strokeStyle = '#ffe4c8'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * 36, 6); c.lineTo(sd * 70, 30 + (sd > 0 ? lf : 0)); c.stroke(); });
+    c.save(); c.translate(76, 28 + lf); c.shadowColor = '#fff070'; c.shadowBlur = 16; c.fillStyle = '#fff070'; c.beginPath(); c.moveTo(-6, -64); c.lineTo(10, -64); c.lineTo(2, -38); c.lineTo(16, -38); c.lineTo(-10, 6); c.lineTo(-4, -26); c.lineTo(-14, -26); c.closePath(); c.fill(); c.strokeStyle = '#a08a10'; c.lineWidth = 2; c.stroke(); c.restore();
+    bolt(c, -96, -64, -76, 10, '#fff6a0', 4);
+    // かお・ひげ
+    c.fillStyle = '#ffe4c8'; ellipse(c, 0, -38, 28, 30); c.fill(); c.strokeStyle = '#4a2a1a'; c.lineWidth = 3.5; c.stroke();
+    c.fillStyle = grad(c, 0, -80, 0, 4, [[0, '#fff'], [1, '#d8dcf0']]); c.beginPath(); c.moveTo(-30, -44); c.quadraticCurveTo(-34, -86, 0, -84); c.quadraticCurveTo(34, -86, 30, -44); c.quadraticCurveTo(14, -62, 0, -58); c.quadraticCurveTo(-14, -62, -30, -44); c.fill(); c.strokeStyle = '#7a8ab0'; c.lineWidth = 2.5; c.stroke();
+    c.fillStyle = grad(c, 0, -26, 0, 36, [[0, '#fff'], [1, '#c8cce4']]); c.beginPath(); c.moveTo(-26, -26); c.quadraticCurveTo(-34, 24, 0, 40); c.quadraticCurveTo(34, 24, 26, -26); c.quadraticCurveTo(0, -12, -26, -26); c.fill(); c.strokeStyle = '#7a8ab0'; c.lineWidth = 2.5; c.stroke();
+    [-1, 1].forEach(sd => { c.fillStyle = '#fff'; ellipse(c, sd * 12, -42, 8, 6); c.fill(); glowEye(c, sd * 12, -42, 4.6, 4.6, ang ? '#ff5a3a' : '#5ab0ff'); brow(c, sd * 12, -44, sd, true, '#7a8ab0'); });
+    c.fillStyle = '#e8c8a8'; ellipse(c, 0, -30, 4, 3); c.fill();
+    // 月桂冠
+    c.fillStyle = '#4ac84a'; [-1, 1].forEach(sd => { for (let i = 0; i < 4; i++) { c.save(); c.translate(sd * (20 + i * 6), -60 + i * 3); c.rotate(sd * (.8 - i * .2)); ellipse(c, 0, 0, 9, 4); c.fill(); c.restore(); } });
+    c.fillStyle = '#ffd24a'; ellipse(c, 0, -72, 6, 6); c.fill();
+  };
   // 敵カードに収めるための大きさ（1 = そのまま）
   A.fit = { slime: 1, goblin: 0.95, dragon: 0.78, skeleton: 0.88, ghost: 0.88, golem: 0.84, knight: 0.74, imp: 0.88, demon: 0.7, yeti: 0.78, wizard: 0.78,
     chibi: 1.05, kogob: 0.98, bigslime: 0.88, frostslime: 0.95, magmaslime: 0.95, flameimp: 0.88, icedragon: 0.76, lavagolem: 0.8, holyknight: 0.72, overlord: 0.8,
@@ -2072,7 +2329,9 @@
     wyvern: 0.88, dragonknight: 0.84, ancientdragon: 0.72,
     clown: 0.86, doll: 0.9, ringmaster: 0.72, pirate: 0.86, parrot: 0.88, kraken: 0.74,
     ninja: 0.88, oni: 0.8, kyubi: 0.7, raptor: 0.86, tricera: 0.82, trex: 0.72,
-    fallenangel: 0.84, cerberus: 0.8, chaosgod: 0.7 };
+    fallenangel: 0.84, cerberus: 0.8, chaosgod: 0.7,
+    witch: 0.86, livingbook: 0.86, archmage: 0.72, mimic: 0.86, goldgolem: 0.82, goldendragon: 0.72,
+    jack: 0.88, vampire: 0.84, reaper: 0.72, pegasus: 0.86, valkyrie: 0.84, zeus: 0.72 };
   A.enemyArt = (c, key, t, mood) => ART[key](c, t, mood);
 
   // ---------- 敵カードの背景 ----------
@@ -2103,7 +2362,11 @@
     pirate:   { sky: ['#2a4a6a', '#08121e'], glow: '#ffe08a', ground: '#4a3220' },
     sakura:   { sky: ['#d878a8', '#5a2a5a'], glow: '#fff0f4', ground: '#7a3a5a' },
     jurassic: { sky: ['#6aa83a', '#1e3a14'], glow: '#ffd070', ground: '#4a3a1a' },
-    chaos:    { sky: ['#6a1a7a', '#08020e'], glow: '#ff6ad8', ground: '#1a0828' }
+    chaos:    { sky: ['#6a1a7a', '#08020e'], glow: '#ff6ad8', ground: '#1a0828' },
+    academy:  { sky: ['#3a3a9a', '#10103a'], glow: '#c0a0ff', ground: '#2a2060' },
+    treasure: { sky: ['#8a5a1a', '#2a1404'], glow: '#ffe070', ground: '#4a2e0e' },
+    haunted:  { sky: ['#2a2048', '#05040e'], glow: '#ffa02a', ground: '#18102a' },
+    heaven:   { sky: ['#7ab8ff', '#3a4a9a'], glow: '#fff4b0', ground: '#8aa0d8' }
   };
   A.theme = key => THEMES[key];
   A.sceneBg = function (c, x, y, w, h, key, t) {

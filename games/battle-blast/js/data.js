@@ -204,7 +204,35 @@ BB.data = {
     cerberus:     { name: 'ケルベロス', art: 'cerberus', theme: 'chaos', hp: 385, atk: 44, count: 3,
       actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }, { type: 'strong' }, { type: 'stone' }] },
     chaosgod:     { name: '混沌の神', art: 'chaosgod', theme: 'chaos', hp: 1150, atk: 59, count: 4, boss: true,
-      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }, { type: 'strong' }, { type: 'strong' }] }
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }, { type: 'strong' }, { type: 'strong' }] },
+    // ---- ステージ 23: 魔法学園 ----,
+    witch:        { name: 'まじょ見習い', art: 'witch', theme: 'academy', hp: 390, atk: 45, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'attack' }, { type: 'strong' }] },
+    livingbook:   { name: 'まよいの本', art: 'livingbook', theme: 'academy', hp: 405, atk: 46, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'heal' }, { type: 'strong' }, { type: 'stone' }, { type: 'freeze' }, { type: 'strong' }, { type: 'attack' }] },
+    archmage:     { name: '大賢者', art: 'archmage', theme: 'academy', hp: 1200, atk: 61, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }, { type: 'strong' }] },
+    // ---- ステージ 24: 財宝の洞窟 ----,
+    mimic:        { name: 'ミミック', art: 'mimic', theme: 'treasure', hp: 420, atk: 47, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'strong' }, { type: 'stone' }, { type: 'attack' }, { type: 'freeze' }] },
+    goldgolem:    { name: 'ゴールドゴーレム', art: 'goldgolem', theme: 'treasure', hp: 435, atk: 48, count: 3,
+      actions: [{ type: 'defend' }, { type: 'attack' }, { type: 'strong' }, { type: 'attack' }, { type: 'stone' }, { type: 'strong' }] },
+    goldendragon: { name: 'ゴールデンドラゴン', art: 'goldendragon', theme: 'treasure', hp: 1260, atk: 63, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'stone' }, { type: 'defend' }, { type: 'strong' }, { type: 'strong' }, { type: 'freeze' }] },
+    // ---- ステージ 25: 月夜のお化け屋敷 ----,
+    jack:         { name: 'ジャックランタン', art: 'jack', theme: 'haunted', hp: 450, atk: 49, count: 3,
+      actions: [{ type: 'attack' }, { type: 'stone' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }, { type: 'attack' }] },
+    vampire:      { name: 'ヴァンパイア', art: 'vampire', theme: 'haunted', hp: 465, atk: 50, count: 3,
+      actions: [{ type: 'attack' }, { type: 'seal', ability: 'heal' }, { type: 'strong' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'stone' }] },
+    reaper:       { name: 'しにがみ', art: 'reaper', theme: 'haunted', hp: 1320, atk: 65, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'guard' }, { type: 'stone' }, { type: 'strong' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'freeze' }, { type: 'strong' }] },
+    // ---- ステージ 26: 神々の頂 ----,
+    pegasus:      { name: 'ペガサス', art: 'pegasus', theme: 'heaven', hp: 490, atk: 52, count: 3,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'attack' }, { type: 'freeze' }, { type: 'strong' }, { type: 'seal', ability: 'attack' }] },
+    valkyrie:     { name: 'ヴァルキリー', art: 'valkyrie', theme: 'heaven', hp: 510, atk: 53, count: 3,
+      actions: [{ type: 'attack' }, { type: 'defend' }, { type: 'strong' }, { type: 'strong' }, { type: 'stone' }, { type: 'freeze' }, { type: 'strong' }] },
+    zeus:         { name: 'ゼウス', art: 'zeus', theme: 'heaven', hp: 1450, atk: 69, count: 4, boss: true,
+      actions: [{ type: 'attack' }, { type: 'strong' }, { type: 'freeze' }, { type: 'seal', ability: 'attack' }, { type: 'strong' }, { type: 'stone' }, { type: 'seal', ability: 'guard' }, { type: 'strong' }, { type: 'defend' }, { type: 'freeze' }, { type: 'strong' }, { type: 'strong' }] }
   },
   // reward: 敵を倒すごとに enemy[i] コイン、クリアで clear、初クリアで first、星 1 つにつき star
   // fixed: true のステージは、クリア時にコインがちょうど clear 枚（装備ボーナスなし）
@@ -253,7 +281,15 @@ BB.data = {
     { id: 20, name: '恐竜の谷', desc: '太古の生きものが暮らす谷', theme: 'jurassic',
       enemies: ['raptor', 'tricera', 'trex'], reward: { enemy: [880, 1040, 1650], clear: 4000, first: 3200, star: 310 } },
     { id: 21, name: '終焉の世界', desc: 'すべてが終わる場所に、神が待つ', theme: 'chaos',
-      enemies: ['fallenangel', 'cerberus', 'chaosgod'], reward: { enemy: [940, 1100, 1800], clear: 4800, first: 3800, star: 350 } }
+      enemies: ['fallenangel', 'cerberus', 'chaosgod'], reward: { enemy: [940, 1100, 1800], clear: 4800, first: 3800, star: 350 } },
+    { id: 22, name: '魔法学園', desc: '夜の校舎に、本とほうきが飛びかう', theme: 'academy',
+      enemies: ['witch', 'livingbook', 'archmage'], reward: { enemy: [980, 1150, 1900], clear: 5000, first: 3900, star: 365 } },
+    { id: 23, name: '財宝の洞窟', desc: 'ねむる黄金を、竜が守っている', theme: 'treasure',
+      enemies: ['mimic', 'goldgolem', 'goldendragon'], reward: { enemy: [1020, 1200, 2000], clear: 5200, first: 4000, star: 380 } },
+    { id: 24, name: '月夜のお化け屋敷', desc: 'まんまるの月の下、ざわめく影', theme: 'haunted',
+      enemies: ['jack', 'vampire', 'reaper'], reward: { enemy: [1060, 1250, 2100], clear: 5400, first: 4100, star: 395 } },
+    { id: 25, name: '神々の頂', desc: '雲の上、神々がすまう最後の場所', theme: 'heaven',
+      enemies: ['pegasus', 'valkyrie', 'zeus'], reward: { enemy: [1150, 1350, 2400], clear: 6200, first: 4800, star: 430 } }
   ],
   // ガチャは 3 種類。どれも 1 回と 10 回が引ける。min10 は「10 回のうち最低 1 つはこのレア度以上」の保証。
   //   ノーマル: SSR・UR は出ない / レア: R 以上確定で SSR が出る / ウルトラ: SR 以上確定で最高レア UR が出る
