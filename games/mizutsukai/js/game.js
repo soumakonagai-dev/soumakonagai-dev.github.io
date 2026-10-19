@@ -21,7 +21,43 @@ const DIFF = {
   sponge: { full: 80 },  // 破裂するまでに吸う水
 };
 const FIRE_HP = DIFF.fireHP;
-const maxHold = () => Math.round(L.maxHold * DIFF.holdScale);
+// 難易度（3だんかい）。ステージごとに、クリアした難易度の数だけ星がつく
+const LEVEL_DIFFS = [
+  { name: 'かんたん', col: '#8affc0', hold: 1, hp: 1, spd: 1, cost: 1, turret: 1, walk: 1, reach: 1, boss: 1 },
+  { name: 'ふつう', col: '#ffd860', hold: .85, hp: 1.15, spd: 1.08, cost: 1.25, turret: .88, walk: .95, reach: .95, boss: 1.2 },
+  { name: 'むずかしい', col: '#ff7a7a', hold: .72, hp: 1.35, spd: 1.16, cost: 1.5, turret: .78, walk: .9, reach: .9, boss: 1.4 },
+];
+const DIFF_KEY = 'mizutsukai-difficulty';
+let diffLv = 1; try { const v = +localStorage.getItem(DIFF_KEY); if (v >= 0 && v <= 2 && localStorage.getItem(DIFF_KEY) !== null) diffLv = v; } catch (e) { }
+function setDiff(v) { diffLv = v; try { localStorage.setItem(DIFF_KEY, String(v)); } catch (e) { } }
+// 敵の強さ（ぜんたいを強化したうえで、難易度とステージの「hard」でさらに強く）
+const BASE_ENEMY = { hp: 1.25, spd: 1.1, turret: .9 };
+let EN = null;
+function makeEN(lev) {
+  const d = LEVEL_DIFFS[diffLv], h = (lev && lev.hard) || 1;
+  const hp = BASE_ENEMY.hp * d.hp * h, spd = BASE_ENEMY.spd * d.spd;
+  EN = {
+    hp, spd, cost: d.cost, boss: d.boss * h,
+    spirit: { hp: Math.round(DIFF.spirit.hp * hp), speed: DIFF.spirit.speed * spd },
+    crab: { hp: Math.round(DIFF.crab.hp * hp), speed: DIFF.crab.speed * spd, drown: Math.round(DIFF.crab.drown * hp) },
+    turtle: { speed: DIFF.turtle.speed * spd, drown: Math.round(DIFF.turtle.drown * hp) },
+    bat: { hp: Math.round(DIFF.bat.hp * hp), range: DIFF.bat.range * Math.min(1.1, spd), speed: DIFF.bat.speed * spd, rest: Math.round(DIFF.bat.rest / spd) },
+    turret: { hp: Math.round(DIFF.turret.hp * hp), interval: Math.round(DIFF.turret.interval * BASE_ENEMY.turret * d.turret / Math.sqrt(h)), shot: DIFF.turret.shot * Math.min(1.35, spd) },
+    jelly: { dry: Math.round(DIFF.jelly.dry * hp) },
+    sponge: { full: Math.round(DIFF.sponge.full * hp) },
+    ghostHp: Math.round(3 * hp), salaHp: Math.round(6 * hp),
+  };
+}
+makeEN(null);
+// 敵に水を当てたときのダメージ。むずかしいほど、1ダメージに必要な水が多い
+function waterHit(e, n) {
+  e.wAcc = (e.wAcc || 0) + 1;
+  if (e.wAcc < EN.cost) return false;
+  e.wAcc -= EN.cost; damage(e, n); return true;
+}
+const grabR = () => GRAB_R * LEVEL_DIFFS[diffLv].reach;
+const followR = () => L.follow * LEVEL_DIFFS[diffLv].reach;
+const maxHold = () => Math.max(10, Math.round(L.maxHold * DIFF.holdScale * LEVEL_DIFFS[diffLv].hold * ((L && L.holdMul) || 1)));
 const GATE_CH = { G: 0, A: 0, B: 1, C: 2 }, SENSOR_CH = { S: 0, '1': 0, '2': 1, '3': 2 }, PLATE_CH = { '4': 0, '5': 1, '6': 2 };
 const GROUP_COL = ['#ffd860', '#ff8ad8', '#8affc0'];
 
@@ -58,6 +94,14 @@ try {
   const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || '[]');
   for (const v of raw) { const name = typeof v === 'number' ? OLD_LEVEL_ORDER_44[v] : v; const i = LEVELS.findIndex(l => l.name === name); if (i >= 0) cleared.add(i); }
 } catch (e) { }
+const STAR_KEY = 'mizutsukai-stars';
+let stars = {}; // ステージ名 → クリアした難易度のビット（1:かんたん 2:ふつう 4:むずかしい）
+try { stars = JSON.parse(localStorage.getItem(STAR_KEY) || '{}') || {}; } catch (e) { }
+// 前のセーブでクリアしていたステージは「かんたん」の星1つ
+for (const i of cleared) { const n = LEVELS[i].name; if (!stars[n]) stars[n] = 1; }
+const starBits = i => stars[LEVELS[i].name] || 0;
+const starCount = i => { const b = starBits(i); return (b & 1) + (b >> 1 & 1) + (b >> 2 & 1); };
+function addStar(i) { stars[LEVELS[i].name] = starBits(i) | (1 << diffLv); try { localStorage.setItem(STAR_KEY, JSON.stringify(stars)); } catch (e) { } }
 function saveProgress() { try { localStorage.setItem(SAVE_KEY, JSON.stringify([...cleared].map(i => LEVELS[i].name))); } catch (e) { } }
 
 // ---------------- バッジ ----------------
@@ -343,29 +387,29 @@ function fillTile(tx, ty, t) {
   for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) grid[(ty * 4 + y) * GW + tx * 4 + x] = t;
 }
 function inZone(px, py) {
-  if (L.follow) return P && !P.dead && Math.hypot(px - (P.x + P.w / 2), py - (P.y + P.h / 2)) <= L.follow;
+  if (L.follow) return P && !P.dead && Math.hypot(px - (P.x + P.w / 2), py - (P.y + P.h / 2)) <= followR();
   if (!L.zones) return true;
   return L.zones.some(z => px >= z[0] * TILE && px < (z[0] + z[2]) * TILE && py >= z[1] * TILE && py < (z[1] + z[3]) * TILE);
 }
 
 const ENEMY = {
-  g: (x, y) => ({ type: 'ghost', x: x + 2, y: y + 1, w: 12, h: 14, hp: 3, t: Math.random() * 6 }),
-  l: (x, y) => ({ type: 'sala', x, y: y + 4, w: 16, h: 12, vx: .6, vy: 0, kx: 0, hp: 6, cd: 60 }),
+  g: (x, y) => ({ type: 'ghost', x: x + 2, y: y + 1, w: 12, h: 14, hp: EN.ghostHp, t: Math.random() * 6 }),
+  l: (x, y) => ({ type: 'sala', x, y: y + 4, w: 16, h: 12, vx: .6, vy: 0, kx: 0, hp: EN.salaHp, cd: 60 }),
   z: (x, y) => ({ type: 'bbug', x: x + 1, y: y + 6, w: 14, h: 10, vx: .5, vy: 0, kx: 0, hp: 1, fuse: 540, armed: true }),
   M: (x, y) => ({ type: 'fboss', x: x - 8, y, w: 32, h: 28, vx: .8, hp: 12, maxHp: 12, stun: 0, cd: 120, tired: 0, si: 0, burst: 0, t: 0, lit: false, spreadCd: 60, pat: 0, fires: 0 }),
   Q: (x, y) => ({ type: 'boss', x: x - 12, y: y - 12, w: 40, h: 28, vx: .4, vy: 0, kx: 0, hp: 3, drown: 0, stun: 0, cd: 120 }),
-  f: (x, y) => ({ type: 'fire', x: x + 2, y: y + 2, w: 12, h: 12, vx: DIFF.spirit.speed, hp: DIFF.spirit.hp, baseY: y + 2, t: Math.random() * 6 }),
-  c: (x, y) => ({ type: 'crab', x, y: y + 6, w: 16, h: 10, vx: .5, vy: 0, kx: 0, hp: DIFF.crab.hp, drown: 0 }),
+  f: (x, y) => ({ type: 'fire', x: x + 2, y: y + 2, w: 12, h: 12, vx: EN.spirit.speed, hp: EN.spirit.hp, baseY: y + 2, t: Math.random() * 6 }),
+  c: (x, y) => ({ type: 'crab', x, y: y + 6, w: 16, h: 10, vx: .5, vy: 0, kx: 0, hp: EN.crab.hp, drown: 0 }),
   k: (x, y) => ({ type: 'turtle', x: x - 1, y: y + 4, w: 18, h: 12, vx: .35, vy: 0, kx: 0, hp: 1, drown: 0 }),
-  b: (x, y) => ({ type: 'bat', x: x + 2, y: y + 4, w: 12, h: 8, hx: x + 2, hy: y + 4, hp: DIFF.bat.hp, mode: 0, t: Math.random() * 6, cd: 60, vx: 0, vy: 0, timer: 0 }),
-  t: (x, y) => ({ type: 'turret', x: x + 1, y: y + 2, w: 14, h: 14, hp: DIFF.turret.hp, cd: 60 }),
+  b: (x, y) => ({ type: 'bat', x: x + 2, y: y + 4, w: 12, h: 8, hx: x + 2, hy: y + 4, hp: EN.bat.hp, mode: 0, t: Math.random() * 6, cd: 60, vx: 0, vy: 0, timer: 0 }),
+  t: (x, y) => ({ type: 'turret', x: x + 1, y: y + 2, w: 14, h: 14, hp: EN.turret.hp, cd: 60 }),
   j: (x, y) => ({ type: 'jelly', x: x + 2, y: y + 2, w: 12, h: 12, vx: .3, vy: 0, hp: 1, dry: 0, t: Math.random() * 6 }),
-  s: (x, y) => ({ type: 'sponge', x: x + 1, y: y + 4, w: 14, h: 12, vx: .3, vy: 0, kx: 0, hp: 1, eat: 0, full: DIFF.sponge.full }),
+  s: (x, y) => ({ type: 'sponge', x: x + 1, y: y + 4, w: 14, h: 12, vx: .3, vy: 0, kx: 0, hp: 1, eat: 0, full: EN.sponge.full }),
 };
 
 function loadLevel(i, fresh = true) {
   if (fresh || i !== levelIndex) run = { deaths: 0, frames: 0, spiritKills: 0, ride: 0 };
-  levelIndex = i; L = LEVELS[i];
+  levelIndex = i; L = LEVELS[i]; makeEN(L);
   grid.fill(0); stamp.fill(0); elec.fill(0); elecOn = false;
   fireHP = new Float32Array(TW * TH); seeds = []; seedAtTile = {}; sensors = []; gates = []; lightGates = []; lightGateOpen = false; geysers = []; orbs = []; bolts = []; strikes = []; skyFlash = 0; toasts = toasts.filter(t => !t.text.startsWith('⚡')); pipes = []; fans = []; const pipeIns = [], pipeOuts = []; faucets = []; groundFire = new Uint8Array(TW * TH); burnTiles = []; burnSet = new Set(); tutoStep = 0; tutoFaucet = false;
   gateOpen = [false, false, false]; sensorCount = [0, 0, 0]; sensorNeed = [0, 0, 0];
@@ -392,7 +436,7 @@ function loadLevel(i, fresh = true) {
       else if (c === 'x') crates.push({ x: px, y: py, w: 16, h: 16, vx: 0, vy: 0 });
       else if (c === '@') P = { x: px + 3, y: py + TILE - 18, w: 10, h: 18, vx: 0, vy: 0, face: 1, ground: false, climb: false, dead: false, drop: 0 };
       else if (c === 'E') exitDoor = { x: px, y: py - TILE, w: TILE, h: TILE * 2 };
-      else if (ENEMY[c]) { const e = Object.assign(ENEMY[c](px, py), { alive: true, flash: 0 }); if (e.type === 'boss') { if (L.bossHp) e.hp = L.bossHp; e.maxHp = e.hp; e.pat = 0; e.mixCd = 300; } enemies.push(e); }
+      else if (ENEMY[c]) { const e = Object.assign(ENEMY[c](px, py), { alive: true, flash: 0 }); if (e.type === 'fboss') { e.hp = e.maxHp = Math.round(e.hp * EN.boss); } if (e.type === 'boss') { e.hp = Math.round((L.bossHp || e.hp) * EN.boss); e.maxHp = e.hp; e.pat = 0; e.mixCd = 300; } enemies.push(e); }
       else if (c in GATE_CH) { fillTile(tx, ty, GATE); gates.push([tx, ty, GATE_CH[c]]); }
       else if (c === 'H') { fillTile(tx, ty, GATE); lightGates.push([tx, ty]); }
       else if (c === 'K') keyItems.push({ x: px + 3, y: py + 3, w: 10, h: 12, taken: false });
@@ -437,7 +481,7 @@ function loadLevel(i, fresh = true) {
     while (k !== null) { path.unshift([k % TW, k / TW | 0]); k = prev.get(k); }
     fuses.push({ path, prog: 0, out: false, bomb: end[2] });
   }
-  for (let g = 0; g < 3; g++) sensorNeed[g] = Math.floor(sensors.filter(s => s[2] === g).length * 16 * (L.need || .7));
+  for (let g = 0; g < 3; g++) sensorNeed[g] = Math.floor(sensors.filter(s => s[2] === g).length * 16 * (L.need || .7) * (L.hold ? LEVEL_DIFFS[diffLv].hold : 1));
   prerenderStatic();
   state = 'play'; stateTimer = 0;
 }
@@ -526,7 +570,7 @@ function touchSpecial(x, y) {
     const nx = x + (d === 0) - (d === 1), ny = y + (d === 2) - (d === 3), t = get(nx, ny);
     if (t === FIRE) { hitFire(nx, ny); return true; }
     if (t === SEED) { feedSeed(nx, ny); return true; }
-    if (t === DRAIN && Math.random() < (L.drainRate || .05)) return true;
+    if (t === DRAIN && Math.random() < (L.drainRate || .05) * LEVEL_DIFFS[diffLv].hold) return true;
   }
   return false;
 }
@@ -650,7 +694,7 @@ function stepParticle(p, isHeld) {
 function grabWater() {
   const max = maxHold();
   if (held.length >= max) return;
-  const cx0 = Math.floor(mouse.x / CELL), cy0 = Math.floor(mouse.y / CELL), R = Math.ceil(GRAB_R / CELL), cand = [];
+  const cx0 = Math.floor(mouse.x / CELL), cy0 = Math.floor(mouse.y / CELL), R = Math.ceil(grabR() / CELL), cand = [];
   for (let y = cy0 - R; y <= cy0 + R; y++) for (let x = cx0 - R; x <= cx0 + R; x++) {
     const t = get(x, y);
     if ((t === WATER || t === MUD) && (x - cx0) ** 2 + (y - cy0) ** 2 <= R * R && inZone(x * CELL + 2, y * CELL + 2)) cand.push(x, y);
@@ -718,7 +762,7 @@ function hitEnemies(p, isHeld) {
       if (e.shock > 0) { // しびれ中に、水を勢いよくぶつけるとダメージ
         if (Math.hypot(p.vx, p.vy) < 2) { puff(p.x, p.y, 1, '#bdf'); return false; }
         e.hitM = (e.hitM || 0) + 1; puff(p.x, p.y, 2, '#bdf'); if (frame % 3 === 0) sfx('hit');
-        if (e.hitM >= BOSS_HITS) {
+        if (e.hitM >= bossHits()) {
           e.hitM = 0; e.shock = 0; e.hp--; e.stun = 60; e.flash = 20; shake = 10; sfx('hit'); puff(e.x + 20, e.y, 20, '#9cf');
           if (e.hp <= 0) damage(e, 99);
         }
@@ -740,11 +784,11 @@ function hitEnemies(p, isHeld) {
       if (e.flash > 0) continue;
       damage(e, 1); e.flash = 10; puff(p.x, p.y, 2, '#dde'); sfx('sizzle'); return false;
     }
-    if (t === 'fire' || t === 'bat' || t === 'turret') { damage(e, 1); e.flash = 4; puff(p.x, p.y, 1, '#dde'); sfx(t === 'fire' ? 'sizzle' : 'hit'); return false; }
+    if (t === 'fire' || t === 'bat' || t === 'turret') { waterHit(e, 1); e.flash = 4; puff(p.x, p.y, 1, '#dde'); sfx(t === 'fire' ? 'sizzle' : 'hit'); return false; }
     if (t === 'sponge') { feedSponge(e); return false; }
     if (t === 'crab' || t === 'turtle') {
       if (Math.hypot(p.vx, p.vy) > 2.2) {
-        if (t === 'crab') damage(e, 1);
+        if (t === 'crab') waterHit(e, 1);
         e.kx += Math.sign(p.vx) * (t === 'crab' ? .5 : .7); e.flash = 6; sfx('hit');
         p.vx *= -.3; p.vy = -1; if (isHeld) return false;
       }
@@ -848,7 +892,7 @@ function updatePlayer() {
   const dir = (I.right ? 1 : 0) - (I.left ? 1 : 0);
   if (dir) P.face = dir;
   const top = inM ? .45 : P.climb ? 1 : inW ? 1.3 : 1.9;
-  P.vx += (dir * top - P.vx) * .3;
+  P.vx += (dir * top * LEVEL_DIFFS[diffLv].walk - P.vx) * .3;
 
   if (I.down && P.ground && !onVine) P.drop = 14; // すり抜け床から降りる
   if (P.drop > 0) P.drop--;
@@ -900,7 +944,7 @@ function updatePlayer() {
   for (const k of keyItems) if (!k.taken && overlap(P, k)) { k.taken = true; keys_++; sfx('key'); puff(k.x + 5, k.y + 6, 10, '#ffe066'); }
   if (keys_ > 0 && boxAny(P.x - 2, P.y, P.w + 4, P.h, t => t === LOCK)) openLock();
   if (exitDoor && overlap(P, exitDoor) && !P.dead) {
-    state = 'clear'; stateTimer = 0; clearChoice = 0; clearNav.l = clearNav.r = true; sfx('clear'); cleared.add(levelIndex); saveProgress();
+    state = 'clear'; stateTimer = 0; clearChoice = 0; clearNav.l = clearNav.r = true; sfx('clear'); cleared.add(levelIndex); if (!testMode) addStar(levelIndex); saveProgress();
     checkClearBadges();
   }
 }
@@ -987,11 +1031,11 @@ function updateEnemies() {
         const nx = e.x + e.vx;
         if (boxAny(nx, e.y, e.w, e.h, t => t >= DIRT)) e.vx *= -1; else e.x = nx;
         e.y = e.baseY + Math.sin(e.t) * 4;
-        while (e.alive && eatCell(e, 0, (x, y) => { puff(x * CELL, y * CELL, 1, '#dde'); sfx('sizzle'); })) damage(e, 1);
+        while (e.alive && eatCell(e, 0, (x, y) => { puff(x * CELL, y * CELL, 1, '#dde'); sfx('sizzle'); })) waterHit(e, 1);
         break;
       }
-      case 'crab': walker(e, DIFF.crab.speed, DIFF.crab.drown); break;
-      case 'turtle': walker(e, DIFF.turtle.speed, DIFF.turtle.drown); break;
+      case 'crab': walker(e, EN.crab.speed, EN.crab.drown); break;
+      case 'turtle': walker(e, EN.turtle.speed, EN.turtle.drown); break;
       case 'sponge':
         walker(e, .3, 0);
         if (frame % 2 === 0) eatCell(e, 2, () => feedSponge(e));
@@ -1000,29 +1044,29 @@ function updateEnemies() {
         e.t += .06; e.cd = Math.max(0, e.cd - 1);
         if (e.mode === 0) {
           e.x += (e.hx - e.x) * .05; e.y += (e.hy + Math.sin(e.t) * 4 - e.y) * .1;
-          if (d < DIFF.bat.range && e.cd === 0 && !P.dead) { e.mode = 1; e.timer = 100; e.vx = dx / d * 2.8; e.vy = dy / d * 2.8; }
+          if (d < EN.bat.range && e.cd === 0 && !P.dead) { e.mode = 1; e.timer = 100; e.vx = dx / d * 2.8; e.vy = dy / d * 2.8; }
         } else if (e.mode === 1) {
           // 少しだけプレイヤーを追いかける
-          e.vx += (dx / d * DIFF.bat.speed - e.vx) * .06; e.vy += (dy / d * DIFF.bat.speed - e.vy) * .06;
+          e.vx += (dx / d * EN.bat.speed - e.vx) * .06; e.vy += (dy / d * EN.bat.speed - e.vy) * .06;
           const nx = e.x + e.vx, ny = e.y + e.vy;
           if (boxAny(nx, ny, e.w, e.h, t => t >= DIRT) || --e.timer <= 0) e.mode = 2; else { e.x = nx; e.y = ny; }
         } else {
           const hx = e.hx - e.x, hy = e.hy - e.y, hd = Math.hypot(hx, hy);
-          if (hd < 2) { e.mode = 0; e.cd = DIFF.bat.rest; } else { e.x += hx / hd * 1.2; e.y += hy / hd * 1.2; }
+          if (hd < 2) { e.mode = 0; e.cd = EN.bat.rest; } else { e.x += hx / hd * 1.2; e.y += hy / hd * 1.2; }
         }
-        if (frame % 4 === 0 && eatCell(e, 0, (x, y) => puff(x * CELL, y * CELL, 1, '#bdf'))) damage(e, 1);
+        if (frame % 4 === 0 && eatCell(e, 0, (x, y) => puff(x * CELL, y * CELL, 1, '#bdf'))) waterHit(e, 1);
         break;
       }
       case 'turret':
         if (--e.cd <= 0 && d < (L.turretRange || 330) && !P.dead) {
-          e.cd = L.turretCd || DIFF.turret.interval; sfx('shoot');
-          shots.push({ x: ex, y: ey - 2, vx: dx / d * DIFF.turret.shot, vy: dy / d * DIFF.turret.shot });
+          e.cd = L.turretCd ? (L.turretFixed ? L.turretCd : Math.round(L.turretCd * EN.turret.interval / DIFF.turret.interval)) : EN.turret.interval; sfx('shoot');
+          shots.push({ x: ex, y: ey - 2, vx: dx / d * EN.turret.shot, vy: dy / d * EN.turret.shot });
         }
-        if (frame % 3 === 0 && eatCell(e, 2, (x, y) => puff(x * CELL, y * CELL, 1, '#dde'))) { damage(e, 1); e.flash = 4; }
+        if (frame % 3 === 0 && eatCell(e, 2, (x, y) => puff(x * CELL, y * CELL, 1, '#dde'))) { waterHit(e, 1); e.flash = 4; }
         break;
       case 'ghost': { // かべをすりぬけて近づく。明るい電球はにがて
         e.t += .05;
-        let mx = dx / d * .45, my = dy / d * .45;
+        let mx = dx / d * .45 * EN.spd, my = dy / d * .45 * EN.spd;
         for (const b of bulbs) if (b.power > 0) {
           const bx = b.tx * TILE + 8 - ex, by = b.ty * TILE + 8 - ey, bd = Math.hypot(bx, by) || 1, r = bulbRadius(b);
           if (bd < r * .8) { mx = -bx / bd * .9; my = -by / bd * .9; }
@@ -1031,7 +1075,7 @@ function updateEnemies() {
         break;
       }
       case 'sala': { // ほのおトカゲ: 近づくと火をはく
-        walker(e, .6, 0);
+        walker(e, .6 * EN.spd, 0);
         if (--e.cd <= 0 && Math.abs(dx) < 120 && Math.abs(dy) < 24 && Math.sign(dx) === Math.sign(e.vx) && !P.dead) {
           e.cd = 110; sfx('shoot');
           shots.push({ x: ex + Math.sign(e.vx) * 8, y: ey - 1, vx: Math.sign(e.vx) * 2.4, vy: 0, life: 38, breath: true });
@@ -1169,7 +1213,7 @@ function updateEnemies() {
           e.vy = Math.min(e.vy + .2, 3);
           if (moveY(e, e.vy, true)) e.vy = 0;
           if (++e.dry % 15 === 0) puff(ex, e.y, 2, '#ccc');
-          if (e.dry > DIFF.jelly.dry) damage(e, 99);
+          if (e.dry > EN.jelly.dry) damage(e, 99);
         }
         break;
       }
@@ -1325,12 +1369,12 @@ function drawFans() {
 }
 // ---------------- 雷（どろガメ大王の雷雨） ----------------
 let bolts = [], strikes = [], skyFlash = 0;
-const BOSS_HITS = 15; // しびれ中に、これだけ水を当てると1ダメージ
+const BOSS_HITS = 15; const bossHits = () => Math.round(BOSS_HITS * EN.cost); // しびれ中に、これだけ水を当てると1ダメージ
 function shockedBossHit(p) {
   const e = enemies.find(e => e.alive && e.type === 'boss' && e.shock > 0);
   if (!e || Math.hypot(p.vx, p.vy) < 2 || p.x < e.x - 14 || p.x > e.x + e.w + 14 || p.y < e.y - 26 || p.y > e.y + e.h) return false;
   e.hitM = (e.hitM || 0) + 1; puff(p.x, p.y, 2, '#bdf'); if (frame % 3 === 0) sfx('hit');
-  if (e.hitM >= BOSS_HITS) { e.hitM = 0; e.shock = 0; e.hp--; e.stun = 60; e.flash = 20; shake = 10; sfx('hit'); puff(e.x + 20, e.y, 20, '#9cf'); if (e.hp <= 0) damage(e, 99); }
+  if (e.hitM >= bossHits()) { e.hitM = 0; e.shock = 0; e.hp--; e.stun = 60; e.flash = 20; shake = 10; sfx('hit'); puff(e.x + 20, e.y, 20, '#9cf'); if (e.hp <= 0) damage(e, 99); }
   return true;
 }
 function updateBolts() {
@@ -1785,7 +1829,7 @@ function drawEnemy(e) {
       ctx.restore();
       if (up) for (let i = 0; i < 3; i++) text('★', x + 8 + i * 12 + Math.sin(frame * .2 + i) * 3, y - 4, 8, '#ffe14a');
       const mh = e.maxHp || 3; for (let i = 0; i < mh; i++) { ctx.fillStyle = i < e.hp ? '#ff6060' : '#433'; ctx.fillRect(x + 20 - mh * 4.5 + i * 9, y - 14, 7, 3); }
-      if (e.shock > 0) { text('⚡ しびれた！ 水をぶつけろ！', x + 20, y - 22, 10, (frame >> 3) & 1 ? '#fff6a0' : '#9cf', 'center'); ctx.fillStyle = '#433'; ctx.fillRect(x, y - 9, 40, 2); ctx.fillStyle = '#9cf'; ctx.fillRect(x, y - 9, 40 * (e.hitM || 0) / BOSS_HITS, 2); ctx.fillStyle = '#fff6a0'; ctx.fillRect(x, y - 6, 40 * e.shock / 300, 1); }
+      if (e.shock > 0) { text('⚡ しびれた！ 水をぶつけろ！', x + 20, y - 22, 10, (frame >> 3) & 1 ? '#fff6a0' : '#9cf', 'center'); ctx.fillStyle = '#433'; ctx.fillRect(x, y - 9, 40, 2); ctx.fillStyle = '#9cf'; ctx.fillRect(x, y - 9, 40 * (e.hitM || 0) / bossHits(), 2); ctx.fillStyle = '#fff6a0'; ctx.fillRect(x, y - 6, 40 * e.shock / 300, 1); }
       else if (e.roar > 0) text('どろまぜ！', x + 20, y - 20, 9, '#e8b070', 'center');
       else if (e.gulp > 0) text('ごくごく…', x + 20, y - 20, 9, '#9cf', 'center');
       if (!up && e.maxHp - e.hp >= 1 && (frame >> 3) & 1) { ctx.fillStyle = '#ff5040'; ctx.fillRect(x + 34, y - 4, 2, 1); ctx.fillRect(x + 35, y - 5, 1, 3); }
@@ -1814,7 +1858,7 @@ function drawEnemy(e) {
       break;
     }
     case 'jelly': {
-      const dryk = Math.min(1, e.dry / DIFF.jelly.dry);
+      const dryk = Math.min(1, e.dry / EN.jelly.dry);
       ctx.fillStyle = `rgba(${200 - dryk * 60},${150 - dryk * 50},255,${.85 - dryk * .3})`;
       ctx.beginPath(); ctx.arc(x + 6, y + 5, 6, Math.PI, 0); ctx.fill(); ctx.fillRect(x, y + 5, 12, 2);
       ctx.fillStyle = '#ffe94a'; for (let i = 0; i < 4; i++) ctx.fillRect(x + 1 + i * 3, y + 7, 1, 4 + ((frame >> 3) + i) % 2);
@@ -2041,7 +2085,7 @@ function drawZones() {
   const hz = held.length > 0;
   ctx.strokeStyle = hz ? 'rgba(170,150,255,.7)' : 'rgba(110,210,255,.45)'; ctx.fillStyle = hz ? 'rgba(140,120,255,.10)' : 'rgba(80,190,255,.06)';
   if (L.follow) {
-    if (!P.dead) { ctx.beginPath(); ctx.arc(P.x + P.w / 2, P.y + P.h / 2, L.follow, 0, 7); ctx.fill(); ctx.stroke(); }
+    if (!P.dead) { ctx.beginPath(); ctx.arc(P.x + P.w / 2, P.y + P.h / 2, followR(), 0, 7); ctx.fill(); ctx.stroke(); }
   } else if (L.zones) for (const z of L.zones) {
     const x = z[0] * TILE, y = z[1] * TILE, w = z[2] * TILE, h = z[3] * TILE;
     ctx.fillRect(x, y, w, h); ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
@@ -2143,12 +2187,13 @@ function draw() {
   if ((!touchMode || mouse.down) && state === 'play') {
     const okZ = inZone(mouse.x, mouse.y);
     ctx.strokeStyle = okZ ? (mouse.down ? '#bff' : 'rgba(150,230,255,.8)') : 'rgba(255,110,110,.8)';
-    ctx.beginPath(); ctx.arc(mouse.x, mouse.y, GRAB_R, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(mouse.x, mouse.y, grabR(), 0, 7); ctx.stroke();
     ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(mouse.x - 1, mouse.y - 1, 2, 2);
   }
 
   const w = LEVELS[levelIndex].world;
   text(WORLDS[w].tutorial ? `📘 ${L.name}` : `${WORLDS[w].hidden ? '?' : w + 1}-${levelIndex - WORLDS[w].start + 1}  ${L.name}`, 8, 16, 12, '#fff');
+  { const d = LEVEL_DIFFS[diffLv]; text(d.name, W - 8, 46, 10, d.col, 'right'); }
   if (keyItems.length || L.keyOnClear) text(`🔑×${keys_}`, 8, 32, 12, '#ffd84a');
   ctx.fillStyle = '#000a'; ctx.fillRect(W - 128, 6, 120, 12);
   ctx.fillStyle = '#4af'; ctx.fillRect(W - 126, 8, 116 * held.length / maxHold(), 8);
@@ -2168,9 +2213,10 @@ function draw() {
   text(hint, W / 2, H - 6, 11, '#ffe9a8', 'center');
 
   if (state === 'clear') {
-    ctx.fillStyle = '#000a'; ctx.fillRect(0, 112, W, 124);
+    ctx.fillStyle = '#000a'; ctx.fillRect(0, 104, W, 140);
     const last = !(levelIndex + 1 < LEVELS.length && levelVisible(levelIndex + 1));
-    text(last ? 'ALL CLEAR!  あそんでくれてありがとう！' : 'STAGE CLEAR!', W / 2, 150, 22, '#ffd860', 'center');
+    text(last ? 'ALL CLEAR!  あそんでくれてありがとう！' : 'STAGE CLEAR!', W / 2, 132, 22, '#ffd860', 'center');
+    { const bits = starBits(levelIndex); for (let k = 0; k < 3; k++) drawStar(W / 2 + (k - 1) * 22, 150, 8, bits & (1 << k), STAR_COLS[k]); text(LEVEL_DIFFS[diffLv].name + ' クリア！', W / 2 + 40, 154, 10, LEVEL_DIFFS[diffLv].col); }
     clearButtons().forEach((b, i) => {
       const on = i === clearChoice;
       ctx.fillStyle = on ? '#3a6ad0' : '#1c2748'; ctx.fillRect(b.x, b.y, b.w, b.h);
@@ -2270,8 +2316,14 @@ const SEL = { x0: 128, y0: 42, bw: 54, bh: 32, gap: 8, rowH: 41 };
 const visibleCount = () => LEVELS.filter((_, i) => levelVisible(i)).length;
 const clearedVisible = () => [...cleared].filter(i => i < LEVELS.length && levelVisible(i)).length;
 const BADGE_BTN = { x: 8, y: 8, w: 118, h: 24 };
-const ROWS_PER_PAGE = 6; let selectPage = 0;
-const pageCount = () => Math.ceil(WORLDS.filter(w => !w.tutorial).length / ROWS_PER_PAGE);
+// たてにスクロールするリスト
+const LIST = { top: 40, bottom: H - 30 };
+let selScroll = 0, selScrollT = 0, wheelAcc = 0, selDrag = null;
+const listRows = () => WORLDS.filter(w => !w.tutorial).length;
+const maxScroll = () => Math.max(0, listRows() * SEL.rowH + 6 - (LIST.bottom - LIST.top));
+const rowY = wi => LIST.top + 4 + wi * SEL.rowH - Math.round(selScroll);
+const DIFF_BTNS = () => LEVEL_DIFFS.map((d, i) => ({ x: W - 3 * 70 - 6 + i * 70, y: 8, w: 66, h: 24, i }));
+cv.addEventListener('wheel', e => { if (state === 'select') { e.preventDefault(); const r = cv.getBoundingClientRect(); wheelAcc += e.deltaY * (e.deltaMode === 1 ? 16 : 1) * H / r.height; } }, { passive: false });
 const TUTO_BTN = { x: 132, y: 8, w: 118, h: 24 };
 const tutorialIndex = () => LEVELS.findIndex(l => (WORLDS[l.world] || {}).tutorial);
 const PAGE_BTNS = () => [{ x: 8, y: H - 26, w: 70, h: 20, d: -1, label: '◀ まえ' }, { x: W - 78, y: H - 26, w: 70, h: 20, d: 1, label: 'つぎ ▶' }];
@@ -2280,25 +2332,24 @@ function selectButtons() {
   WORLDS.forEach((w, wi) => {
     if (w.tutorial) return;
     if (w.hidden && !allBadges()) return;
-    if (Math.floor(wi / ROWS_PER_PAGE) !== selectPage) return;
-    const row = wi % ROWS_PER_PAGE;
-    for (let i = 0; i < w.count; i++) out.push({ i: w.start + i, x: SEL.x0 + i * (SEL.bw + SEL.gap), y: SEL.y0 + row * SEL.rowH, w: SEL.bw, h: SEL.bh, label: `${wi + 1}-${i + 1}` });
+    const y = rowY(wi); if (y + SEL.bh < LIST.top || y > LIST.bottom) return;
+    for (let i = 0; i < w.count; i++) out.push({ i: w.start + i, x: SEL.x0 + i * (SEL.bw + SEL.gap), y, w: SEL.bw, h: SEL.bh, label: `${wi + 1}-${i + 1}` });
   });
   return out;
 }
+function drawStar(x, y, r, on, col) {
+  ctx.beginPath();
+  for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.closePath(); if (on) { ctx.fillStyle = col; ctx.fill(); } else { ctx.strokeStyle = 'rgba(160,170,200,.45)'; ctx.stroke(); }
+}
+const STAR_COLS = ['#8affc0', '#ffd860', '#ff7a7a'];
 function drawSelect() {
-  text('ステージえらび', W / 2, 30, 18, '#7fd4ff', 'center');
-  text(`クリア ${clearedVisible()}/${visibleCount()}`, W - 12, 30, 11, '#9cf', 'right');
-  const bb = BADGE_BTN, bhov = !touchMode && mouse.x > bb.x && mouse.x < bb.x + bb.w && mouse.y > bb.y && mouse.y < bb.y + bb.h;
-  ctx.fillStyle = bhov ? '#5a4a10' : '#3a3010'; ctx.fillRect(bb.x, bb.y, bb.w, bb.h); ctx.strokeStyle = '#ffd860'; ctx.strokeRect(bb.x + .5, bb.y + .5, bb.w - 1, bb.h - 1);
-  text(`🏅 バッジ ${badgeGot.size}/${BADGES.length}`, bb.x + bb.w / 2, bb.y + 17, 12, '#ffd860', 'center');
-  const tb = TUTO_BTN, thov = !touchMode && mouse.x > tb.x && mouse.x < tb.x + tb.w && mouse.y > tb.y && mouse.y < tb.y + tb.h;
-  ctx.fillStyle = thov ? '#1f5a4a' : '#143a30'; ctx.fillRect(tb.x, tb.y, tb.w, tb.h); ctx.strokeStyle = '#7fe8c0'; ctx.strokeRect(tb.x + .5, tb.y + .5, tb.w - 1, tb.h - 1);
-  text('📘 チュートリアル', tb.x + tb.w / 2, tb.y + 17, 12, '#bfffe8', 'center');
+  const hov = b => !touchMode && mouse.x > b.x && mouse.x < b.x + b.w && mouse.y > b.y && mouse.y < b.y + b.h;
+  // リスト（スクロール）
+  ctx.save(); ctx.beginPath(); ctx.rect(0, LIST.top, W, LIST.bottom - LIST.top); ctx.clip();
   WORLDS.forEach((w, wi) => {
     if (w.tutorial) return;
-    if (Math.floor(wi / ROWS_PER_PAGE) !== selectPage) return;
-    const y = SEL.y0 + (wi % ROWS_PER_PAGE) * SEL.rowH;
+    const y = rowY(wi); if (y + SEL.bh < LIST.top || y > LIST.bottom) return;
     if (w.hidden && !allBadges()) {
       text('W?', 12, y + 17, 13, '#776');
       text('？？？', 12, y + 30, 10, '#776');
@@ -2307,19 +2358,49 @@ function drawSelect() {
       text('バッジをぜんぶ集めると…', SEL.x0 + SEL.bw + 12, y + 21, 10, '#776');
       return;
     }
-    text(w.hidden ? 'W?' : `W${wi + 1}`, 12, y + 17, 13, w.hidden ? '#ff8ad8' : '#ffd860');
-    text(w.name, 12, y + 30, 10, '#cfe8ff');
+    let ws = 0; for (let i = 0; i < w.count; i++) ws += starCount(w.start + i);
+    text(w.hidden ? 'W?' : `W${wi + 1}`, 12, y + 13, 13, w.hidden ? '#ff8ad8' : '#ffd860');
+    text(w.name, 12, y + 25, 10, '#cfe8ff');
+    text(`★${ws}/${w.count * 3}`, 12, y + 36, 9, ws === w.count * 3 ? '#ffd860' : '#8a9ab8');
   });
   for (const b of selectButtons()) {
-    const done = cleared.has(b.i), hover = !touchMode && mouse.x > b.x && mouse.x < b.x + b.w && mouse.y > b.y && mouse.y < b.y + b.h;
-    ctx.fillStyle = hover ? '#3a5aa8' : done ? '#24406e' : '#1c2748'; ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = done ? '#7fd4ff' : '#45507a'; ctx.strokeRect(b.x + .5, b.y + .5, b.w - 1, b.h - 1);
-    text(isHiddenLevel(b.i) ? '？' : b.label, b.x + b.w / 2, b.y + 15, 12, '#fff', 'center');
-    if (done) text('★', b.x + b.w / 2, b.y + 28, 11, '#ffd860', 'center');
+    const done = cleared.has(b.i), h = hov(b) && mouse.y > LIST.top && mouse.y < LIST.bottom && !(selDrag && selDrag.moved), bits = starBits(b.i);
+    ctx.fillStyle = h ? '#3a5aa8' : done ? '#24406e' : '#1c2748'; ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = bits === 7 ? '#ffd860' : done ? '#7fd4ff' : '#45507a'; ctx.strokeRect(b.x + .5, b.y + .5, b.w - 1, b.h - 1);
+    text(isHiddenLevel(b.i) ? '？' : b.label, b.x + b.w / 2, b.y + 14, 12, '#fff', 'center');
+    for (let k = 0; k < 3; k++) drawStar(b.x + b.w / 2 + (k - 1) * 13, b.y + 24, 4.5, bits & (1 << k), STAR_COLS[k]);
   }
-  text(`${selectPage + 1} / ${pageCount()}`, W / 2, H - 22, 11, '#9cf', 'center');
-  for (const b of PAGE_BTNS()) { const can = selectPage + b.d >= 0 && selectPage + b.d < pageCount(); ctx.fillStyle = can ? '#24406e' : '#151a2a'; ctx.fillRect(b.x, b.y, b.w, b.h); text(b.label, b.x + b.w / 2, b.y + 14, 11, can ? '#fff' : '#556', 'center'); }
-  text('Esc / ≡ でタイトルへ    B：バッジ    T：チュートリアル    ←→：ページ', W / 2, H - 6, 10, '#8aa', 'center');
+  ctx.restore();
+  // スクロールバー
+  const ms = maxScroll();
+  if (ms > 0) {
+    const th = LIST.bottom - LIST.top - 8, bh = Math.max(24, th * (LIST.bottom - LIST.top) / (listRows() * SEL.rowH)), by = LIST.top + 4 + (th - bh) * selScroll / ms;
+    ctx.fillStyle = '#1a2240'; ctx.fillRect(W - 7, LIST.top + 4, 3, th);
+    ctx.fillStyle = '#5a7ac8'; ctx.fillRect(W - 8, by, 5, bh);
+    if (selScroll > 2) { ctx.fillStyle = 'rgba(10,15,34,.85)'; ctx.fillRect(0, LIST.top, W - 10, 6); }
+    if (selScroll < ms - 2) { ctx.fillStyle = 'rgba(10,15,34,.85)'; ctx.fillRect(0, LIST.bottom - 6, W - 10, 6); text('▼', W / 2, LIST.bottom - 1, 8, '#5a7ac8', 'center'); }
+  }
+  // 上のボタン
+  const bb = BADGE_BTN;
+  ctx.fillStyle = hov(bb) ? '#5a4a10' : '#3a3010'; ctx.fillRect(bb.x, bb.y, bb.w, bb.h); ctx.strokeStyle = '#ffd860'; ctx.strokeRect(bb.x + .5, bb.y + .5, bb.w - 1, bb.h - 1);
+  text(`🏅 バッジ ${badgeGot.size}/${BADGES.length}`, bb.x + bb.w / 2, bb.y + 17, 12, '#ffd860', 'center');
+  const tb = TUTO_BTN;
+  ctx.fillStyle = hov(tb) ? '#1f5a4a' : '#143a30'; ctx.fillRect(tb.x, tb.y, tb.w, tb.h); ctx.strokeStyle = '#7fe8c0'; ctx.strokeRect(tb.x + .5, tb.y + .5, tb.w - 1, tb.h - 1);
+  text('📘 チュートリアル', tb.x + tb.w / 2, tb.y + 17, 12, '#bfffe8', 'center');
+  text('難易度', DIFF_BTNS()[0].x - 6, 24, 10, '#9ab', 'right');
+  for (const b of DIFF_BTNS()) {
+    const d = LEVEL_DIFFS[b.i], on = b.i === diffLv;
+    ctx.fillStyle = on ? d.col : hov(b) ? '#2a3660' : '#161d36'; ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = d.col; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(b.x + .5, b.y + .5, b.w - 1, b.h - 1); ctx.lineWidth = 1;
+    text((b.i + 1) + ' ' + d.name, b.x + b.w / 2, b.y + 16, 10, on ? '#10142a' : d.col, 'center');
+  }
+  // 下
+  let total = 0, all = 0; LEVELS.forEach((_, i) => { if (levelVisible(i)) { total += starCount(i); all += 3; } });
+  text(`★ ${total} / ${all}`, 12, H - 14, 12, '#ffd860');
+  text(`クリア ${clearedVisible()}/${visibleCount()}`, W - 12, H - 14, 11, '#9cf', 'right');
+  const dd = LEVEL_DIFFS[diffLv];
+  text(`${dd.name}：水 ×${dd.hold}　敵の体力 ×${(BASE_ENEMY.hp * dd.hp).toFixed(2)}　水の消費 ×${dd.cost}`, W / 2, H - 17, 9, dd.col, 'center');
+  text('ホイール / ドラッグ / ↑↓ でスクロール    1 2 3：難易度    B：バッジ    T：チュートリアル    Esc：タイトル', W / 2, H - 5, 9, '#8aa', 'center');
 }
 // バッジいちらん
 let badgePage = 0;
@@ -2410,14 +2491,28 @@ function update() {
   if (state === 'select') {
     if (pressed.Escape) { state = 'title'; return; }
     const bb = BADGE_BTN;
-    if (pressed.ArrowLeft || pressed.KeyA) selectPage = Math.max(0, selectPage - 1);
-    if (pressed.ArrowRight || pressed.KeyD) selectPage = Math.min(pageCount() - 1, selectPage + 1);
-    if (pressed.Click) for (const b of PAGE_BTNS()) if (mouse.cx > b.x && mouse.cx < b.x + b.w && mouse.cy > b.y && mouse.cy < b.y + b.h) { selectPage = Math.max(0, Math.min(pageCount() - 1, selectPage + b.d)); sfx('select'); }
+    // スクロール（ホイール・キー・ドラッグ）
+    const page = LIST.bottom - LIST.top - SEL.rowH;
+    if (pressed.ArrowUp || pressed.KeyW) selScrollT -= SEL.rowH;
+    if (pressed.ArrowDown || pressed.KeyS) selScrollT += SEL.rowH;
+    if (pressed.ArrowLeft || pressed.KeyA || pressed.PageUp) selScrollT -= page;
+    if (pressed.ArrowRight || pressed.KeyD || pressed.PageDown) selScrollT += page;
+    selScrollT += wheelAcc; wheelAcc = 0;
+    for (const [k, v] of [['Digit1', 0], ['Digit2', 1], ['Digit3', 2], ['Numpad1', 0], ['Numpad2', 1], ['Numpad3', 2]]) if (pressed[k]) { setDiff(v); sfx('select'); }
+    if (pressed.Click) for (const b of DIFF_BTNS()) if (mouse.cx > b.x && mouse.cx < b.x + b.w && mouse.cy > b.y && mouse.cy < b.y + b.h) { setDiff(b.i); sfx('select'); }
+    if (pressed.Click && mouse.cy > LIST.top && mouse.cy < LIST.bottom) selDrag = { y0: mouse.y, s0: selScrollT, moved: false };
+    let tap = null;
+    if (selDrag) {
+      if (mouse.down) { if (Math.abs(mouse.y - selDrag.y0) > 5) selDrag.moved = true; if (selDrag.moved) selScrollT = selDrag.s0 - (mouse.y - selDrag.y0); }
+      else { if (!selDrag.moved) tap = [mouse.cx, mouse.cy]; selDrag = null; }
+    }
+    selScrollT = Math.max(0, Math.min(maxScroll(), selScrollT));
+    selScroll += (selScrollT - selScroll) * (selDrag && selDrag.moved ? 1 : .3);
     if (pressed.KeyB || (pressed.Click && mouse.cx > bb.x && mouse.cx < bb.x + bb.w && mouse.cy > bb.y && mouse.cy < bb.y + bb.h)) { state = 'badges'; sfx('select'); return; }
     const tb = TUTO_BTN;
     if (pressed.KeyT || (pressed.Click && mouse.cx > tb.x && mouse.cx < tb.x + tb.w && mouse.cy > tb.y && mouse.cy < tb.y + tb.h)) { sfx('select'); loadLevel(tutorialIndex()); return; }
-    if (pressed.Click) {
-      const b = selectButtons().find(b => mouse.cx > b.x && mouse.cx < b.x + b.w && mouse.cy > b.y && mouse.cy < b.y + b.h);
+    if (tap) { // はなしたときに、動かしていなければステージへ
+      const b = selectButtons().find(b => tap[0] > b.x && tap[0] < b.x + b.w && tap[1] > b.y && tap[1] < b.y + b.h);
       if (b) { sfx('select'); loadLevel(b.i); }
     }
     return;

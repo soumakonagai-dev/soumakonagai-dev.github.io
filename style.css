@@ -134,3 +134,40 @@ a { color: inherit; }
   html { scroll-behavior: auto; }
   .game, .play { transition: none; }
 }
+
+/* ---------- video ---------- */
+.video { margin: 16px 0 0; }
+.video-frame, .video-empty {
+  position: relative; aspect-ratio: 16 / 9; width: 100%;
+  background: #05070f; border: 1px solid var(--line); overflow: hidden;
+}
+.video-frame iframe, .video-frame img { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: cover; }
+.video-frame button {
+  position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; cursor: pointer;
+  background: transparent; font-family: var(--pixel); color: #fff; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; text-shadow: 0 2px 6px #000;
+}
+.video-frame button span { background: rgba(0, 0, 0, .65); border: 2px solid var(--accent, var(--brand)); padding: 8px 18px; }
+.video-label { margin: 0 0 6px; font-family: var(--pixel); font-size: 13px; color: var(--accent, var(--brand)); }
+.video-empty { display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-family: var(--pixel); font-size: 14px; border-style: dashed; }
+
+/* ---------- coming soon ---------- */
+.section-lead { margin: -12px 0 24px; color: var(--ink-2); font-size: 15px; max-width: 40em; }
+.upcoming { border-top: 1px solid var(--line); }
+.upcoming[hidden] { display: none; }
+.trailers { display: grid; gap: 28px; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .trailers { grid-template-columns: 1fr 1fr; } }
+.trailer { --accent: var(--brand); background: var(--panel); border: 1px solid var(--line); padding: 20px; box-shadow: 6px 6px 0 rgba(0, 0, 0, .35); }
+.trailer .video { margin: 0 0 14px; }
+.trailer-date { margin: 10px 0 0; font-family: var(--pixel); color: var(--accent); font-size: 14px; }
+
+/* ---------- report ---------- */
+.report { border-top: 1px solid var(--line); }
+.bugform { display: grid; gap: 16px; max-width: 40em; }
+.bugform label { display: grid; gap: 6px; font-family: var(--pixel); font-size: 14px; color: var(--ink); }
+.bugform select, .bugform textarea, .bugform input {
+  font: 16px/1.6 var(--sans); color: var(--ink); background: var(--bg-2);
+  border: 2px solid var(--line); padding: 8px 10px; width: 100%; border-radius: 0;
+}
+.bugform select:focus, .bugform textarea:focus, .bugform input:focus { border-color: var(--brand); outline: none; }
+.bugform .play { border: 0; cursor: pointer; --accent: var(--brand); }
