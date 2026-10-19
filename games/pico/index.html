@@ -1,0 +1,2660 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<!-- このファイルは build.js で自動生成しています。編集は dev.html と js/ フォルダで行い、node build.js で作り直してください -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<style>html{touch-action:manipulation;-webkit-text-size-adjust:100%}input,select,textarea{font-size:max(16px,1em)}</style><script>(function(){var l=0,o={passive:false,capture:true},m=document.querySelector('meta[name="viewport"]'),c=m&&m.content;document.addEventListener("touchstart",function(e){if(e.touches.length>1&&e.cancelable)e.preventDefault();},o);document.addEventListener("touchend",function(e){var n=Date.now();if(n-l<350&&e.cancelable)e.preventDefault();l=n;},o);["gesturestart","gesturechange","gestureend"].forEach(function(t){document.addEventListener(t,function(e){e.preventDefault();},o);});document.addEventListener("dblclick",function(e){e.preventDefault();},o);var v=window.visualViewport;if(v&&m)v.addEventListener("resize",function(){if(v.scale>1.01){m.content=c+",maximum-scale=1.0001";setTimeout(function(){m.content=c;},60);}});})();</script>
+<title>ピコのぼうけん</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#111;overflow:hidden;touch-action:none}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  canvas#game{image-rendering:pixelated;image-rendering:crisp-edges;background:#000;display:block}
+  #touch{position:fixed;inset:0;pointer-events:none;display:none}
+  .btn{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;
+    background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.45);color:#fff;
+    font:bold 20px sans-serif;display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  .btn.on{background:rgba(255,255,255,.4)}
+  .btn.sm{width:48px;height:48px;font-size:16px}
+
+  #screen{position:relative;--s:2}
+  .jp{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif}
+  /* 変身・キャプチャー時の説明 */
+  #info{position:absolute;left:50%;top:calc(var(--s) * 38px);transform:translateX(-50%);
+    background:rgba(10,10,30,.85);border:2px solid #ffd800;border-radius:8px;color:#fff;
+    padding:.5em 1em .6em;font-weight:bold;font-size:max(12px, calc(var(--s) * 6.5px));line-height:1.55;
+    opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+  #info.show{opacity:1}
+  #info .hd{color:#ffd800;font-size:1.15em;margin-bottom:.15em}
+  #info .hd small{color:#7dffb0;font-size:.75em;margin-left:.6em}
+  #info ul{margin:0;padding-left:1.2em}
+  #info li::marker{color:#ff9ad5}
+  #info .ex{margin-top:.3em;color:#9ad8ff;font-size:.85em}
+  /* なかま図鑑 */
+  #menu{position:absolute;inset:0;background:rgba(8,8,26,.95);color:#fff;display:none;overflow:auto;
+    padding:12px;box-sizing:border-box;font-size:max(12px, calc(var(--s) * 6px))}
+  #menu.show{display:block}
+  #menu .mhd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:1.15em}
+  #menu .mhd b{color:#ffd800}
+  #menu .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15em,1fr));gap:8px}
+  #menu .card{background:#1c1c3a;border:1px solid #454a85;border-radius:8px;padding:8px;display:flex;gap:8px}
+  #menu .card canvas{width:3.2em;height:3.2em;image-rendering:pixelated;flex:none}
+  #menu .card.locked canvas{filter:brightness(0) opacity(.55)}
+  #menu .nm{font-weight:bold;color:#ffd800}
+  #menu .card.locked .nm{color:#888}
+  #menu .rq{font-size:.8em;color:#bbb;font-weight:normal;margin-left:.3em}
+  #menu .rq.ok{color:#7dffb0}
+  #menu ul{margin:.2em 0;padding-left:1.1em;font-size:.85em;line-height:1.45}
+  #menu .note{font-size:.8em;color:#aab}
+  #menu .bt{margin-top:.3em}
+  #menu button{font:inherit;font-size:.8em;margin:.15em .3em 0 0;background:#2b59c3;color:#fff;border:0;
+    border-radius:5px;padding:.25em .6em;cursor:pointer}
+  #menu button.on{background:#ffd800;color:#000}
+  #menu button.close{background:#555}
+  /* スロット入れかえ画面 */
+  #menu .swap{max-width:30em;margin:0 auto;text-align:center}
+  #menu .sh{color:#ff9ad5;font-size:1.4em;font-weight:bold;margin:.2em 0 .5em}
+  #menu .newc{display:flex;gap:.8em;align-items:center;text-align:left;background:#2a1c3a;
+    border:2px solid #ff9ad5;border-radius:8px;padding:.6em .8em}
+  #menu .newc canvas{width:4em;height:4em;image-rendering:pixelated;flex:none}
+  #menu .q{margin:.9em 0 .5em;font-weight:bold}
+  #menu .picks{display:flex;gap:.8em;justify-content:center}
+  #menu button.pick{display:flex;align-items:center;gap:.6em;font-size:1em;padding:.6em .9em;
+    background:#1c1c3a;border:2px solid #5a6ad0;text-align:left}
+  #menu button.pick:hover{border-color:#ffd800;background:#2a2a50}
+  #menu button.pick canvas{width:3em;height:3em;image-rendering:pixelated}
+  #menu button.pick .key{background:#ffd800;color:#000;border-radius:4px;padding:0 .45em;font-weight:bold}
+  #menu button.pick small{color:#aab}
+  #menu button.skip{margin-top:.8em;background:#555;font-size:.9em}
+  #menu .swap .note{margin-top:.6em}
+  /* あそびかた */
+  #howto{position:absolute;inset:0;background:rgba(8,8,26,.96);color:#fff;display:none;overflow:auto;
+    padding:12px 16px;box-sizing:border-box;font-size:max(12px, calc(var(--s) * 6px));line-height:1.5;cursor:pointer}
+  #howto.show{display:block}
+  #howto h1{margin:0 0 .3em;font-size:1.5em;color:#ffd800;text-align:center}
+  #howto .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(16em,1fr));gap:10px}
+  #howto section{background:#1c1c3a;border:1px solid #454a85;border-radius:8px;padding:.5em .8em}
+  #howto h2{margin:0 0 .3em;font-size:1.05em;color:#7dffb0}
+  #howto table{border-collapse:collapse;width:100%}
+  #howto td{padding:.12em .3em;vertical-align:top}
+  #howto td:first-child{white-space:nowrap;color:#ffd800;font-weight:bold}
+  #howto ol{margin:0;padding-left:1.3em}
+  #howto .go{margin-top:.7em;text-align:center;font-weight:bold;color:#ffd800;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.3}}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="screen">
+  <canvas id="game"></canvas>
+  <div id="info" class="jp"></div>
+  <div id="menu" class="jp"></div>
+  <div id="howto" class="jp">
+    <h1>ピコのぼうけん　あそびかた</h1>
+    <div class="cols">
+      <section>
+        <h2>キーボード</h2>
+        <table>
+          <tr><td>← → / A D</td><td>いどう</td></tr>
+          <tr><td>Z / Space / ↑</td><td>ジャンプ（長押しで高く）</td></tr>
+          <tr><td>X / Shift</td><td>ダッシュ</td></tr>
+          <tr><td>V</td><td>キャプチャー玉を投げる／変身中は特技</td></tr>
+          <tr><td>1 / 2</td><td>スロットの仲間に変身（もう一度で元にもどる）</td></tr>
+          <tr><td>C</td><td>変身を順番に切りかえ</td></tr>
+          <tr><td>↓ / S</td><td>ポータルに入る・ヒップドロップ</td></tr>
+          <tr><td>Q</td><td>なかま図鑑（スロットの入れかえ）</td></tr>
+          <tr><td>P / Esc</td><td>ポーズ　　<b style="color:#ffd800">M</b>　音のオン/オフ</td></tr>
+        </table>
+      </section>
+      <section>
+        <h2>スマホ・タブレット</h2>
+        <table>
+          <tr><td>◀ ▶</td><td>いどう</td></tr>
+          <tr><td>A</td><td>ジャンプ</td></tr>
+          <tr><td>B</td><td>ダッシュ（押しながら移動）</td></tr>
+          <tr><td>V</td><td>キャプチャー／特技</td></tr>
+          <tr><td>1 / 2</td><td>変身</td></tr>
+          <tr><td>▼</td><td>ポータル・ヒップドロップ</td></tr>
+          <tr><td>なかま</td><td>なかま図鑑</td></tr>
+        </table>
+        <h2 style="margin-top:.6em">ぼうけんのコツ</h2>
+        <ol>
+          <li>敵を踏んでたおすと LV が上がる</li>
+          <li>LV が条件に届いた敵は、キャプチャー玉で仲間にできる</li>
+          <li>仲間に変身すると、ジャンプ・爆弾・火の玉などの能力が使える</li>
+          <li>レンガの壁や謎解き部屋は、近づくと出るヒントを見て突破しよう</li>
+        </ol>
+      </section>
+    </div>
+    <div class="go">Enter キー／クリック／タップではじめる</div>
+  </div>
+</div></div>
+<div id="touch">
+  <div class="btn" data-k="left"  style="left:16px;bottom:24px">◀</div>
+  <div class="btn" data-k="right" style="left:96px;bottom:24px">▶</div>
+  <div class="btn sm" data-k="down" style="left:64px;bottom:96px">▼</div>
+  <div class="btn" data-k="run"   style="right:96px;bottom:24px">B</div>
+  <div class="btn" data-k="jump"  style="right:16px;bottom:56px">A</div>
+  <div class="btn sm" data-in="morph0" style="right:100px;bottom:104px">1</div>
+  <div class="btn sm" data-in="morph1" style="right:24px;bottom:136px">2</div>
+  <div class="btn sm" data-in="action" style="right:172px;bottom:40px">V</div>
+  <div class="btn sm jp" data-in="menu" style="right:16px;top:16px;font-size:12px">なかま</div>
+</div>
+<!-- 読み込み順が大事：共通 → タイル → キャラ → ステージ → 本体 -->
+<script>
+// ---- js/core.js ----
+'use strict';
+// ============================================================
+//  基本設定・入力・サウンド・共通ユーティリティ
+// ============================================================
+const cv = document.getElementById('game');
+let ctx = cv.getContext('2d');
+const W = 320, H = 240, T = 16, ROWS = 15;
+cv.width = W; cv.height = H;
+
+function fit() {
+  let s = Math.min(innerWidth / W, innerHeight / H);
+  if (s >= 1) s = Math.floor(s);
+  cv.style.width = W * s + 'px';
+  cv.style.height = H * s + 'px';
+  document.getElementById('screen').style.setProperty('--s', s);
+}
+addEventListener('resize', fit); fit();
+
+// ---------------- 入力 ----------------
+const keys = { left: false, right: false, jump: false, run: false, down: false };
+const KEYMAP = {
+  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  KeyZ: 'jump', Space: 'jump', ArrowUp: 'jump', KeyW: 'jump',
+  KeyX: 'run', ShiftLeft: 'run', ShiftRight: 'run',
+  ArrowDown: 'down', KeyS: 'down',
+};
+// 押した瞬間だけ立つフラグ（毎フレーム update の最後で消す）
+const input = { jump: false, down: false, start: false, pause: false, action: false, menu: false, cont: false, morph: null };
+function clearInput() {
+  input.jump = input.down = input.start = input.pause = input.action = input.menu = input.cont = false;
+  input.morph = null;
+}
+
+// デバッグコマンド：M → T → W の順に押す（または3つ同時押し）
+const heldCodes = new Set();
+let recentKeys = [], muteBeforeM = false;
+function checkDebugCommand(e) {
+  recentKeys.push({ code: e.code, t: performance.now() });
+  recentKeys = recentKeys.slice(-3);
+  const seq = recentKeys.map(k => k.code).join(',') === 'KeyM,KeyT,KeyW' &&
+              recentKeys[2].t - recentKeys[0].t < 1500;
+  const held = ['KeyM', 'KeyT', 'KeyW'].every(c => heldCodes.has(c));
+  if (seq || held) {
+    recentKeys = [];
+    muted = muteBeforeM;   // コマンドの M で音がオン/オフされた分を戻す
+    toggleDebug();
+  }
+}
+
+addEventListener('keydown', e => {
+  initAudio();
+  if (!e.repeat) {
+    heldCodes.add(e.code);
+    if (e.code === 'KeyM') muteBeforeM = muted;   // M で音が切り替わる前の状態を覚えておく
+    if (e.code === 'KeyM' || e.code === 'KeyT' || e.code === 'KeyW') setTimeout(() => checkDebugCommand(e), 0);
+  }
+  if (menuOpen) { menuKey(e); return; }
+  const k = KEYMAP[e.code];
+  if (k) {
+    if (k === 'jump' && !keys.jump) input.jump = true;
+    if (k === 'down' && !keys.down) input.down = true;
+    keys[k] = true;
+    e.preventDefault();
+  }
+  if (e.repeat) return;
+  if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ') input.start = true;
+  if (e.code === 'KeyM') muted = !muted;
+  if (e.code === 'KeyP' || e.code === 'Escape') input.pause = true;
+  if (e.code === 'Digit1' || e.code === 'Numpad1') input.morph = 0;
+  if (e.code === 'Digit2' || e.code === 'Numpad2') input.morph = 1;
+  if (e.code === 'KeyC') { input.morph = 'c'; input.cont = true; }
+  if (e.code === 'KeyV') input.action = true;
+  if (e.code === 'KeyQ' || e.code === 'Tab') { input.menu = true; e.preventDefault(); }
+});
+addEventListener('blur', () => heldCodes.clear());
+addEventListener('keyup', e => {
+  heldCodes.delete(e.code);
+  const k = KEYMAP[e.code];
+  if (k) keys[k] = false;
+});
+
+// タッチ操作
+if (matchMedia('(pointer:coarse)').matches) {
+  document.getElementById('touch').style.display = 'block';
+  document.querySelectorAll('.btn[data-k]').forEach(b => {
+    const k = b.dataset.k;
+    const on = e => {
+      e.preventDefault(); initAudio();
+      if (k === 'jump' && !keys.jump) { input.jump = true; input.start = true; }
+      if (k === 'down' && !keys.down) input.down = true;
+      keys[k] = true; b.classList.add('on');
+    };
+    const off = e => { e.preventDefault(); keys[k] = false; b.classList.remove('on'); };
+    b.addEventListener('pointerdown', on);
+    b.addEventListener('pointerup', off);
+    b.addEventListener('pointercancel', off);
+    b.addEventListener('pointerleave', off);
+  });
+  document.querySelectorAll('.btn[data-in]').forEach(b => {
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault(); initAudio();
+      const v = b.dataset.in;
+      if (v === 'morph0') input.morph = 0;
+      else if (v === 'morph1') input.morph = 1;
+      else if (v === 'action') input.action = true;
+      else if (v === 'menu') { if (menuOpen) closeMenu(); else input.menu = true; }
+    });
+  });
+}
+// 画面クリック／タップでもスタートできる（埋め込み表示では、クリックしないとキー入力が届かないため）
+cv.addEventListener('pointerdown', () => { initAudio(); try { window.focus(); } catch (e) {} input.start = true; });
+
+// ---------------- サウンド（WebAudioで生成） ----------------
+let AC = null, master = null, muted = false;
+function initAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0.22; master.connect(AC.destination);
+  } catch (e) { AC = null; }
+}
+function play(f, d, type = 'square', v = 0.4, t0 = null, f2 = null) {
+  if (!AC || muted) return;
+  const t = t0 ?? AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  g.gain.setValueAtTime(v, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(master);
+  o.start(t); o.stop(t + d + 0.02);
+}
+const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+function seq(notes, step, type = 'square', v = 0.3) {
+  if (!AC) return;
+  const t = AC.currentTime;
+  notes.forEach((m, i) => { if (m) play(midi(m), step * 0.95, type, v, t + i * step); });
+}
+const SFX = {
+  jump:   () => play(280, 0.18, 'square', 0.25, null, 640),
+  flap:   () => play(500, 0.08, 'triangle', 0.3, null, 900),
+  coin:   () => { if (!AC) return; const t = AC.currentTime; play(988, 0.07, 'square', 0.25, t); play(1319, 0.3, 'square', 0.25, t + 0.07); },
+  stomp:  () => play(420, 0.12, 'square', 0.35, null, 120),
+  bump:   () => play(130, 0.1, 'triangle', 0.6, null, 70),
+  brk:    () => { play(220, 0.18, 'sawtooth', 0.35, null, 50); play(90, 0.2, 'square', 0.25, null, 40); },
+  sprout: () => play(200, 0.45, 'triangle', 0.5, null, 900),
+  power:  () => seq([60, 64, 67, 72, 76, 79, 84], 0.05, 'square', 0.25),
+  hurt:   () => play(700, 0.45, 'square', 0.25, null, 90),
+  oneup:  () => seq([76, 79, 88, 84, 86, 91], 0.09, 'square', 0.25),
+  die:    () => seq([72, 0, 71, 0, 70, 0, 67, 0, 0, 64, 62, 60], 0.11, 'square', 0.3),
+  flag:   () => play(1200, 0.9, 'square', 0.2, null, 300),
+  tick:   () => play(1500, 0.03, 'square', 0.12),
+  clear:  () => seq([67, 72, 76, 79, 84, 88, 91, 0, 88, 0, 0, 91, 91, 91, 96], 0.1, 'square', 0.28),
+  lvup:   () => seq([72, 76, 79, 84, 0, 79, 84, 88], 0.07, 'square', 0.28),
+  join:   () => seq([79, 84, 88, 91, 96], 0.08, 'triangle', 0.45),
+  morph:  () => { play(300, 0.3, 'sine', 0.45, null, 1400); play(150, 0.3, 'triangle', 0.3, null, 600); },
+  nope:   () => play(160, 0.15, 'square', 0.2, null, 120),
+  toss:   () => play(500, 0.15, 'triangle', 0.35, null, 1100),
+  fire:   () => play(900, 0.12, 'sawtooth', 0.2, null, 300),
+  freeze: () => { play(1800, 0.2, 'sine', 0.25, null, 2600); play(1200, 0.25, 'triangle', 0.2, null, 600); },
+  boom:   () => { play(120, 0.5, 'sawtooth', 0.5, null, 30); play(60, 0.5, 'square', 0.4, null, 25); },
+  pound:  () => { play(90, 0.3, 'square', 0.55, null, 35); play(200, 0.15, 'triangle', 0.4, null, 60); },
+  guard:  () => play(1000, 0.15, 'square', 0.25, null, 1400),
+  toggle: () => { play(600, 0.08, 'square', 0.3); play(900, 0.12, 'square', 0.25, (AC ? AC.currentTime : 0) + 0.08); },
+  ding:   n => play(midi(72 + n * 4), 0.25, 'triangle', 0.45),
+  solve:  () => seq([72, 76, 79, 84, 88], 0.08, 'triangle', 0.45),
+  warp:   () => { play(300, 0.35, 'sine', 0.4, null, 1600); play(1600, 0.35, 'sine', 0.2, null, 300); },
+  key:    () => seq([84, 88, 91, 96], 0.06, 'square', 0.25),
+  unlock: () => { play(200, 0.1, 'square', 0.4, null, 400); seq([0, 79, 84, 91], 0.07, 'square', 0.25); },
+  push:   () => play(110, 0.08, 'triangle', 0.5, null, 90),
+  door:   () => play(140, 0.35, 'sawtooth', 0.25, null, 70),
+  allclear: () => seq([72, 76, 79, 84, 0, 84, 83, 81, 79, 0, 76, 79, 84, 88, 91, 96], 0.12, 'square', 0.28),
+};
+
+// BGM（テーマごとに少しずつ違うオリジナルのループ）
+const BGM = {
+  field:  { mel: [72,0,76,79, 76,0,72,0, 74,0,77,81, 79,77,76,74, 72,0,76,79, 84,0,81,79, 77,76,74,71, 72,0,67,0], bas: [48,55,48,55, 50,57,50,57, 45,52,45,52, 43,50,48,43], step: 0.17 },
+  cave:   { mel: [64,0,67,0, 71,0,67,0, 62,0,65,0, 69,0,65,0, 64,0,67,71, 72,71,67,64, 62,65,69,72, 71,0,0,0], bas: [40,47,40,47, 38,45,38,45, 40,47,40,47, 43,50,47,43], step: 0.2 },
+  sky:    { mel: [79,0,84,0, 88,86,84,0, 81,0,84,0, 86,84,81,0, 79,0,84,88, 91,0,88,84, 86,84,81,79, 84,0,0,0], bas: [48,55,52,55, 53,60,57,60, 50,57,53,57, 55,62,59,55], step: 0.16 },
+  desert: { mel: [69,0,70,73, 74,0,73,70, 69,0,67,0, 66,67,69,0, 69,0,70,73, 74,76,74,73, 70,69,67,66, 69,0,0,0], bas: [45,52,45,52, 46,53,46,53, 45,52,45,52, 40,47,45,40], step: 0.18 },
+  snow:   { mel: [76,0,79,0, 83,0,79,76, 74,0,78,0, 81,0,78,74, 72,0,76,79, 84,83,79,76, 74,76,78,79, 76,0,0,0], bas: [52,59,52,59, 50,57,50,57, 48,55,48,55, 47,54,52,47], step: 0.19 },
+  night:  { mel: [69,0,72,76, 0,74,72,0, 67,0,71,74, 0,72,71,0, 69,72,76,81, 79,76,74,72, 71,72,74,71, 69,0,0,0], bas: [45,52,45,52, 43,50,43,50, 41,48,41,48, 40,47,45,40], step: 0.2 },
+  castle: { mel: [64,65,64,0, 64,65,64,0, 63,64,63,0, 63,64,63,0, 64,67,70,73, 72,70,67,64, 63,66,69,72, 71,0,0,0], bas: [40,40,40,40, 39,39,39,39, 38,38,38,38, 37,37,40,40], step: 0.15 },
+};
+let bgmOn = false, bgmStep = 0, bgmNext = 0, bgmTheme = 'field';
+function startBGM(theme) { if (!AC) return; bgmTheme = BGM[theme] ? theme : 'field'; bgmOn = true; bgmStep = 0; bgmNext = AC.currentTime + 0.05; }
+function stopBGM() { bgmOn = false; }
+setInterval(() => {
+  if (!bgmOn || !AC || paused || menuOpen || muted) return;
+  if (bgmNext < AC.currentTime - 0.1) bgmNext = AC.currentTime + 0.02;
+  const b = BGM[bgmTheme];
+  while (bgmNext < AC.currentTime + 0.12) {
+    const i = bgmStep % 32, step = timeLeft < 100 ? b.step * 0.75 : b.step;
+    if (b.mel[i]) play(midi(b.mel[i]), step * 0.85, 'square', 0.09, bgmNext);
+    if (i % 2 === 0 && b.bas[i / 2]) play(midi(b.bas[i / 2]), step * 1.8, 'triangle', 0.3, bgmNext);
+    bgmStep++; bgmNext += step;
+  }
+}, 25);
+
+// ---------------- ユーティリティ ----------------
+function hash(n) {
+  n = Math.imul(n ^ 0x5bd1e995, 0x27d4eb2d); n ^= n >>> 15;
+  n = Math.imul(n, 0x85ebca6b); n ^= n >>> 13; return n >>> 0;
+}
+// シード付き乱数（ステージを毎回同じ形で作るため）
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+function text(s, x, y, col = '#fff', size = 8, align = 'left') {
+  ctx.font = size + 'px "Press Start 2P", monospace';
+  ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000'; ctx.fillText(s, x + 1, y + 1);
+  ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+// 向きに応じて左右反転して矩形を描くヘルパー
+function pen(x0, y0, w, face) {
+  return (rx, ry, rw, rh, col) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x0 + (face > 0 ? rx : w - rx - rw), y0 + ry, rw, rh);
+  };
+}
+// 別のキャンバスに描画する（図鑑のアイコン用）
+function withCtx(c, fn) { const old = ctx; ctx = c; try { fn(); } finally { ctx = old; } }
+
+</script>
+<script>
+// ---- js/tiles.js ----
+'use strict';
+// ============================================================
+//  タイル画像・テーマ別の色と背景
+// ============================================================
+// タイル番号: 1 地面 / 2 レンガ / 3 ？(コイン) / 4 ？(パワーアップ) / 5 使用済み / 6 かたいブロック
+//            7-10 土管 / 11 コイン(空中) / 12 氷ブロック
+//   ギミック: 13 ON/OFFスイッチ / 14 赤ブロック(ONでかたい) / 15 青ブロック(OFFでかたい)
+//            16 木箱 / 18 扉 / 19 カギのとびら / 20 じゅんばん石 / 21 じゅんばん石(点灯)
+let switchOn = false;
+const isSolid = v => (v >= 1 && v <= 10) || v === 12 || v === 13 || (v === 14 && switchOn) || (v === 15 && !switchOn) ||
+                     v === 16 || v === 18 || v === 19 || v === 20 || v === 21;
+
+const THEMES = {
+  field:  { label: 'FIELD',  ground: ['#c4662a', '#f6b98a', '#5c2410'], brick: ['#b8501c', '#f0a878', '#3a1206'],
+            solid: ['#c4662a', '#f6b98a', '#5c2410', '#a84e1c'], pipe: ['#2fae2f', '#a8f070', '#0d5e0d', '#063806'] },
+  cave:   { label: 'CAVE',   ground: ['#3a6ea5', '#9cc8f0', '#14284a'], brick: ['#2e5c8a', '#8ab8e8', '#0a1a30'],
+            solid: ['#3a6ea5', '#9cc8f0', '#14284a', '#2a5888'], pipe: ['#2fae2f', '#a8f070', '#0d5e0d', '#063806'], ceiling: true },
+  sky:    { label: 'SKY',    ground: ['#f4f6ff', '#ffffff', '#9aa8d0'], brick: ['#b8501c', '#f0a878', '#3a1206'],
+            solid: ['#e8c070', '#fff0c0', '#806020', '#d0a050'], pipe: ['#2fae2f', '#a8f070', '#0d5e0d', '#063806'] },
+  desert: { label: 'DESERT', ground: ['#e0b060', '#fff0b0', '#8a6020'], brick: ['#c88840', '#f8d090', '#5a3810'],
+            solid: ['#d8a050', '#fff0c0', '#6a4010', '#c08840'], pipe: ['#2fae2f', '#a8f070', '#0d5e0d', '#063806'] },
+  snow:   { label: 'SNOW',   ground: ['#dce8f8', '#ffffff', '#6080a8'], brick: ['#7a9cc8', '#d0e4ff', '#2a3c60'],
+            solid: ['#9ab8e0', '#ffffff', '#3a5080', '#86a4cc'], pipe: ['#2fae2f', '#a8f070', '#0d5e0d', '#063806'] },
+  night:  { label: 'NIGHT',  ground: ['#8a5a3a', '#c09070', '#2a1408'], brick: ['#7a3a1c', '#c08060', '#200800'],
+            solid: ['#8a5a3a', '#c09070', '#2a1408', '#704828'], pipe: ['#1f8e4f', '#78d0a0', '#0a4a2a', '#042818'] },
+  castle: { label: 'CASTLE', ground: ['#7a7a80', '#c0c0c8', '#2a2a30'], brick: ['#6a6a70', '#b0b0b8', '#202024'],
+            solid: ['#7a7a80', '#c0c0c8', '#2a2a30', '#606068'], pipe: ['#7a7a80', '#c8c8d0', '#3a3a40', '#1a1a20'],
+            ceiling: true, lava: true },
+};
+
+function mkTile(fn, w = T, h = T) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  fn((x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y, ww, hh); });
+  return c;
+}
+function groundTile([B, L, D]) {
+  return mkTile(r => {
+    r(0, 0, 16, 16, B); r(0, 0, 16, 1, L); r(0, 0, 1, 16, L);
+    r(15, 0, 1, 16, D); r(0, 15, 16, 1, D);
+    r(9, 1, 1, 7, D); r(1, 8, 14, 1, D); r(1, 9, 14, 1, L); r(5, 9, 1, 6, D); r(6, 9, 1, 6, L);
+    r(10, 1, 1, 7, L);
+  });
+}
+function brickTile([B, L, M]) {
+  return mkTile(r => {
+    r(0, 0, 16, 16, B); r(0, 0, 16, 1, L);
+    for (const y of [3, 7, 11, 15]) r(0, y, 16, 1, M);
+    r(7, 0, 1, 3, M); r(15, 0, 1, 3, M); r(3, 4, 1, 3, M); r(11, 4, 1, 3, M);
+    r(7, 8, 1, 3, M); r(15, 8, 1, 3, M); r(3, 12, 1, 3, M); r(11, 12, 1, 3, M);
+  });
+}
+function solidTile([B, L, D, I]) {
+  return mkTile(r => {
+    r(0, 0, 16, 16, D); r(0, 0, 15, 15, L); r(1, 1, 14, 14, B);
+    r(3, 3, 10, 10, I); r(3, 3, 10, 1, D); r(3, 3, 1, 10, D);
+  });
+}
+function pipeTiles([G, GL, GD, O]) {
+  return {
+    7:  mkTile(r => { r(0, 0, 16, 16, O); r(1, 1, 15, 14, G); r(3, 1, 2, 14, GL); r(7, 1, 1, 14, GL); }),
+    8:  mkTile(r => { r(0, 0, 16, 16, O); r(0, 1, 15, 14, G); r(9, 1, 3, 14, GD); r(13, 1, 1, 14, GD); }),
+    9:  mkTile(r => { r(2, 0, 14, 16, O); r(3, 0, 13, 16, G); r(5, 0, 2, 16, GL); r(9, 0, 1, 16, GL); }),
+    10: mkTile(r => { r(0, 0, 14, 16, O); r(0, 0, 13, 16, G); r(8, 0, 3, 16, GD); r(12, 0, 1, 16, GD); }),
+  };
+}
+// 全テーマ共通
+const QMARK = ['.####.', '##..##', '....##', '...##.', '..##..', '......', '..##..'];
+function qTile(base) {
+  return mkTile(r => {
+    const D = '#7a3c00';
+    r(0, 0, 16, 16, D); r(1, 1, 14, 14, base); r(1, 1, 14, 1, '#ffe6a0'); r(1, 1, 1, 14, '#ffe6a0');
+    [[2, 2], [13, 2], [2, 13], [13, 13]].forEach(([x, y]) => r(x, y, 1, 1, D));
+    QMARK.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') r(6 + x, 5 + y, 1, 1, D); }));
+    QMARK.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') r(5 + x, 4 + y, 1, 1, '#fff7e0'); }));
+  });
+}
+const QIMG = [qTile('#f8b800'), qTile('#e09a00'), qTile('#c07800')];
+const USED_TILE = mkTile(r => {
+  const D = '#3a1a06';
+  r(0, 0, 16, 16, D); r(1, 1, 14, 14, '#9c6a3c');
+  [[2, 2], [13, 2], [2, 13], [13, 13]].forEach(([x, y]) => r(x, y, 1, 1, D));
+});
+const ICE_TILE = mkTile(r => {
+  r(0, 0, 16, 16, '#3a8ac8'); r(1, 1, 14, 14, '#a8e4ff'); r(2, 2, 5, 1, '#fff'); r(2, 2, 1, 5, '#fff');
+  r(11, 9, 2, 5, '#78c4f0'); r(9, 12, 4, 1, '#78c4f0');
+});
+
+// ---- ギミック用タイル ----
+function bangTile(base, dark) {   // ！ブロック
+  return mkTile(r => {
+    r(0, 0, 16, 16, dark); r(1, 1, 14, 14, base); r(1, 1, 14, 1, '#ffffff80'); r(1, 1, 1, 14, '#ffffff80');
+    r(7, 3, 3, 7, '#fff'); r(7, 11, 3, 2, '#fff'); r(10, 4, 1, 6, dark); r(10, 12, 1, 1, dark);
+  });
+}
+function colorBlock(base, light, dark, solid) {
+  return mkTile(r => {
+    if (solid) {
+      r(0, 0, 16, 16, dark); r(1, 1, 14, 14, base); r(2, 2, 12, 1, light); r(2, 2, 1, 12, light);
+      r(5, 5, 6, 6, dark); r(6, 6, 4, 4, base);
+    } else {   // すり抜けられる時は点線のわく
+      for (let i = 0; i < 16; i += 4) { r(i, 0, 2, 1, base); r(i, 15, 2, 1, base); r(0, i, 1, 2, base); r(15, i, 1, 2, base); }
+    }
+  });
+}
+const SWITCH_ON = bangTile('#e8344a', '#6a0010'), SWITCH_OFF = bangTile('#3a6ae8', '#0a1a6a');
+const RED_ON = colorBlock('#e8344a', '#ff9aa8', '#6a0010', true), RED_OFF = colorBlock('#e8344a', 0, 0, false);
+const BLUE_ON = colorBlock('#3a6ae8', '#9ab8ff', '#0a1a6a', true), BLUE_OFF = colorBlock('#3a6ae8', 0, 0, false);
+const CRATE_TILE = mkTile(r => {
+  r(0, 0, 16, 16, '#5a3210'); r(1, 1, 14, 14, '#c08040'); r(1, 1, 14, 2, '#e0a868'); r(1, 13, 14, 2, '#8a5420');
+  for (let i = 0; i < 12; i++) { r(2 + i, 2 + i, 2, 1, '#8a5420'); r(12 - i, 2 + i, 2, 1, '#8a5420'); }
+  r(1, 7, 14, 2, '#8a5420');
+});
+const DOOR_TILE = mkTile(r => {
+  r(0, 0, 16, 16, '#2a2a34'); r(1, 0, 14, 16, '#4a4a5a');
+  for (const x of [3, 7, 11]) { r(x, 0, 2, 16, '#8a8aa0'); r(x, 0, 1, 16, '#c8c8d8'); }
+  r(1, 7, 14, 2, '#2a2a34');
+});
+const LOCK_TILE = mkTile(r => {
+  r(0, 0, 16, 16, '#7a5000'); r(1, 1, 14, 14, '#f0b820'); r(1, 1, 14, 1, '#fff0a0'); r(1, 1, 1, 14, '#fff0a0');
+  r(6, 4, 4, 4, '#3a2400'); r(7, 8, 2, 5, '#3a2400');
+});
+const RUNE_TILE = mkTile(r => {
+  r(0, 0, 16, 16, '#3a3a44'); r(1, 1, 14, 14, '#8a8a98'); r(1, 1, 14, 1, '#c0c0cc'); r(1, 1, 1, 14, '#c0c0cc');
+});
+const RUNE_LIT = mkTile(r => {
+  r(0, 0, 16, 16, '#0a5a6a'); r(1, 1, 14, 14, '#4ae0f0'); r(1, 1, 14, 1, '#d0ffff'); r(1, 1, 1, 14, '#d0ffff');
+});
+function gimmickTile(v) {
+  switch (v) {
+    case 13: return switchOn ? SWITCH_ON : SWITCH_OFF;
+    case 14: return switchOn ? RED_ON : RED_OFF;
+    case 15: return switchOn ? BLUE_OFF : BLUE_ON;
+    case 16: return CRATE_TILE;
+    case 18: return DOOR_TILE;
+    case 19: return LOCK_TILE;
+    case 20: return RUNE_TILE;
+    case 21: return RUNE_LIT;
+  }
+  return null;
+}
+
+const tilesetCache = {};
+function tileset(theme) {
+  if (tilesetCache[theme]) return tilesetCache[theme];
+  const th = THEMES[theme];
+  const ts = { 1: groundTile(th.ground), 2: brickTile(th.brick), 5: USED_TILE, 6: solidTile(th.solid), 12: ICE_TILE, ...pipeTiles(th.pipe) };
+  return (tilesetCache[theme] = ts);
+}
+
+// ---------------- 背景 ----------------
+function cloud(x, y, n, col) {
+  ctx.fillStyle = col;
+  for (let k = 0; k < n; k++) { ctx.beginPath(); ctx.arc(x + k * 16, y, 11, 0, Math.PI * 2); ctx.fill(); }
+  ctx.beginPath(); ctx.arc(x + (n - 1) * 8, y - 7, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(x - 11, y, (n - 1) * 16 + 22, 9);
+}
+function clouds(cx, factor, period, col, yMin = 20, yRange = 60) {
+  const pc = cx * factor;
+  for (let i = Math.floor(pc / period) - 1; i <= Math.floor((pc + W) / period) + 1; i++) {
+    cloud(i * period + (hash(i) % 90) - pc, yMin + hash(i * 7 + 3) % yRange, 1 + hash(i * 13) % 3, col);
+  }
+}
+function hills(cx, factor, period, colA, colB, base = 13 * T) {
+  const ph = cx * factor;
+  for (let i = Math.floor(ph / period) - 1; i <= Math.floor((ph + W) / period) + 1; i++) {
+    const x = i * period + (hash(i + 99) % 120) - ph, big = hash(i * 5 + 1) % 2;
+    const rad = big ? 56 : 36;
+    ctx.fillStyle = big ? colA : colB;
+    ctx.beginPath(); ctx.ellipse(x, base, rad, rad * 0.9, 0, Math.PI, 0); ctx.fill();
+  }
+}
+function triangles(cx, factor, period, col, hMin, hRange, fromTop = false) {
+  const ph = cx * factor;
+  ctx.fillStyle = col;
+  for (let i = Math.floor(ph / period) - 1; i <= Math.floor((ph + W) / period) + 1; i++) {
+    const x = i * period + (hash(i + 7) % 60) - ph, h = hMin + hash(i * 3 + 11) % hRange, w = h * 0.8;
+    ctx.beginPath();
+    if (fromTop) { ctx.moveTo(x - w / 2, 2 * T); ctx.lineTo(x + w / 2, 2 * T); ctx.lineTo(x, 2 * T + h); }
+    else { ctx.moveTo(x - w, 13 * T); ctx.lineTo(x + w, 13 * T); ctx.lineTo(x, 13 * T - h); }
+    ctx.fill();
+  }
+}
+function stars(cx, n, col) {
+  ctx.fillStyle = col;
+  for (let i = 0; i < n; i++) {
+    const x = ((hash(i) % 640) - cx * 0.1) % 640, y = hash(i * 31) % 160;
+    const xx = x < 0 ? x + 640 : x;
+    if (xx < W && ((frame >> 4) + i) % 9) ctx.fillRect(xx, y, 1, 1);
+  }
+}
+function drawBackground(cx, theme) {
+  switch (theme) {
+    case 'cave':
+      ctx.fillStyle = '#0c0c1e'; ctx.fillRect(0, 0, W, H);
+      triangles(cx, 0.3, 90, '#18183a', 30, 50, true);
+      triangles(cx, 0.5, 130, '#141430', 30, 60);
+      break;
+    case 'sky':
+      ctx.fillStyle = '#8fd0ff'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#b8e4ff'; ctx.fillRect(0, 150, W, 90);
+      clouds(cx, 0.2, 160, '#d8f0ff', 120, 80);
+      clouds(cx, 0.5, 120, '#ffffff', 30, 90);
+      break;
+    case 'desert':
+      ctx.fillStyle = '#f8c070'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ffd890'; ctx.fillRect(0, 120, W, 120);
+      ctx.fillStyle = '#fff4c0'; ctx.beginPath(); ctx.arc(250 - (cx * 0.05) % 40, 60, 18, 0, Math.PI * 2); ctx.fill();
+      triangles(cx, 0.4, 220, '#d89848', 50, 50);
+      triangles(cx, 0.7, 300, '#c88838', 30, 40);
+      break;
+    case 'snow':
+      ctx.fillStyle = '#a8c8f0'; ctx.fillRect(0, 0, W, H);
+      clouds(cx, 0.3, 200, '#e4eefc');
+      hills(cx, 0.6, 240, '#f4f8ff', '#dce8f8');
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 50; i++) {
+        const sp = 0.4 + (i % 3) * 0.3;
+        const x = ((hash(i) % W) + Math.sin((frame + i * 20) / 40) * 10 - cx * 0.3 * sp) % W;
+        const y = ((hash(i * 7) % H) + frame * sp) % H;
+        ctx.fillRect(x < 0 ? x + W : x, y, i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1);
+      }
+      break;
+    case 'night':
+      ctx.fillStyle = '#0e1640'; ctx.fillRect(0, 0, W, H);
+      stars(cx, 90, '#fff');
+      ctx.fillStyle = '#fff8d0'; ctx.beginPath(); ctx.arc(60, 50, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0e1640'; ctx.beginPath(); ctx.arc(66, 46, 12, 0, Math.PI * 2); ctx.fill();
+      hills(cx, 0.6, 260, '#1a3a2a', '#14301f');
+      break;
+    case 'castle':
+      ctx.fillStyle = '#120808'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#1e1010';
+      for (let i = Math.floor(cx * 0.5 / 80) - 1; i <= Math.floor((cx * 0.5 + W) / 80) + 1; i++) {
+        const x = i * 80 - cx * 0.5; ctx.fillRect(x, 2 * T, 18, 11 * T);
+        ctx.fillStyle = '#2a1410'; ctx.fillRect(x + 4, 6 * T, 10, 6); ctx.fillStyle = '#1e1010';
+      }
+      break;
+    default: // field
+      ctx.fillStyle = '#5c94fc'; ctx.fillRect(0, 0, W, H);
+      clouds(cx, 0.4, 200, '#fff');
+      hills(cx, 0.7, 260, '#2e9e3e', '#46b852');
+  }
+}
+
+</script>
+<script>
+// ---- js/monsters.js ----
+'use strict';
+// ============================================================
+//  キャラクター（敵・仲間・変身）データとドット絵
+// ============================================================
+// req   : キャプチャーに必要なLV（キャラごと）
+// exp   : 倒した時・捕まえた時の経験値
+// col   : [体, ハイライト, 影]
+// speed : 歩く速さ / fly: 飛ぶ敵の動き方
+// form  : 変身した時の歩く速さ・ダッシュ速さ・ジャンプ力
+// skill : 変身中に V キーで使う技
+const MON = {
+  slime: {
+    name: 'スライム', req: 2, exp: 1, col: ['#8e44ad', '#c39bd3', '#4a235a'], speed: 0.5,
+    form: { walk: 1.2, run: 2.0, jump: 4.4 },
+    abilities: ['体当たりで敵をたおせる', '敵や弾にふれてもダメージなし', '足は少しおそい'],
+  },
+  hopper: {
+    name: 'ホッパー', req: 3, exp: 2, col: ['#16a085', '#7be0c8', '#0b5345'], speed: 0.6, hop: true,
+    form: { walk: 1.5, run: 2.6, jump: 6.0 },
+    abilities: ['大ジャンプができる', '空中でもう1回ジャンプ（2段ジャンプ）'],
+  },
+  bat: {
+    name: 'コウモリン', req: 5, exp: 2, col: ['#5b3a8c', '#9a7ad0', '#24123e'], fly: 'bat',
+    form: { walk: 1.5, run: 2.5, jump: 4.6 },
+    abilities: ['空中でジャンプ連打で羽ばたける（5回）', '高い所へ飛んでいける'],
+  },
+  bird: {
+    name: 'トリッピ', req: 6, exp: 2, col: ['#f5b041', '#fde3a7', '#a04000'], fly: 'bird',
+    form: { walk: 1.6, run: 3.0, jump: 5.0 },
+    abilities: ['ジャンプ長押しでグライド（ゆっくり落ちる）', 'ダッシュがとても速い'],
+  },
+  cat: {
+    name: 'ニャンタ', req: 7, exp: 3, col: ['#e67e22', '#f8c471', '#7e3c0a'], speed: 0.6, dash: true,
+    form: { walk: 2.0, run: 3.4, jump: 5.2 },
+    abilities: ['足がとても速い', '空中で壁に向かってジャンプ → 壁キック', '壁をゆっくりすべり落ちる'],
+  },
+  bomb: {
+    name: 'ボムボム', req: 8, exp: 3, col: ['#2c2c3a', '#7a7a90', '#0a0a10'], speed: 0.45, bomb: true, skill: 'bomb',
+    form: { walk: 1.4, run: 2.3, jump: 4.8 },
+    abilities: ['V でばくだんを投げる', 'ばくはつで敵もレンガもこわせる'],
+  },
+  ice: {
+    name: 'ユキダマ', req: 9, exp: 3, col: ['#eef6ff', '#ffffff', '#6a9ad0'], speed: 0.9, skill: 'ice',
+    form: { walk: 1.5, run: 2.5, jump: 5.0 },
+    abilities: ['V でつめたい息', 'こおらせた敵は足場になる（しばらくでとける）'],
+  },
+  fire: {
+    name: 'ヒノコ', req: 10, exp: 4, col: ['#ff6a1a', '#ffd23a', '#a01800'], speed: 0.4, shoot: true, skill: 'fire',
+    form: { walk: 1.5, run: 2.5, jump: 5.0 },
+    abilities: ['V ではねる火の玉（2発まで）', 'どんな敵もたおせる'],
+  },
+  spiky: {
+    name: 'トゲボー', req: 11, exp: 4, col: ['#2e8b57', '#8fe0a8', '#0e3b20'], speed: 0.45, spiky: true,
+    form: { walk: 1.4, run: 2.3, jump: 4.8 },
+    abilities: ['空中で ↓ でヒップドロップ', '着地のしょうげきで周りの敵をたおす・レンガをわる', 'トゲのある敵も踏める'],
+  },
+  rock: {
+    name: 'ゴロン', req: 12, exp: 5, col: ['#8a8070', '#c8bca8', '#3a3428'], speed: 0.35, hp: 2,
+    form: { walk: 1.2, run: 2.0, jump: 4.5 },
+    abilities: ['体当たり・頭つきでレンガをこわせる', 'ダメージを1回だけふせぐ', 'トゲのある敵も踏める'],
+  },
+  ghost: {
+    name: 'オバケン', req: 14, exp: 5, col: ['#f4f4ff', '#ffffff', '#8888b0'], fly: 'ghost',
+    form: { walk: 1.5, run: 2.5, jump: 5.0 },
+    abilities: ['敵や弾にふれてもダメージなし', 'ジャンプ長押しでふわふわ浮く'],
+  },
+};
+const MON_ORDER = Object.keys(MON);
+
+// 敵としての注意書き（図鑑用）
+const MON_NOTE = {
+  slime: '歩くだけ。', hopper: 'ときどきジャンプする。', bat: '波をえがいて追いかけてくる。',
+  bird: 'まっすぐ飛んでいく。', cat: '近づくと急にダッシュしてくる。', bomb: '踏むとしばらくして爆発！はなれよう。',
+  ice: '速く転がってくる。', fire: '火の玉をはいてくる。', spiky: 'トゲがあって踏めない！',
+  rock: 'かたい。2回踏まないとたおせない。', ghost: '見ている間は止まる。背中を向けると近づいてくる。',
+};
+
+function newEnemy(s) {
+  const m = MON[s.type];
+  return {
+    type: s.type, x: s.x * T + 1, y: s.y * T + 2, w: 14, h: 14, vx: 0, vy: 0, dir: -1,
+    onGround: false, active: false, state: 'walk', t: 0,
+    hopT: 40 + (s.x % 5) * 10, hp: m.hp || 1, cool: 60 + (s.x * 37) % 90, dash: 0, ph: 0, base: s.y * T + 2,
+    tame: !!s.tame, gate: s.gate ?? -1,   // tame: レンガの壁の番人（LVに関係なく捕まえられる）
+  };
+}
+
+// ---------------- ドット絵（16x16・右向きで描いて反転） ----------------
+function eyes(r, y) {
+  r(4, y, 3, 3, '#fff'); r(9, y, 3, 3, '#fff');
+  r(5, y + 1, 2, 2, '#111'); r(10, y + 1, 2, 2, '#111');
+}
+const SPRITES = {
+  slime(r, B, L, D, a, o) {
+    const top = a ? 5 : 4;
+    r(5, top, 6, 2, B); r(3, top + 2, 10, 10 - (top - 4), B); r(2, 8, 12, 7, B);
+    if (a) r(1, 10, 14, 5, B);
+    r(5, top + 2, 2, 2, L);
+    eyes(r, 8);
+    if (!o.hat) { r(3, 7, 4, 1, D); r(9, 7, 4, 1, D); }
+    r(6, 12, 4, 1, D); r(2, 15, 5, 1, D); r(9, 15, 5, 1, D);
+  },
+  hopper(r, B, L, D, a, o) {
+    const top = a ? 5 : 4;
+    SPRITES.slime(r, B, L, D, a, o);
+    r(4, top - 1, 3, 3, B); r(9, top - 1, 3, 3, B);
+    r(1, 14, 3, 2, D); r(12, 14, 3, 2, D);
+  },
+  bat(r, B, L, D, a, o) {
+    r(5, 5, 6, 7, B); r(5, 3, 1, 2, B); r(10, 3, 1, 2, B);
+    if (a) { r(0, 3, 5, 2, B); r(1, 5, 4, 2, B); r(11, 3, 5, 2, B); r(11, 5, 4, 2, B); r(0, 2, 1, 1, D); r(15, 2, 1, 1, D); }
+    else   { r(0, 8, 5, 2, B); r(1, 6, 4, 2, B); r(11, 8, 5, 2, B); r(11, 6, 4, 2, B); r(0, 10, 1, 1, D); r(15, 10, 1, 1, D); }
+    r(6, 6, 4, 1, L);
+    const ec = o.hat ? '#fff' : '#ff4a4a';
+    r(6, 7, 2, 2, ec); r(9, 7, 2, 2, ec);
+    if (o.hat) { r(7, 8, 1, 1, '#111'); r(10, 8, 1, 1, '#111'); }
+    r(7, 10, 1, 1, '#fff'); r(9, 10, 1, 1, '#fff');
+    r(6, 12, 1, 2, D); r(9, 12, 1, 2, D);
+  },
+  bird(r, B, L, D, a) {
+    r(1, 6, 2, 3, D); r(4, 4, 8, 1, B); r(3, 5, 10, 8, B); r(4, 13, 8, 1, B);
+    r(5, 9, 6, 4, L);
+    r(13, 7, 3, 2, '#ff8c00'); r(13, 9, 2, 1, '#d06000');
+    r(10, 6, 2, 2, '#fff'); r(11, 6, 1, 2, '#111');
+    if (a) r(4, 3, 5, 3, D); else r(4, 9, 5, 3, D);
+    r(6, 14, 1, 2, '#ff8c00'); r(9, 14, 1, 2, '#ff8c00');
+  },
+  cat(r, B, L, D, a) {
+    r(1, 6, 2, 1, B); r(1, 7, 2, 4, B);                       // しっぽ
+    r(3, 2, 2, 2, B); r(10, 2, 2, 2, B); r(3, 4, 10, 6, B);
+    r(4, 3, 1, 1, '#ffb0b0'); r(10, 3, 1, 1, '#ffb0b0');
+    r(5, 6, 2, 2, '#111'); r(10, 6, 2, 2, '#111'); r(6, 6, 1, 1, '#fff'); r(11, 6, 1, 1, '#fff');
+    r(8, 8, 1, 1, '#ff7090'); r(13, 8, 3, 1, D);
+    r(3, 10, 10, 4, B); r(4, 12, 8, 1, L); r(6, 10, 1, 2, D); r(9, 10, 1, 2, D);
+    if (a) { r(3, 14, 2, 2, D); r(11, 14, 2, 2, D); } else { r(5, 14, 2, 2, D); r(9, 14, 2, 2, D); }
+  },
+  bomb(r, B, L, D, a, o) {
+    r(8, 1, 1, 3, '#c8a060');
+    const sp = (frame >> 1) % 2;
+    r(8, 0, 1, 1, sp ? '#ffd800' : '#ff6a00'); if (sp || o.lit) { r(7, 0, 1, 1, '#ffd800'); r(9, 0, 1, 1, '#ff6a00'); }
+    r(5, 4, 6, 1, B); r(4, 5, 8, 1, B); r(3, 6, 10, 8, B); r(4, 14, 8, 1, B);
+    r(5, 6, 2, 2, L);
+    r(5, 8, 2, 3, '#fff'); r(9, 8, 2, 3, '#fff'); r(6, 9, 1, 2, '#111'); r(10, 9, 1, 2, '#111');
+    r(3, 15, 4, 1, '#c8a060'); r(9, 15, 4, 1, '#c8a060');
+  },
+  ice(r, B, L, D) {
+    r(5, 2, 6, 1, B); r(3, 3, 10, 1, B); r(2, 4, 12, 9, B); r(3, 13, 10, 1, B); r(5, 14, 6, 1, B);
+    r(10, 5, 2, 7, '#c8dcf4'); r(4, 4, 2, 1, L);
+    r(5, 7, 2, 2, '#203050'); r(9, 7, 2, 2, '#203050');
+    r(4, 10, 2, 1, '#ffa0b0'); r(10, 10, 2, 1, '#ffa0b0'); r(7, 11, 2, 1, '#203050');
+    r(4, 15, 3, 1, D); r(9, 15, 3, 1, D);
+  },
+  fire(r, B, L, D, a) {
+    r(5, 2, 3, 2, B); r(8, a ? 0 : 1, 2, 3, B); r(10, 3, 2, 2, B);
+    r(4, 4, 8, 10, B); r(3, 7, 10, 7, B); r(4, 14, 8, 1, B);
+    r(5, 7, 6, 7, L); r(6, 5, 3, 2, L);
+    r(6, 10, 4, 4, '#fff8c0');
+    r(5, 8, 2, 2, '#401000'); r(9, 8, 2, 2, '#401000');
+    r(4, 15, 2, 1, D); r(10, 15, 2, 1, D);
+  },
+  spiky(r, B, L, D, a) {
+    r(3, 4, 2, 3, '#e8e8e8'); r(7, 2, 2, 5, '#e8e8e8'); r(11, 4, 2, 3, '#e8e8e8');
+    r(3, 4, 1, 1, '#fff'); r(7, 2, 1, 1, '#fff'); r(11, 4, 1, 1, '#fff');
+    r(3, 6, 10, 1, B); r(2, 7, 12, 7, B);
+    r(4, 8, 2, 2, L); r(7, 10, 2, 2, L);
+    r(10, 9, 2, 2, '#fff'); r(11, 9, 1, 2, '#111');
+    if (a) { r(3, 14, 3, 2, D); r(10, 14, 3, 2, D); } else { r(4, 14, 3, 2, D); r(9, 14, 3, 2, D); }
+  },
+  rock(r, B, L, D, a, o) {
+    r(4, 2, 8, 1, B); r(3, 3, 10, 1, B); r(2, 4, 12, 10, B); r(3, 14, 10, 1, B);
+    r(4, 4, 3, 2, L); r(10, 4, 1, 3, D); r(11, 7, 2, 1, D);
+    r(4, 7, 3, 1, D); r(9, 7, 3, 1, D); r(5, 8, 2, 2, '#111'); r(10, 8, 2, 2, '#111');
+    r(6, 12, 4, 1, D);
+    if (o.cracked) { r(7, 3, 1, 4, '#111'); r(8, 6, 1, 2, '#111'); r(3, 10, 3, 1, '#111'); }
+    r(3, 15, 4, 1, D); r(9, 15, 4, 1, D);
+  },
+  ghost(r, B, L, D, a, o) {
+    r(5, 2, 6, 1, B); r(3, 3, 10, 1, B); r(2, 4, 12, 9, B);
+    if (a) { r(2, 13, 3, 2, B); r(7, 13, 3, 2, B); r(12, 13, 2, 2, B); }
+    else   { r(3, 13, 3, 2, B); r(8, 13, 3, 2, B); r(13, 13, 1, 1, B); }
+    r(10, 4, 2, 8, '#dcdcf0');
+    if (o.shy) { r(3, 6, 10, 3, '#dcdcf0'); }
+    else { r(5, 6, 2, 3, '#202040'); r(9, 6, 2, 3, '#202040'); r(7, 10, 2, 2, '#c03050'); }
+    r(0, 8, 2, 2, B); r(14, 8, 2, 2, B);
+  },
+};
+
+// 共通の描画関数
+// o: { a: アニメ(0/1), flip: 上下反転, hat: 仲間の帽子, alpha, lit: 点火中, cracked: ヒビ, shy: 照れ }
+function drawMonster(x, y, type, dir, o = {}) {
+  const m = MON[type];
+  let [B, L, D] = m.col;
+  if (o.lit && (frame >> 2) % 2) B = '#e83030';
+  ctx.save();
+  if (o.alpha != null) ctx.globalAlpha = o.alpha;
+  if (o.flip) { ctx.translate(0, y * 2 + 16); ctx.scale(1, -1); }
+  const r = pen(x, y, 16, dir >= 0 ? 1 : -1);
+  SPRITES[type](r, B, L, D, o.a ? 1 : 0, o);
+  if (o.hat) { r(5, 1, 6, 2, PC.hat); r(4, 3, 8, 1, PC.brim); r(7, 0, 2, 1, PC.pom); }
+  ctx.restore();
+}
+
+</script>
+<script>
+// ---- js/stages.js ----
+'use strict';
+// ============================================================
+//  ステージ（1-1 は手作り、それ以外はシード値から自動で組み立て）
+// ============================================================
+// diff : むずかしさ 0〜1（穴の広さ・敵の多さ）
+// pool : 出てくる敵と出やすさ
+const STAGES = [
+  { name: '1-1', theme: 'field',  time: 300, build: build11 },
+  { name: '1-2', theme: 'cave',   time: 300, seed: 102, len: 190, diff: 0.15, pool: { slime: 3, hopper: 2, bat: 2 }, gates: ['bomb'], rooms: ['portal'] },
+  { name: '1-3', theme: 'sky',    time: 300, seed: 103, len: 180, diff: 0.2,  pool: { hopper: 2, bat: 2, bird: 3 }, rooms: ['onoff'] },
+  { name: '2-1', theme: 'desert', time: 300, seed: 201, len: 200, diff: 0.3,  pool: { slime: 2, cat: 3, bird: 1, bomb: 2 }, gates: ['rock'], rooms: ['crate'] },
+  { name: '2-2', theme: 'cave',   time: 300, seed: 202, len: 200, diff: 0.35, pool: { bat: 2, cat: 2, spiky: 3, slime: 1 }, gates: ['bomb', 'rock'], rooms: ['key'] },
+  { name: '2-3', theme: 'castle', time: 300, seed: 203, len: 190, diff: 0.4,  pool: { fire: 3, spiky: 2, bomb: 2, bat: 1 }, gates: ['bomb'], rooms: ['rune', 'onoff'] },
+  { name: '3-1', theme: 'snow',   time: 350, seed: 301, len: 210, diff: 0.45, pool: { ice: 3, slime: 1, cat: 2, bird: 2 }, gates: ['rock'], rooms: ['crate', 'portal'] },
+  { name: '3-2', theme: 'sky',    time: 350, seed: 302, len: 200, diff: 0.5,  pool: { bird: 2, bat: 2, rock: 2, ice: 1, hopper: 1 }, rooms: ['key', 'onoff'] },
+  { name: '3-3', theme: 'night',  time: 350, seed: 303, len: 210, diff: 0.55, pool: { ghost: 3, bat: 2, cat: 2, bomb: 1 }, gates: ['bomb'], rooms: ['rune', 'portal'] },
+  { name: '4-1', theme: 'field',  time: 350, seed: 401, len: 220, diff: 0.6,  pool: { rock: 2, spiky: 2, hopper: 2, cat: 2, fire: 1 }, gates: ['rock'], rooms: ['crate', 'key'] },
+  { name: '4-2', theme: 'cave',   time: 350, seed: 402, len: 220, diff: 0.7,  pool: { ghost: 2, rock: 2, spiky: 2, bomb: 2, bat: 2 }, gates: ['bomb', 'rock'], rooms: ['onoff', 'rune'] },
+  { name: '4-3', theme: 'snow',   time: 350, seed: 403, len: 220, diff: 0.8,  pool: { ice: 2, ghost: 2, bird: 2, rock: 2, cat: 2 }, gates: ['bomb'], rooms: ['portal', 'crate', 'key'] },
+  { name: '5-1', theme: 'castle', time: 400, seed: 501, len: 240, diff: 0.9,
+    pool: { slime: 1, hopper: 1, bat: 1, bird: 1, cat: 1, bomb: 1, ice: 1, fire: 2, spiky: 2, rock: 1, ghost: 2 }, gates: ['rock', 'bomb'], rooms: ['rune', 'onoff', 'key', 'crate', 'portal'] },
+];
+
+let map, mapW = 212, flagCol = 198, castleCol = 202, spawns = [], curTheme = 'field';
+// レンガの壁（gates）：{ col: 壁の左の列, type: 近くにいるキャラ, sx, sy: キャラの出現位置, hinted, timer }
+let gates = [];
+
+function setT(x, y, v) { if (x >= 0 && x < mapW && y >= 0 && y < ROWS) map[y * mapW + x] = v; }
+function getT(x, y) {
+  if (x < 0 || x >= mapW) return 6;
+  if (y >= ROWS) return 0;
+  if (y < 0) {   // 画面より上：一番上の段が壁なら、その上もずっと壁（飛んで越えられないように）
+    const v0 = map[x];
+    return isSolid(v0) ? v0 : 0;
+  }
+  return map[y * mapW + x];
+}
+const groundAt = x => { setT(x, 13, 1); setT(x, 14, 1); };
+const noGround = x => { setT(x, 13, 0); setT(x, 14, 0); };
+function pipe(x, h) {
+  const top = 13 - h;
+  setT(x, top, 7); setT(x + 1, top, 8);
+  for (let y = top + 1; y <= 12; y++) { setT(x, y, 9); setT(x + 1, y, 10); }
+}
+const stairsUp = (x, n) => { for (let i = 0; i < n; i++) for (let h = 0; h <= i; h++) setT(x + i, 12 - h, 6); };
+const stairsDown = (x, n) => { for (let i = 0; i < n; i++) for (let h = 0; h < n - i; h++) setT(x + i, 12 - h, 6); };
+const column = (x, n) => { for (let h = 0; h < n; h++) setT(x, 12 - h, 6); };
+
+function buildStage(st) {
+  curTheme = st.theme;
+  spawns = []; gates = [];
+  resetGimmicks();
+  if (st.build) st.build(); else genStage(st);
+}
+
+// ---------------- 1-1（手作り） ----------------
+function build11() {
+  mapW = 212; flagCol = 198; castleCol = 202;
+  map = new Uint8Array(mapW * ROWS);
+  const gaps = [[69, 71], [86, 89], [153, 155]];
+  for (let x = 0; x < mapW; x++) if (!gaps.some(([a, b]) => x >= a && x < b)) groundAt(x);
+  const brick = (x, y) => setT(x, y, 2);
+  const q = (x, y, power) => setT(x, y, power ? 4 : 3);
+  const coin = (x, y) => setT(x, y, 11);
+
+  q(16, 9);
+  brick(20, 9); q(21, 9, true); brick(22, 9); q(23, 9); brick(24, 9); q(22, 5);
+  pipe(28, 2); pipe(38, 3); pipe(46, 4); pipe(57, 4);
+  for (let x = 32; x <= 35; x++) coin(x, 8);
+  for (let x = 60; x <= 62; x++) coin(x, 10);
+  brick(64, 9); q(65, 9, true); brick(66, 9);
+  for (let x = 77; x <= 79; x++) brick(x, 9);
+  for (let x = 80; x <= 87; x++) brick(x, 5);
+  for (let x = 91; x <= 93; x++) brick(x, 5);
+  q(94, 5); q(94, 9);
+  brick(100, 9); brick(101, 9);
+  for (let x = 101; x <= 104; x++) coin(x, 6);
+  q(106, 9); q(109, 9); q(109, 5, true); q(112, 9);
+  brick(118, 9);
+  for (let x = 121; x <= 123; x++) brick(x, 5);
+  brick(128, 5); q(129, 5); q(130, 5); brick(131, 5); brick(129, 9); brick(130, 9);
+  stairsUp(134, 4); stairsDown(140, 4);
+  stairsUp(148, 4); column(152, 4); stairsDown(155, 4);
+  pipe(163, 2);
+  brick(168, 9); brick(169, 9); q(170, 9, true); brick(171, 9);
+  for (let x = 167; x <= 172; x++) coin(x, 5);
+  pipe(179, 2);
+  stairsUp(181, 8); column(189, 8);
+  setT(flagCol, 12, 6);
+
+  const E = (x, y, type = 'slime') => spawns.push({ x, y, type });
+  E(22, 12); E(34, 12); E(42, 12); E(51, 12); E(53, 12);
+  E(62, 12); E(74, 12); E(78, 8, 'hopper');
+  E(81, 4); E(83, 4); E(85, 4); E(92, 4);
+  E(97, 12); E(99, 12); E(104, 12, 'hopper'); E(108, 12); E(110, 12);
+  E(114, 12, 'hopper'); E(116, 12); E(120, 12, 'hopper');
+  E(124, 12); E(126, 12); E(128, 12, 'hopper'); E(130, 12);
+  E(138, 12); E(145, 12); E(146, 12);
+  E(160, 12, 'hopper'); E(167, 12);
+  E(174, 12); E(176, 12, 'hopper'); E(193, 12);
+}
+
+// ---------------- 自動生成 ----------------
+// 「平地」「穴」「土管」「ブロック」「階段」「浮き足場」「敵の群れ」「コイン」の
+// パーツを並べて作る。どの穴もジャンプで越えられる幅（最大4マス）にしてある。
+function genStage(st) {
+  const rnd = mulberry32(st.seed);
+  const R = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  const P = p => rnd() < p;
+  const th = THEMES[st.theme], d = st.diff, skyMode = st.theme === 'sky';
+  // レンガの壁と謎解き部屋（ステージ内でランダムな順番に並べる）
+  const specials = [...(st.gates || []).map(t => ({ kind: 'gate', type: t })), ...(st.rooms || []).map(k => ({ kind: k }))];
+  for (let i = specials.length - 1; i > 0; i--) { const j = R(0, i); [specials[i], specials[j]] = [specials[j], specials[i]]; }
+  const extra = specials.reduce((a, s) => a + (s.kind === 'gate' ? 14 : roomWidth(s.kind, d)), 0);
+  mapW = st.len + extra; flagCol = mapW - 14; castleCol = flagCol + 4;
+  map = new Uint8Array(mapW * ROWS);
+  for (let x = 0; x < mapW; x++) {
+    if (!skyMode || x < 12) groundAt(x);
+    if (th.ceiling) { setT(x, 0, 1); setT(x, 1, 1); }
+  }
+
+  const pool = Object.entries(st.pool), poolTotal = pool.reduce((a, [, w]) => a + w, 0);
+  const pick = () => { let v = rnd() * poolTotal; for (const [t, w] of pool) if ((v -= w) < 0) return t; return pool[0][0]; };
+  // 敵を置く：飛ぶ敵は空中、それ以外は上から見て最初の足場の上
+  const enemyAt = x => {
+    if (x < 16) return;
+    const t = pick(), m = MON[t];
+    if (m.fly) { spawns.push({ x, y: R(m.fly === 'bird' ? 4 : 5, 9), type: t }); return; }
+    for (let y = th.ceiling ? 3 : 1; y <= 13; y++) {
+      if (isSolid(getT(x, y)) && !isSolid(getT(x, y - 1))) { spawns.push({ x, y: y - 1, type: t }); return; }
+    }
+  };
+  const enemyChance = 0.7 + 0.3 * d;
+
+  const kinds = [['flat', 2], ['gap', 2 + 3 * d], ['pipe', 2], ['blocks', 3], ['stairs', 1 + d],
+                 ['plats', 1 + 2 * d], ['group', 1.5 + 2 * d], ['coins', 1]];
+  const kindTotal = kinds.reduce((a, [, w]) => a + w, 0);
+  const pickKind = () => { let v = rnd() * kindTotal; for (const [k, w] of kinds) if ((v -= w) < 0) return k; return 'flat'; };
+
+  let x = 12, prevRow = 13;
+  const limit = flagCol - 34;   // ゴール前の階段エリアには食い込まない
+  // 特別な場所を置く位置（ステージ内に均等に）
+  const spLimit = limit - 30;   // 一番広い部屋(30マス)でもゴール前の階段にかからないように
+  const specialAt = specials.map((_, i) => Math.floor(12 + (spLimit - 12) * (i + 1) / (specials.length + 1)));
+  let spIdx = 0;
+  while (x < limit) {
+    let w;
+    if (spIdx < specials.length && x >= specialAt[spIdx]) {
+      const sp = specials[spIdx++];
+      if (sp.kind === 'gate') {
+        // ---- レンガの壁 ----
+        // [平地][柵][囲い（壊せるキャラ）][レンガの壁 2列・画面の上まで][平地]
+        for (let i = 0; i < 14; i++) { for (let r = 2; r <= 12; r++) setT(x + i, r, 0); groundAt(x + i); }
+        setT(x + 2, 12, 6);                                     // 囲いの柵（1段なので跳び越せる）
+        for (let i = 9; i <= 10; i++) for (let r = 0; r <= 12; r++) setT(x + i, r, 2);
+        gates.push({ col: x + 9, type: sp.type, sx: x + 6, sy: 12, hinted: false, timer: 0 });
+        spawns.push({ x: x + 6, y: 12, type: sp.type, tame: true, gate: gates.length - 1 });
+        w = 14;
+      } else {
+        w = ROOM_BUILD[sp.kind](x, R, P, d, st);
+      }
+      prevRow = 13;
+    } else if (skyMode) {
+      // 空：浮いた雲の足場を、すき間2〜3マス・高さの差2マス以内で並べる
+      const g = R(2, 3), pw = R(3, 6);
+      const row = Math.max(9, Math.min(12, prevRow + R(-2, 1)));
+      for (let i = 0; i < pw; i++) setT(x + g + i, row, 1);
+      if (P(0.35)) setT(x + g + R(0, pw - 1), row - 4, P(0.3) ? 4 : 3);
+      if (P(0.3)) for (let i = 0; i < pw; i++) setT(x + g + i, row - 2, 11);
+      if (P(enemyChance)) enemyAt(x + g + R(0, pw - 1));
+      if (P(0.5)) spawns.push({ x: x + g, y: R(4, 8), type: pick() === 'bat' ? 'bat' : 'bird' });   // 空は飛ぶ敵を多めに
+      prevRow = row; w = g + pw;
+    } else {
+      switch (pickKind()) {
+        case 'flat':
+          w = R(4, 7);
+          if (P(enemyChance)) enemyAt(x + 1);
+          if (P(enemyChance * 0.6)) enemyAt(x + w - 2);
+          break;
+        case 'gap': {
+          const g = R(2, d >= 0.5 ? 4 : 3);
+          for (let i = 0; i < g; i++) noGround(x + 2 + i);
+          if (P(0.3)) for (let i = 0; i < g; i++) setT(x + 2 + i, 9, 11);
+          w = g + 4;
+          break;
+        }
+        case 'pipe': {
+          pipe(x + 1, R(2, 4));
+          w = R(5, 7);
+          if (P(enemyChance)) enemyAt(x + 4);
+          break;
+        }
+        case 'blocks': {
+          const n = R(3, 6);
+          for (let i = 0; i < n; i++) setT(x + 1 + i, 9, P(0.35) ? (P(0.25) ? 4 : 3) : 2);
+          if (P(0.5)) {
+            const m = R(2, Math.min(4, n)), o = R(0, n - m);
+            for (let i = 0; i < m; i++) setT(x + 1 + o + i, 5, i === 0 && P(0.5) ? 3 : 2);
+          }
+          w = n + 3;
+          if (P(enemyChance)) enemyAt(x + 1 + R(0, n - 1));
+          if (P(enemyChance * 0.6)) enemyAt(x + n + 1);
+          break;
+        }
+        case 'stairs': {
+          const n = R(3, 4), g = P(0.4 + 0.3 * d) ? R(1, 2) : 0;
+          stairsUp(x + 1, n); column(x + 1 + n, n);
+          for (let i = 0; i < g; i++) noGround(x + 2 + n + i);
+          stairsDown(x + 2 + n + g, n);
+          w = 2 * n + g + 3;
+          if (P(enemyChance)) enemyAt(x + w - 1);
+          break;
+        }
+        case 'plats': {
+          // 広い穴＋浮き足場
+          const gw = R(6, 9);
+          for (let i = 1; i <= gw; i++) noGround(x + i);
+          const row = R(9, 10);
+          for (let i = 0; i < 3; i++) setT(x + 2 + i, row, i === 1 && P(0.3) ? 3 : 2);
+          if (gw >= 8) { const row2 = R(9, 10); for (let i = 0; i < 3; i++) setT(x + gw - 3 + i, row2, 2); }
+          w = gw + 3;
+          if (P(enemyChance)) enemyAt(x + 3);
+          break;
+        }
+        case 'group': {
+          w = R(7, 10);
+          const n = R(2, 4);
+          for (let i = 0; i < n; i++) enemyAt(x + 2 + i * 2);
+          break;
+        }
+        default: { // coins
+          w = R(5, 7);
+          const row = R(8, 10);
+          for (let i = 1; i < w - 1; i++) setT(x + i, row, 11);
+          if (P(enemyChance * 0.5)) enemyAt(x + w - 2);
+        }
+      }
+    }
+    x += w;
+  }
+  for (let c = x; c < mapW; c++) groundAt(c);
+  stairsUp(flagCol - 17, 8); column(flagCol - 9, 8);
+  setT(flagCol, 12, 6);
+  enemyAt(flagCol - 20);
+  if (d >= 0.4) enemyAt(flagCol - 5);
+
+  // パワーアップのフルーツを最低3個は入れる
+  const qs = [];
+  for (let i = 0; i < map.length; i++) if (map[i] === 3) qs.push(i);
+  let power = map.filter(v => v === 4).length;
+  while (power < 3 && qs.length) { map[qs.splice(Math.floor(rnd() * qs.length), 1)[0]] = 4; power++; }
+  for (let c = 20; power < 3 && c < flagCol - 20; c += 37) {
+    if (getT(c, 13) === 1 && !getT(c, 9) && !getT(c, 12) && !getT(c, 10)) { setT(c, 9, 4); power++; }
+  }
+}
+
+</script>
+<script>
+// ---- js/gimmicks.js ----
+'use strict';
+// ============================================================
+//  ギミック・謎解き部屋
+//  どの部屋も「画面の上まで続く壁／扉」で区切ってあるので、
+//  謎を解かないと先へ進めない（飛ぶ・壊すでは抜けられない）。
+// ============================================================
+let rooms = [], portals = [], keyItems = [], plates = [], runeNum = {}, crateAnims = [];
+const PORTAL_COL = { red: '#ff4a6a', blue: '#4a8aff', green: '#3ad06a', purple: '#b45aff' };
+
+function resetGimmicks() {
+  rooms = []; portals = []; keyItems = []; plates = []; runeNum = {}; crateAnims = [];
+  switchOn = false;
+}
+
+// ---------------- 部屋づくり（stages.js の genStage から呼ばれる） ----------------
+const fullWall = (c, v) => { for (let r = 0; r <= 12; r++) setT(c, r, v); };
+function prepArea(x, w) {   // 部屋の範囲を空にして地面をしく（洞窟・城の天井 0〜1段目は残す）
+  for (let i = 0; i < w; i++) {
+    for (let r = 2; r <= 12; r++) setT(x + i, r, 0);
+    groundAt(x + i);
+  }
+}
+function addPortal(c, r, color) { portals.push({ c, r, color, link: -1 }); return portals.length - 1; }
+function linkPortals(a, b) { portals[a].link = b; portals[b].link = a; }
+
+const ROOM_HINT = {
+  portal: ['ポータルのへや', ['ポータルの上で ↓ を押すとワープ', '同じ色のポータルどうしがつながっている', '先に進めるのはどの道？']],
+  onoff:  ['ON/OFF スイッチ', ['「！」ブロックを下からたたくと 赤 と 青 が入れかわる', '赤：ON の時だけかたい ／ 青：OFF の時だけかたい']],
+  crate:  ['おもいスイッチ', ['木箱に向かって歩くと押せる', '木箱をスイッチのくぼみに落とすと扉が開く']],
+  key:    ['カギのとびら', ['カギを取ってカギのとびらにさわろう', 'カギはポータルの先の小部屋にある（↓でワープ）']],
+  rune:   ['じゅんばんスイッチ', ['石のブロックを正しい順番で下からたたこう', 'ヒント：つぶの少ない順', 'まちがえると最初からやり直し']],
+};
+function roomWidth(kind, d) {
+  return { portal: 30, onoff: 22, crate: d >= 0.6 ? 19 : 16, key: 14, rune: 16 }[kind];
+}
+
+const ROOM_BUILD = {
+  // [スタート：ポータル2つ][壁][小部屋1：到着＋緑][壁][小部屋2：ハズレ・お宝][壁][出口：緑]
+  portal(x, R) {
+    prepArea(x, 30);
+    fullWall(x + 6, 6); fullWall(x + 13, 6); fullWall(x + 20, 6);
+    const swap = R(0, 1) === 1;   // 正解が左か右かはステージごとにちがう
+    const s1 = addPortal(x + 1, 12, 'red'), s2 = addPortal(x + 4, 12, 'blue');
+    const c1a = addPortal(x + 8, 12, swap ? 'blue' : 'red'), c1b = addPortal(x + 11, 12, 'green');
+    const c2a = addPortal(x + 15, 12, swap ? 'red' : 'blue');
+    const ex = addPortal(x + 22, 12, 'green');
+    if (!swap) { linkPortals(s1, c1a); linkPortals(s2, c2a); } else { linkPortals(s2, c1a); linkPortals(s1, c2a); }
+    linkPortals(c1b, ex);
+    for (let i = 16; i <= 18; i++) setT(x + i, 10, 11);   // ハズレ部屋のお宝
+    setT(x + 17, 7, 4);
+    rooms.push({ kind: 'portal', x0: x, x1: x + 30 });
+    return 30;
+  },
+  // [！][青の壁][赤の橋][！][赤の壁][！][青の橋]  どのエリアにも「！」があるので詰まない
+  onoff(x) {
+    prepArea(x, 22);
+    setT(x + 2, 9, 13);
+    fullWall(x + 4, 15);
+    setT(x + 6, 9, 13);
+    for (let i = 7; i <= 10; i++) { noGround(x + i); setT(x + i, 13, 14); }   // 赤の橋（地面の高さ）
+    setT(x + 11, 9, 13);
+    fullWall(x + 13, 14);
+    setT(x + 15, 9, 13);
+    for (let i = 16; i <= 19; i++) { noGround(x + i); setT(x + i, 13, 15); }  // 青の橋
+    rooms.push({ kind: 'onoff', x0: x, x1: x + 22 });
+    return 22;
+  },
+  // [2段の段差][すき間2][木箱]…[くぼみ（スイッチ）][扉]  木箱は右にしか押せないので詰まない
+  // 2個の時：右の木箱を先に1つ目のくぼみへ、次に左の木箱を2つ目のくぼみへ
+  crate(x, R, P, d) {
+    const two = d >= 0.6, w = roomWidth('crate', d);
+    prepArea(x, w);
+    setT(x + 2, 12, 6); setT(x + 2, 11, 6);
+    const crates = two ? [[x + 5, 12], [x + 8, 12]] : [[x + 5, 12]];
+    crates.forEach(([c, r]) => setT(c, r, 16));
+    const dents = two ? [x + 11, x + 13] : [x + 9];
+    const door = two ? x + 15 : x + 12;
+    dents.forEach(c => { setT(c, 13, 0); plates.push({ c, r: 13, room: rooms.length }); });
+    fullWall(door, 18);
+    rooms.push({ kind: 'crate', x0: x, x1: x + w, door, open: false });
+    return w;
+  },
+  // 密室（上）にカギ。下のポータルからワープして取ってくる
+  key(x) {
+    prepArea(x, 14);
+    for (let i = 1; i <= 6; i++) { setT(x + i, 2, 6); setT(x + i, 7, 6); }
+    for (let r = 2; r <= 7; r++) { setT(x + 1, r, 6); setT(x + 6, r, 6); }
+    linkPortals(addPortal(x + 3, 12, 'purple'), addPortal(x + 4, 6, 'purple'));
+    keyItems.push({ x: (x + 2) * T + 3, y: 6 * T + 4, w: 10, h: 10, taken: false });
+    fullWall(x + 8, 19);
+    rooms.push({ kind: 'key', x0: x, x1: x + 14 });
+    return 14;
+  },
+  // 石のブロックをつぶの少ない順にたたく
+  rune(x, R, P, d) {
+    prepArea(x, 16);
+    const n = d >= 0.6 ? 4 : 3;
+    const nums = Array.from({ length: n }, (_, i) => i + 1);
+    do { for (let i = n - 1; i > 0; i--) { const j = R(0, i); [nums[i], nums[j]] = [nums[j], nums[i]]; } }
+    while (nums.every((v, i) => v === i + 1));   // 最初から正しい順にはしない
+    const cells = [];
+    nums.forEach((num, i) => { const c = x + 3 + i * 2; setT(c, 9, 20); runeNum[c + ',9'] = num; cells.push([c, 9]); });
+    fullWall(x + 12, 18);
+    rooms.push({ kind: 'rune', x0: x, x1: x + 16, door: x + 12, next: 1, n, cells, solved: false });
+    return 16;
+  },
+};
+
+// ---------------- 実行時の処理 ----------------
+function showMsg(title, lines, extra = '', ms = 6000) {
+  infoEl.innerHTML = `<div class="hd">${title}</div><ul>${lines.map(a => `<li>${a}</li>`).join('')}</ul>` +
+    (extra ? `<div class="ex">${extra}</div>` : '');
+  infoEl.classList.add('show');
+  clearTimeout(infoTimer);
+  infoTimer = setTimeout(hideInfo, ms);
+}
+function overlapSolid(e) {
+  const l = Math.floor(e.x / T), r = Math.floor((e.x + e.w - 0.01) / T);
+  const t = Math.floor(e.y / T), b = Math.floor((e.y + e.h - 0.01) / T);
+  for (let c = l; c <= r; c++) for (let rr = t; rr <= b; rr++) if (isSolid(getT(c, rr))) return true;
+  return false;
+}
+// ブロックが急にかたくなって体がめりこんだ時に外へ出す
+function unstickPlayer() {
+  const p = player;
+  if (!overlapSolid(p)) return;
+  for (const [dx, dy] of [[-8, 0], [8, 0], [-16, 0], [16, 0], [0, -16], [-24, 0], [24, 0], [0, -32]]) {
+    p.x += dx; p.y += dy;
+    if (!overlapSolid(p)) return;
+    p.x -= dx; p.y -= dy;
+  }
+}
+function openDoor(col) {
+  for (let r = 0; r <= 12; r++) if (getT(col, r) === 18) setT(col, r, 0);
+  for (let r = 4; r <= 12; r += 2) puff(col * T + 8, r * T + 8, '#c8c8d8');
+  SFX.door();
+}
+function closeDoor(col) {
+  if (overlap(player, { x: col * T, y: -64, w: T, h: 13 * T + 64 })) return false;   // 扉の中にいる時は閉めない
+  for (let r = 0; r <= 12; r++) if (getT(col, r) === 0) setT(col, r, 18);
+  SFX.door();
+  return true;
+}
+
+// hitBlock から呼ばれる。ギミックのブロックなら true
+function hitGimmick(c, r, v) {
+  if (v === 13) {
+    switchOn = !switchOn;
+    bumps.push({ c, r, t: 0 }); SFX.toggle();
+    unstickPlayer();
+    return true;
+  }
+  if (v === 20 || v === 21) {
+    bumps.push({ c, r, t: 0 });
+    const room = rooms.find(o => o.kind === 'rune' && c >= o.x0 && c < o.x1);
+    if (v === 21 || !room || room.solved) { SFX.bump(); return true; }
+    const n = runeNum[c + ',' + r];
+    if (n === room.next) {
+      setT(c, r, 21); SFX.ding(n); room.next++;
+      if (room.next > room.n) { room.solved = true; openDoor(room.door); SFX.solve(); scorePops.push({ x: player.x - 16, y: player.y - 20, text: 'CLEAR!', t: 80, col: '#4ae0f0' }); addScore(1000); }
+    } else {
+      room.cells.forEach(([cc, rr]) => setT(cc, rr, 20));
+      room.next = 1; SFX.nope();
+      scorePops.push({ x: c * T - 8, y: r * T - 12, text: 'MISS', t: 50, col: '#ff8080' });
+    }
+    return true;
+  }
+  return false;
+}
+
+// 木箱を押す（タイル単位で1マス動かして、下が空いていれば落とす）
+function pushCrate(c, r, dir) {
+  const nc = c + dir;
+  if (isSolid(getT(nc, r))) return false;
+  setT(c, r, 0);
+  let nr = r;
+  while (nr + 1 < ROWS && !isSolid(getT(nc, nr + 1))) nr++;
+  setT(nc, nr, 16);
+  crateAnims.push({ c: nc, r: nr, dx: -dir * T, dy: -(nr - r) * T, t: 8 });
+  SFX.push();
+  return true;
+}
+
+// プレイヤーの横の当たり判定のあと（updatePlayer から）：木箱を押す・カギで開ける
+function playerSideGimmicks(p, dir) {
+  if (!p.wallDir) { p.pushT = 0; return; }
+  const c = p.wallDir > 0 ? Math.floor((p.x + p.w) / T) : Math.floor((p.x - 1) / T);
+  const top = Math.floor(p.y / T), bot = Math.floor((p.y + p.h - 0.01) / T);
+  if (p.hasKey) {
+    for (let r = top; r <= bot; r++) if (getT(c, r) === 19) {
+      for (let rr = 0; rr <= 12; rr++) if (getT(c, rr) === 19) setT(c, rr, 0);
+      p.hasKey = false; SFX.unlock(); puff(c * T + 8, p.y + 8, '#ffd800');
+      scorePops.push({ x: p.x - 16, y: p.y - 20, text: 'UNLOCK!', t: 70, col: '#ffd800' });
+      addScore(1000);
+      return;
+    }
+  }
+  if (p.onGround && p.wallDir === dir && getT(c, bot) === 16) {
+    if (++p.pushT >= 8) { p.pushT = 0; pushCrate(c, bot, dir); }
+  } else p.pushT = 0;
+}
+
+// ポータル：上に立って ↓
+function portalUnder(p) {
+  return portals.findIndex(o => Math.abs(p.x + p.w / 2 - (o.c * T + 8)) < 9 && Math.abs(p.y + p.h - (o.r + 1) * T) < 2);
+}
+function tryPortal() {
+  const p = player;
+  if (!p.onGround || !input.down) return;
+  const i = portalUnder(p);
+  if (i < 0 || portals[i].link < 0) return;
+  const to = portals[portals[i].link];
+  puff(p.x + 6, p.y + p.h / 2, PORTAL_COL[portals[i].color]);
+  p.x = to.c * T + 8 - p.w / 2; p.y = (to.r + 1) * T - p.h; p.vx = 0; p.vy = 0; p.pound = false;
+  cam.x = Math.max(0, Math.min(p.x - 150, mapW * T - W));
+  puff(p.x + 6, p.y + p.h / 2, PORTAL_COL[to.color]);
+  SFX.warp();
+}
+
+function updateGimmicks() {
+  const p = player;
+  tryPortal();
+  // カギ
+  for (const k of keyItems) {
+    if (!k.taken && overlap(p, k)) {
+      k.taken = true; p.hasKey = true; SFX.key();
+      scorePops.push({ x: k.x - 8, y: k.y - 12, text: 'KEY!', t: 60, col: '#ffd800' });
+      showMsg('カギを手に入れた！', ['カギのとびら（金色のブロック）にさわると開く'], '', 3500);
+    }
+  }
+  // おもいスイッチ：全部のくぼみに木箱（かプレイヤー）がのっている間だけ扉が開く
+  rooms.forEach((room, ri) => {
+    if (room.kind === 'crate') {
+      const mine = plates.filter(o => o.room === ri);
+      const pressed = mine.map(o => getT(o.c, o.r) === 16 ||
+        (p.onGround && overlap(p, { x: o.c * T + 2, y: o.r * T, w: T - 4, h: T })));
+      mine.forEach((o, k) => o.pressed = pressed[k]);
+      const all = pressed.every(Boolean);
+      if (all && !room.open) { openDoor(room.door); room.open = true; }
+      else if (!all && room.open && closeDoor(room.door)) room.open = false;
+    }
+    // 近づいたらヒント
+    if (!room.hinted && p.x > (room.x0 - 3) * T && p.x < room.x1 * T) {
+      room.hinted = true;
+      const [title, lines] = ROOM_HINT[room.kind];
+      showMsg(title, lines);
+    }
+  });
+  for (const a of crateAnims) a.t--;
+  crateAnims = crateAnims.filter(a => a.t > 0);
+}
+
+// ---------------- 描画 ----------------
+function crateOffset(c, r) {
+  const a = crateAnims.find(o => o.c === c && o.r === r);
+  return a ? [Math.round(a.dx * a.t / 8), Math.round(a.dy * a.t / 8)] : null;
+}
+function drawRuneDots(x, y, n, lit) {
+  ctx.fillStyle = lit ? '#ffffff' : '#2a2a34';
+  const pos = { 1: [[7, 7]], 2: [[4, 7], [10, 7]], 3: [[4, 4], [10, 4], [7, 10]], 4: [[4, 4], [10, 4], [4, 10], [10, 10]] }[n] || [];
+  pos.forEach(([dx, dy]) => ctx.fillRect(x + dx, y + dy, 3, 3));
+}
+function drawGimmicksBack(cx) {
+  // ポータル
+  const p = player;
+  const under = state === 'play' ? portalUnder(p) : -1;
+  portals.forEach((o, i) => {
+    const x = o.c * T + 8 - cx, y = o.r * T + 1;
+    if (x < -20 || x > W + 20) return;
+    const col = PORTAL_COL[o.color];
+    ctx.save();
+    ctx.globalAlpha = 0.35; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, y, 6, 14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x, y, 7, 15, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    for (let k = 0; k < 3; k++) {   // 中をぐるぐる回る光
+      const a = frame / 12 + k * 2.1;
+      ctx.fillRect(Math.round(x + Math.cos(a) * 4) - 1, Math.round(y + Math.sin(a) * 10) - 1, 2, 2);
+    }
+    ctx.restore();
+    if (i === under) text('↓', x - 4, y - 28 + ((frame >> 4) % 2) * 2, '#fff', 8);
+  });
+  // おもいスイッチ（くぼみの床）
+  for (const o of plates) {
+    const x = o.c * T - cx, y = o.r * T;
+    ctx.fillStyle = '#3a3a44'; ctx.fillRect(x + 1, y + 13, 14, 3);
+    ctx.fillStyle = o.pressed ? '#3ad06a' : '#ff5a5a'; ctx.fillRect(x + 3, y + (o.pressed ? 14 : 11), 10, o.pressed ? 2 : 3);
+  }
+}
+function drawGimmicksFront(cx) {
+  for (const k of keyItems) {
+    if (k.taken) continue;
+    const x = Math.round(k.x - cx), y = Math.round(k.y + Math.sin(frame / 10) * 2);
+    drawKey(x, y);
+  }
+}
+function drawKey(x, y) {
+  ctx.fillStyle = '#7a5000'; ctx.fillRect(x, y + 1, 5, 5); ctx.fillRect(x + 4, y + 3, 6, 2); ctx.fillRect(x + 7, y + 5, 1, 2); ctx.fillRect(x + 9, y + 5, 1, 2);
+  ctx.fillStyle = '#ffd23a'; ctx.fillRect(x + 1, y + 2, 3, 3); ctx.fillRect(x + 5, y + 3, 4, 1);
+  ctx.fillStyle = '#7a5000'; ctx.fillRect(x + 2, y + 3, 1, 1);
+}
+
+</script>
+<script>
+// ---- js/game.js ----
+'use strict';
+// ============================================================
+//  ゲーム本体
+// ============================================================
+const PC = { hat: '#2b59c3', brim: '#1b3a8a', pom: '#ffffff', hair: '#7a4a1a', skin: '#ffcf9e',
+             eye: '#1a1a1a', cheek: '#ff8f8f', hood: '#f39c12', hoodD: '#c66a00', pants: '#3d3a7a', boot: '#5a3010' };
+const PICO_FORM = { walk: 1.5, run: 2.5, jump: 5.0 };
+
+let state = 'title', stateT = 0, frame = 0, paused = false, menuOpen = false;
+let score = 0, coins = 0, lives = 3, timeLeft = 300, timeTick = 0, stageIdx = 0;
+let lv = 1, exp = 0, party = [null, null], box = [];
+let gauge = 0;
+let player = null, enemies = [], items = [], pops = [], particles = [], scorePops = [], bumps = [];
+let shots = [], pshots = [], eshots = [], melts = [];
+const cam = { x: 0, shake: 0 };
+let flagY = 3 * T, hiScore = 0;
+try { hiScore = +localStorage.getItem('pico_hi') || 0; } catch (e) {}
+
+const expNext = () => 1 + lv * 2;
+const gaugeMax = () => 480 + lv * 40;           // 変身していられる時間（フレーム）
+const stage = () => STAGES[stageIdx];
+
+// ---------------- デバッグ（M → T → W） ----------------
+// LV MAX ＋ 全キャラ仲間 ＋ 無敵（ダメージなし・穴に落ちても戻る・時間切れなし）
+// もう一度押すと元のLV・仲間に戻る
+const DEBUG_LV = 99;
+let debugMode = false, debugBackup = null;
+function applyDebugLv() {
+  debugBackup = { lv, exp, box: [...box], party: [...party] };
+  lv = DEBUG_LV; exp = 0; gauge = gaugeMax();
+  box = [...MON_ORDER];                                   // 全キャラを図鑑に
+  for (let i = 0; i < 2; i++) if (!party[i]) party[i] = MON_ORDER.find(t => !party.includes(t));
+}
+function toggleDebug() {
+  debugMode = !debugMode;
+  if (debugMode) applyDebugLv();
+  else if (debugBackup) {
+    lv = debugBackup.lv; exp = debugBackup.exp; gauge = Math.min(gauge, gaugeMax());
+    box = debugBackup.box; party = debugBackup.party;
+    if (player && player.form && !party.includes(player.form)) revert(true);
+    debugBackup = null;
+  }
+  if (menuOpen && !swapType) renderMenu();
+  if (player) {
+    player.inv = 0;
+    scorePops.push({ x: player.x - 24, y: player.y - 20, text: debugMode ? 'DEBUG ON' : 'DEBUG OFF', t: 90, col: debugMode ? '#ff6060' : '#aaa' });
+  }
+  debugMode ? SFX.lvup() : SFX.nope();
+}
+
+// ---------------- セーブ ----------------
+function saveProgress() {
+  // デバッグ中のLV・仲間はセーブしない
+  const real = debugMode && debugBackup ? debugBackup : { lv, exp, box, party };
+  try { localStorage.setItem('pico_save', JSON.stringify({ stage: stageIdx, lv: real.lv, exp: real.exp, box: real.box, party: real.party })); } catch (e) {}
+}
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem('pico_save')); } catch (e) { return null; }
+}
+function saveHi() {
+  if (score > hiScore) { hiScore = score; try { localStorage.setItem('pico_hi', hiScore); } catch (e) {} }
+}
+
+// ---------------- 開始・進行 ----------------
+function newPlayer() {
+  return { x: 3 * T + 2, y: 12 * T, w: 12, h: 16, vx: 0, vy: 0, py: 0, face: 1, onGround: false,
+           big: false, inv: 0, anim: 0, coyote: 0, buf: 0, growT: 0, growTo: false, skid: false,
+           combo: 0, hidden: false, dead: false, form: null, slot: -1, wasBig: false, airJumps: 0,
+           wallDir: 0, pound: false, armor: 0, hasKey: false, pushT: 0 };
+}
+function setState(s) { state = s; stateT = 0; paused = false; }
+
+function startLevel(keepBig) {
+  const st = stage();
+  buildStage(st);
+  const wasBig = keepBig && player && (player.big || player.wasBig);
+  player = newPlayer();
+  if (wasBig) { player.big = true; player.h = 28; player.y -= 12; }
+  enemies = spawns.map(newEnemy);
+  items = []; pops = []; particles = []; scorePops = []; bumps = [];
+  shots = []; pshots = []; eshots = []; melts = [];
+  cam.x = 0; cam.shake = 0; timeLeft = st.time || 300; timeTick = 0; flagY = 3 * T;
+  gauge = gaugeMax();
+  hideInfo();
+  saveProgress();
+  setState('intro');
+}
+function newGame(fromSave) {
+  score = 0; coins = 0; lives = 3; stageIdx = 0; lv = 1; exp = 0; party = [null, null]; box = [];
+  if (fromSave) {
+    const s = loadProgress();
+    if (s) {
+      stageIdx = Math.max(0, Math.min(s.stage | 0, STAGES.length - 1));
+      lv = s.lv || 1; exp = s.exp || 0;
+      box = (s.box || []).filter(t => MON[t]);
+      party = [0, 1].map(i => (s.party && MON[s.party[i]]) ? s.party[i] : null);
+    }
+  }
+  if (debugMode) applyDebugLv();   // デバッグ中に新しく始めても LV MAX のまま
+  player = null;
+  startLevel(false);
+}
+
+function addScore(n, x, y) {
+  score += n;
+  if (x !== undefined) scorePops.push({ x, y, text: String(n), t: 40 });
+}
+function addCoin() {
+  coins++; SFX.coin();
+  if (coins >= 100) { coins -= 100; lives++; SFX.oneup(); scorePops.push({ x: player.x, y: player.y - 8, text: '1UP', t: 50 }); }
+}
+function gainExp(n) {
+  if (debugMode) return;
+  exp += n;
+  while (exp >= expNext()) {
+    exp -= expNext(); lv++;
+    SFX.lvup();
+    scorePops.push({ x: player.x - 12, y: player.y - 20, text: 'LV UP!', t: 80, col: '#7dffb0' });
+    gauge = gaugeMax();
+  }
+}
+
+// ---------------- 当たり判定 ----------------
+function collideX(e) {
+  const top = Math.floor(e.y / T), bot = Math.floor((e.y + e.h - 0.01) / T);
+  if (e.vx > 0) {
+    const c = Math.floor((e.x + e.w - 0.01) / T);
+    for (let r = top; r <= bot; r++) if (isSolid(getT(c, r))) { e.x = c * T - e.w; e.vx = 0; return true; }
+  } else if (e.vx < 0) {
+    const c = Math.floor(e.x / T);
+    for (let r = top; r <= bot; r++) if (isSolid(getT(c, r))) { e.x = (c + 1) * T; e.vx = 0; return true; }
+  }
+  return false;
+}
+// 戻り値: 'down'（着地） / {c,r}（頭をぶつけたタイル） / null
+function collideY(e, cornerFix = false) {
+  e.onGround = false;
+  const l = Math.floor(e.x / T), r = Math.floor((e.x + e.w - 0.01) / T);
+  if (e.vy > 0) {
+    const row = Math.floor((e.y + e.h - 0.01) / T);
+    for (let c = l; c <= r; c++) if (isSolid(getT(c, row))) {
+      e.y = row * T - e.h; e.vy = 0; e.onGround = true; return 'down';
+    }
+  } else if (e.vy < 0) {
+    const row = Math.floor(e.y / T);
+    const solids = [];
+    for (let c = l; c <= r; c++) if (isSolid(getT(c, row))) solids.push(c);
+    if (!solids.length) return null;
+    if (cornerFix && solids.length === 1) {
+      const c = solids[0];
+      if (c === l && (c + 1) * T - e.x <= 4 && !isSolid(getT(c + 1, row))) { e.x = (c + 1) * T; return null; }
+      if (c === r && e.x + e.w - c * T <= 4 && !isSolid(getT(c - 1, row))) { e.x = c * T - e.w; return null; }
+    }
+    const cx = e.x + e.w / 2;
+    let hit = solids[0];
+    for (const c of solids) if (Math.abs(c * T + 8 - cx) < Math.abs(hit * T + 8 - cx)) hit = c;
+    e.y = (row + 1) * T; e.vy = 0;
+    return { c: hit, r: row };
+  }
+  return null;
+}
+
+// ---------------- ブロック ----------------
+function breakBrick(c, r) {
+  setT(c, r, 0); SFX.brk(); addScore(50);
+  for (const [dx, dy, vx, vy] of [[0, 0, -1.5, -5], [8, 0, 1.5, -5], [0, 8, -1.5, -3], [8, 8, 1.5, -3]])
+    particles.push({ x: c * T + dx, y: r * T + dy, vx, vy, t: 90 });
+}
+function hitBlock(c, r) {
+  const v = getT(c, r), p = player;
+  if (hitGimmick(c, r, v)) return;   // ON/OFFスイッチ・じゅんばん石
+  if (v === 2) {
+    if ((p.big && !p.form) || p.form === 'rock') breakBrick(c, r);
+    else { bumps.push({ c, r, t: 0 }); SFX.bump(); }
+  } else if (v === 12) {
+    breakBrick(c, r);
+  } else if (v === 3) {
+    setT(c, r, 5); bumps.push({ c, r, t: 0 });
+    pops.push({ x: c * T + 4, y: r * T - 8, vy: -5, t: 0 });
+    addCoin(); addScore(200);
+  } else if (v === 4) {
+    setT(c, r, 5); bumps.push({ c, r, t: 0 }); SFX.sprout();
+    items.push({ x: c * T + 1, y: r * T, w: 14, h: 16, vx: 0, vy: 0, dir: 1, emerge: 16, onGround: false });
+  } else {
+    SFX.bump();
+  }
+  for (const e of enemies) {
+    if (e.state !== 'walk' || !e.active || MON[e.type].fly) continue;
+    if (e.x + e.w > c * T && e.x < c * T + T && Math.abs(e.y + e.h - r * T) < 4) flipEnemy(e);
+  }
+  for (const it of items) {
+    if (it.emerge > 0) continue;
+    if (it.x + it.w > c * T && it.x < c * T + T && Math.abs(it.y + it.h - r * T) < 4) {
+      it.vy = -3.5; it.dir = it.x + it.w / 2 < c * T + 8 ? -1 : 1;
+    }
+  }
+  if (getT(c, r - 1) === 11) {
+    setT(c, r - 1, 0);
+    pops.push({ x: c * T + 4, y: (r - 1) * T, vy: -5, t: 0 });
+    addCoin(); addScore(200);
+  }
+}
+
+// ---------------- 敵をたおす ----------------
+function defeat(e) { gainExp(MON[e.type].exp || 1); }
+function flipEnemy(e) {
+  if (e.state === 'lit') { e.t = Math.min(e.t, 2); return; }   // 点火中のボムボムはその場で爆発
+  if (e.state !== 'walk') return;
+  e.state = 'flip'; e.vy = -4; e.vx = (player.x < e.x ? 1 : -1);
+  SFX.stomp(); addScore(100, e.x, e.y);
+  defeat(e);
+}
+function stompEnemy(e, m) {
+  const p = player;
+  p.vy = keys.jump ? -6 : -3.5;
+  if (e.hp > 1) {   // ゴロンは2回踏む
+    e.hp--; SFX.bump(); e.dir *= -1; p.inv = Math.max(p.inv, 10);
+    scorePops.push({ x: e.x, y: e.y - 8, text: 'CRACK', t: 30, col: '#ccc' });
+    return;
+  }
+  const pts = [100, 200, 400, 500, 800, 1000, 2000, 4000, 5000, 8000][Math.min(p.combo, 9)];
+  p.combo++;
+  addScore(pts, e.x, e.y - 8);
+  SFX.stomp();
+  defeat(e);
+  if (m.bomb) { e.state = 'lit'; e.t = 100; e.vx = 0; return; }
+  if (m.fly) { e.state = 'flip'; e.vy = 0; e.vx = 0; return; }
+  e.state = 'flat'; e.t = 30;
+}
+function explode(x, y, byPlayer) {
+  SFX.boom(); cam.shake = 12;
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * Math.PI * 2, s = 1 + (i % 3);
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 26, puff: true, col: i % 2 ? '#ffb030' : '#ff5020' });
+  }
+  for (const e of enemies) {
+    if (e.dead || !e.active) continue;
+    if (Math.hypot(e.x + 7 - x, e.y + 7 - y) < 36) flipEnemy(e);
+  }
+  // 爆発の中心から 22px 以内にかかっているレンガをこわす
+  const c0 = Math.floor(x / T), r0 = Math.floor(y / T);
+  for (let r = r0 - 2; r <= r0 + 2; r++) for (let c = c0 - 2; c <= c0 + 2; c++) {
+    const v = getT(c, r);
+    if (v !== 2 && v !== 12) continue;
+    const nx = Math.max(c * T, Math.min(x, c * T + T)), ny = Math.max(r * T, Math.min(y, r * T + T));
+    if (Math.hypot(nx - x, ny - y) < 22) breakBrick(c, r);
+  }
+  const p = player;
+  if (!byPlayer && state === 'play' && Math.hypot(p.x + 6 - x, p.y + p.h / 2 - y) < 28 && p.inv <= 0) hurt();
+}
+function freezeEnemy(e) {
+  const c = Math.floor((e.x + e.w / 2) / T), r = Math.floor((e.y + e.h / 2) / T);
+  const cell = { x: c * T, y: r * T, w: T, h: T };
+  if (getT(c, r) === 0 && !overlap(player, cell)) {
+    setT(c, r, 12); melts.push({ c, r, t: 420 });
+    e.dead = true; SFX.freeze(); addScore(200, e.x, e.y - 8); defeat(e);
+    for (let i = 0; i < 6; i++) particles.push({ x: c * T + 8, y: r * T + 8, vx: (i - 3) * 0.6, vy: -1, t: 20, puff: true, col: '#bfefff' });
+  } else flipEnemy(e);
+}
+
+// ---------------- 説明パネル（HTMLで重ねる） ----------------
+const infoEl = document.getElementById('info');
+let infoTimer = null;
+function showInfo(type, heading, extra = '', ms = 3800) {
+  const m = MON[type];
+  infoEl.innerHTML = `<div class="hd">${heading}${m.name}<small>キャプチャー条件 LV${m.req}</small></div>` +
+    '<ul>' + m.abilities.map(a => `<li>${a}</li>`).join('') + '</ul>' +
+    (extra ? `<div class="ex">${extra}</div>` : '');
+  infoEl.classList.add('show');
+  clearTimeout(infoTimer);
+  infoTimer = setTimeout(hideInfo, ms);
+}
+function hideInfo() { infoEl.classList.remove('show'); clearTimeout(infoTimer); }
+
+// ---------------- キャプチャー ----------------
+function throwCapture() {
+  const p = player;
+  if (shots.length) return;
+  shots.push({ x: p.face > 0 ? p.x + p.w : p.x - 6, y: p.y + p.h - 11, w: 6, h: 6,
+               vx: p.face * 3.5 + p.vx * 0.5, t: 40 });
+  SFX.toss();
+}
+function updateShots() {
+  for (const s of shots) {
+    s.x += s.vx;
+    if (--s.t <= 0 || isSolid(getT(Math.floor((s.x + 3) / T), Math.floor((s.y + 3) / T)))) {
+      s.dead = true; puff(s.x + 3, s.y + 3); continue;
+    }
+    const hit = { x: s.x - 8, y: s.y - 8, w: s.w + 16, h: s.h + 16 };
+    for (const e of enemies) {
+      if (e.active && e.state === 'walk' && overlap(hit, e)) { s.dead = true; tryCapture(e); break; }
+    }
+  }
+  shots = shots.filter(s => !s.dead);
+}
+function tryCapture(e) {
+  const m = MON[e.type];
+  if (lv < m.req && !e.tame) {
+    SFX.nope();
+    scorePops.push({ x: e.x - 16, y: e.y - 10, text: 'NEED LV' + m.req, t: 60, col: '#ff8080' });
+    return;
+  }
+  e.state = 'captured'; e.t = 30;
+  gainExp(m.exp || 1);
+  addScore(500);
+  SFX.join();
+  scorePops.push({ x: e.x - 4, y: e.y - 10, text: 'GET!', t: 70, col: '#ff9ad5' });
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * Math.PI * 2;
+    particles.push({ x: e.x + 7, y: e.y + 7, vx: Math.cos(a) * 2, vy: Math.sin(a) * 2, t: 24, puff: true, col: '#ffc0e0' });
+  }
+  const isNew = !box.includes(e.type);
+  if (isNew) box.push(e.type);
+  let extra = '';
+  if (!party.includes(e.type)) {
+    const slot = party.indexOf(null);
+    if (slot >= 0) { party[slot] = e.type; extra = `スロット${slot + 1}に入った！ ${slot + 1} キーで変身`; }
+    else if (isNew) { openSwap(e.type); return; }   // スロットが満員 → どちらと入れかえるか選ぶ
+    else extra = 'Q キーの「なかま図鑑」でスロットに入れかえられる';
+  }
+  showInfo(e.type, isNew ? 'なかまになった！ ' : 'また会えた！ ', extra);
+}
+
+// ---------------- 変身 ----------------
+function puff(x, y, col) {
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    particles.push({ x, y, vx: Math.cos(a) * 1.6, vy: Math.sin(a) * 1.6 - 0.5, t: 24, puff: true, col });
+  }
+}
+function headroomFree(p, dy) {
+  const l = Math.floor(p.x / T), r = Math.floor((p.x + p.w - 0.01) / T);
+  for (let row = Math.floor((p.y - dy) / T); row <= Math.floor((p.y - 0.01) / T); row++)
+    for (let c = l; c <= r; c++) if (isSolid(getT(c, row))) return false;
+  return true;
+}
+function transform(slot) {
+  const p = player;
+  if (state !== 'play' || p.growT > 0 || paused) return;
+  if (slot === 'c') {   // ピコ → 1 → 2 → ピコ
+    const list = [0, 1].filter(i => party[i]);
+    if (!list.length) { SFX.nope(); return; }
+    const idx = list.indexOf(p.slot);
+    slot = idx < 0 ? list[0] : idx + 1 < list.length ? list[idx + 1] : -1;
+  }
+  if (slot < 0 || slot === p.slot) { revert(); return; }
+  if (!party[slot]) { SFX.nope(); return; }
+  if (gauge < 60) { SFX.nope(); return; }
+  if (!p.form && p.big) { p.y += 12; p.h = 16; p.wasBig = true; }
+  p.form = party[slot]; p.slot = slot; p.pound = false;
+  p.armor = p.form === 'rock' ? 1 : 0;
+  p.inv = Math.max(p.inv, 20);
+  puff(p.x + 6, p.y + 8); SFX.morph();
+  showInfo(p.form, 'へんしん！ ');
+}
+function revert(force = false) {
+  const p = player;
+  if (!p.form) return true;
+  if (p.wasBig) {
+    if (headroomFree(p, 12)) { p.y -= 12; p.h = 28; }
+    else if (force) p.big = false;
+    else return false;   // 天井が低いので戻れない（広い所で戻る）
+    p.wasBig = false;
+  }
+  p.form = null; p.slot = -1; p.pound = false; p.armor = 0;
+  puff(p.x + 6, p.y + p.h / 2); SFX.morph();
+  hideInfo();
+  return true;
+}
+
+// ---------------- 変身中の技（V キー） ----------------
+function useSkill(sk) {
+  const p = player, fx = p.face > 0 ? p.x + p.w : p.x - 8;
+  if (sk === 'fire') {
+    if (pshots.filter(s => s.kind === 'fire').length >= 2) return;
+    pshots.push({ kind: 'fire', x: fx, y: p.y + p.h - 12, w: 8, h: 8, vx: p.face * 3.2, vy: 1, t: 150 });
+    SFX.fire();
+  } else if (sk === 'ice') {
+    if (pshots.some(s => s.kind === 'ice')) return;
+    pshots.push({ kind: 'ice', x: fx, y: p.y + p.h - 11, w: 8, h: 6, vx: p.face * 3.5, vy: 0, t: 36 });
+    SFX.freeze();
+  } else if (sk === 'bomb') {
+    if (pshots.some(s => s.kind === 'bomb')) return;
+    pshots.push({ kind: 'bomb', x: p.x + 2, y: p.y - 4, w: 8, h: 8, vx: p.face * 2.2 + p.vx * 0.5, vy: -3.5, t: 70 });
+    SFX.toss();
+  }
+}
+function updatePShots() {
+  for (const s of pshots) {
+    s.t--;
+    if (s.kind === 'ice') {
+      s.x += s.vx;
+      if (s.t <= 0 || collideX(s)) { s.dead = true; puff(s.x + 4, s.y + 3, '#bfefff'); continue; }
+      const e = enemies.find(e => e.active && e.state === 'walk' && overlap(s, e));
+      if (e) { s.dead = true; freezeEnemy(e); }
+      continue;
+    }
+    s.vy = Math.min(s.vy + (s.kind === 'fire' ? 0.35 : 0.3), 5);
+    const vx0 = s.vx;
+    s.x += s.vx;
+    if (collideX(s)) {
+      if (s.kind === 'fire') { s.dead = true; puff(s.x + 4, s.y + 4, '#ffb030'); continue; }
+      s.vx = 0;   // 爆弾は壁にぶつかったらその場で止まる（壁のそばで爆発するように）
+    }
+    s.y += s.vy;
+    if (collideY(s) === 'down') {
+      if (s.kind === 'fire') s.vy = -3.2;
+      else { s.vx *= 0.6; s.vy = -1.2; }
+    }
+    if (s.y > ROWS * T + 16) { s.dead = true; continue; }
+    const e = enemies.find(e => e.active && (e.state === 'walk' || e.state === 'lit') && overlap(s, e) &&
+                               !(s.kind === 'bomb' && e.tame));   // 自分の爆弾は壁の番人には反応しない
+    if (s.kind === 'fire') {
+      if (s.t <= 0) s.dead = true;
+      else if (e) { s.dead = true; flipEnemy(e); puff(s.x + 4, s.y + 4, '#ffb030'); }
+    } else if (s.kind === 'bomb' && (e || s.t <= 0)) {
+      s.dead = true; explode(s.x + 4, s.y + 4, true);
+    }
+  }
+  pshots = pshots.filter(s => !s.dead);
+}
+function updateEShots() {
+  const p = player;
+  for (const s of eshots) {
+    s.x += s.vx;
+    if (--s.t <= 0 || isSolid(getT(Math.floor((s.x + 3) / T), Math.floor((s.y + 3) / T)))) { s.dead = true; continue; }
+    if (state === 'play' && overlap(s, p)) {
+      if (p.form === 'slime' || p.form === 'ghost') continue;
+      if (p.inv <= 0) { s.dead = true; hurt(); }
+    }
+  }
+  eshots = eshots.filter(s => !s.dead);
+}
+
+// ---------------- プレイヤー ----------------
+function grow() {
+  const p = player;
+  if (p.form) { if (!p.big) { p.big = true; p.wasBig = true; } addScore(1000, p.x, p.y); SFX.power(); return; }
+  if (p.big) { addScore(1000, p.x, p.y); SFX.power(); return; }
+  p.big = true; p.y -= 12; p.h = 28; p.growT = 50; p.growTo = true;
+  SFX.power(); addScore(1000, p.x, p.y);
+}
+function hurt() {
+  const p = player;
+  if (debugMode) return;
+  if (p.form === 'slime' || p.form === 'ghost') return;
+  if (p.form === 'rock' && p.armor > 0) {
+    p.armor = 0; p.inv = 90; SFX.guard();
+    scorePops.push({ x: p.x - 8, y: p.y - 10, text: 'GUARD', t: 50, col: '#cfc' });
+    return;
+  }
+  if (p.form) { revert(true); p.inv = 120; SFX.hurt(); return; }   // 変身中 → 変身が解けるだけ
+  if (p.big) {
+    p.big = false; p.y += 12; p.h = 16; p.growT = 50; p.growTo = false; p.inv = 150;
+    SFX.hurt();
+  } else die();
+}
+function die(fell = false) {
+  if (state !== 'play') return;
+  if (debugMode) {   // 穴に落ちたら空中に戻す
+    if (fell) { player.y = 2 * T; player.vy = 0; player.pound = false; puff(player.x + 6, player.y + 8, '#ff6060'); }
+    return;
+  }
+  stopBGM(); SFX.die();
+  player.vx = 0; player.vy = fell ? 0 : -5; player.dead = true; player.form = null;
+  hideInfo();
+  setState('dying');
+}
+
+function landPound() {
+  const p = player;
+  const row = Math.floor((p.y + p.h + 1) / T);
+  const l = Math.floor(p.x / T), r = Math.floor((p.x + p.w - 0.01) / T);
+  let broke = false;
+  for (let c = l; c <= r; c++) { const v = getT(c, row); if (v === 2 || v === 12) { breakBrick(c, row); broke = true; } }
+  if (broke) { p.onGround = false; p.vy = 2; return; }   // レンガをわってそのまま落ちる
+  p.pound = false; SFX.pound(); cam.shake = 10;
+  puff(p.x - 4, p.y + p.h - 2); puff(p.x + p.w + 4, p.y + p.h - 2);
+  for (const e of enemies) {
+    if (!e.active || e.state !== 'walk') continue;
+    if (Math.abs(e.x + 7 - (p.x + 6)) < 56 && Math.abs(e.y + e.h - (p.y + p.h)) < 24) flipEnemy(e);
+  }
+}
+
+// ゴロンで歩いてレンガにぶつかると、体の高さのレンガをこわす
+function ramBricks(p, speed) {
+  const c = p.wallDir > 0 ? Math.floor((p.x + p.w) / T) : Math.floor((p.x - 1) / T);
+  const top = Math.floor(p.y / T), bot = Math.floor((p.y + p.h - 0.01) / T);
+  let broke = false;
+  for (let r = top; r <= bot; r++) if (getT(c, r) === 2 || getT(c, r) === 12) { breakBrick(c, r); broke = true; }
+  if (broke) { cam.shake = 5; p.vx = p.wallDir * speed * 0.6; }
+}
+
+// レンガの壁：近づいたらヒント、番人を倒してしまったら少しして新しく出す
+function wallOpen(g) {
+  for (let r = 3; r <= 12; r++) if (!isSolid(getT(g.col, r)) && !isSolid(getT(g.col + 1, r))) return true;
+  return false;
+}
+function updateGates() {
+  const p = player;
+  gates.forEach((g, i) => {
+    if (wallOpen(g)) return;
+    if (!g.hinted && Math.abs(p.x - g.col * T) < 8 * T) {
+      g.hinted = true;
+      showInfo(g.type, 'レンガのかべ！ 近くの',
+        `ハートの${MON[g.type].name}は LV に関係なくキャプチャーできる。変身してかべをこわそう！`, 6000);
+    }
+    const alive = enemies.some(e => e.gate === i && (e.state === 'walk' || e.state === 'lit'));
+    if (alive || party.includes(g.type)) { g.timer = 0; return; }   // もう仲間にいるなら出さない
+    if (++g.timer > 180) {
+      g.timer = 0;
+      const e = newEnemy({ x: g.sx, y: g.sy, type: g.type, tame: true, gate: i });
+      e.active = true; enemies.push(e);
+      puff(e.x + 7, e.y + 7, '#ff9ad5');
+    }
+  });
+}
+
+function updatePlayer() {
+  const p = player;
+  if (p.growT > 0) { p.growT--; return; }
+  if (p.inv > 0) p.inv--;
+  if (p.form) { gauge = Math.max(0, gauge - 1); if (gauge <= 0) revert(); }
+  else gauge = Math.min(gaugeMax(), gauge + 0.5);
+  const F = p.form ? MON[p.form].form : PICO_FORM;
+  const dir = p.pound ? 0 : (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  const max = keys.run ? F.run : F.walk;
+  const acc = p.onGround ? 0.1 : 0.07;
+  p.skid = false;
+  if (dir !== 0) {
+    if (p.onGround && Math.sign(p.vx) === -dir && Math.abs(p.vx) > 0.6) { p.vx += dir * 0.22; p.skid = true; }
+    else p.vx += dir * acc;
+    p.face = dir;
+    if (p.vx > max) p.vx = Math.max(max, p.vx - 0.08);
+    if (p.vx < -max) p.vx = Math.min(-max, p.vx + 0.08);
+  } else if (p.onGround) {
+    const f = 0.08;
+    p.vx = Math.abs(p.vx) <= f ? 0 : p.vx - Math.sign(p.vx) * f;
+  }
+
+  // ジャンプ（先行入力・足場から落ちた直後の猶予・各変身の空中アクション）
+  if (input.jump) p.buf = 6; else if (p.buf > 0) p.buf--;
+  if (p.onGround) { p.coyote = 6; p.airJumps = p.form === 'hopper' ? 1 : p.form === 'bat' ? 5 : 0; }
+  else if (p.coyote > 0) p.coyote--;
+  if (p.form === 'cat' && !p.onGround && p.wallDir && input.jump) {          // 壁キック
+    p.vy = -5.4; p.vx = -p.wallDir * 2.6; p.face = -p.wallDir; p.buf = 0; p.coyote = 0;
+    puff(p.x + (p.wallDir > 0 ? p.w : 0), p.y + 8); SFX.jump();
+  } else if (p.buf > 0 && p.coyote > 0) {
+    p.vy = -(F.jump + Math.abs(p.vx) * 0.3);
+    p.buf = 0; p.coyote = 0; p.onGround = false;
+    SFX.jump();
+  } else if (input.jump && !p.onGround && p.airJumps > 0) {                 // 2段ジャンプ・羽ばたき
+    p.vy = p.form === 'bat' ? -3.6 : -5;
+    p.airJumps--; p.buf = 0;
+    puff(p.x + 6, p.y + p.h);
+    p.form === 'bat' ? SFX.flap() : SFX.jump();
+  }
+  // ヒップドロップ
+  if (p.form === 'spiky' && !p.onGround && input.down && !p.pound) { p.pound = true; p.vx = 0; p.vy = -1.5; }
+
+  let g = (keys.jump && p.vy < 0) ? 0.16 : 0.42, maxFall = 5.5;
+  if (p.pound) { g = 0.8; maxFall = 7; }
+  p.vy = Math.min(p.vy + g, maxFall);
+  if (!p.pound && keys.jump && p.vy > 0) {
+    if (p.form === 'bird') p.vy = Math.min(p.vy, 0.8);       // グライド
+    if (p.form === 'ghost') p.vy = Math.min(p.vy, 0.45);     // ふわふわ
+  }
+
+  const tryDir = Math.sign(p.vx), speed = Math.abs(p.vx);
+  p.x += p.vx;
+  p.wallDir = collideX(p) ? tryDir : 0;
+  if (p.form === 'rock' && p.wallDir && p.wallDir === dir) ramBricks(p, Math.max(speed, 1));   // ゴロンの体当たり（壁に向かって押す）
+  playerSideGimmicks(p, dir);   // 木箱を押す・カギで開ける
+  if (p.form === 'cat' && p.wallDir && !p.onGround && p.vy > 1.2) p.vy = 1.2;   // 壁ずり
+  p.py = p.y;
+  p.y += p.vy;
+  const hit = collideY(p, true);
+  if (hit === 'down') { if (p.pound) landPound(); }
+  else if (hit) hitBlock(hit.c, hit.r);
+  if (p.onGround) { p.combo = 0; p.anim += Math.abs(p.vx) * 0.12; }
+  else p.anim += 0.1;
+
+  // 空中コイン
+  const l = Math.floor(p.x / T), r = Math.floor((p.x + p.w - 0.01) / T);
+  const tp = Math.floor(p.y / T), bt = Math.floor((p.y + p.h - 0.01) / T);
+  for (let c = l; c <= r; c++) for (let rr = tp; rr <= bt; rr++)
+    if (getT(c, rr) === 11) { setT(c, rr, 0); addCoin(); addScore(200); }
+
+  if (p.y > ROWS * T + 8) die(true);
+
+  // ゴール
+  if (p.x + p.w >= flagCol * T + 6) {
+    stopBGM(); SFX.flag();
+    const height = 12 * T - (p.y + p.h);
+    const pts = height > 128 ? 5000 : height > 96 ? 2000 : height > 64 ? 800 : height > 32 ? 400 : 100;
+    addScore(pts, p.x + 10, p.y);
+    p.x = flagCol * T + 7 - p.w; p.vx = 0; p.vy = 0; p.face = 1; p.pound = false;
+    hideInfo();
+    setState('flag');
+  }
+}
+
+// ---------------- 敵 ----------------
+function updateWalker(e, m) {
+  let spd = m.speed;
+  if (m.hop && e.onGround && --e.hopT <= 0) { e.vy = -5; e.hopT = 60 + Math.floor(Math.random() * 50); }
+  if (m.dash) {
+    if (e.dash > 0) { e.dash--; spd = 2.0; }
+    else {
+      if (e.cool > 0) e.cool--;
+      const dx = player.x - e.x;
+      if (e.cool <= 0 && Math.abs(dx) < 100 && Math.abs(player.y + player.h - e.y - e.h) < 24) {
+        e.dir = Math.sign(dx) || 1; e.dash = 45; e.cool = 110;
+      }
+    }
+  }
+  if (m.shoot && --e.cool <= 0) {
+    const dx = player.x - e.x;
+    if (Math.abs(dx) < 220) {
+      e.dir = Math.sign(dx) || 1;
+      eshots.push({ x: e.x + (e.dir > 0 ? 14 : -6), y: e.y + 4, w: 6, h: 6, vx: e.dir * 1.8, t: 160 });
+      SFX.fire();
+    }
+    e.cool = 150 + Math.floor(Math.random() * 60);
+  }
+  if (e.type === 'rock' && e.hp < 2) spd = 0.7;
+  e.vx = e.dir * spd;
+  e.vy = Math.min(e.vy + 0.3, 5);
+  e.x += e.vx;
+  if (collideX(e)) e.dir *= -1;
+  e.y += e.vy;
+  collideY(e);
+  if (e.y > ROWS * T + 32) e.dead = true;
+}
+function updateFlyer(e, m) {
+  e.ph++;
+  if (m.fly === 'bat') {
+    if (e.ph % 60 === 0) e.dir = Math.sign(player.x - e.x) || e.dir;
+    e.x += e.dir * 0.7; e.y = e.base + Math.sin(e.ph * 0.06) * 20;
+  } else if (m.fly === 'bird') {
+    e.x += e.dir * 0.9; e.y = e.base + Math.sin(e.ph * 0.05) * 6;
+    if (e.x < -32 || e.x > mapW * T + 32) e.dead = true;
+  } else if (m.fly === 'ghost') {
+    const dx = player.x - e.x, dy = player.y + player.h - 14 - e.y;
+    e.shy = Math.sign(e.x - player.x) === player.face && Math.abs(dx) < 200;   // 見られていると止まる
+    if (!e.shy) {
+      e.dir = Math.sign(dx) || 1;
+      const dist = Math.hypot(dx, dy) || 1;
+      e.x += dx / dist * 0.45; e.y += dy / dist * 0.45;
+    }
+  }
+  e.onGround = false;
+}
+function updateEnemies() {
+  const p = player;
+  for (const e of enemies) {
+    if (e.dead) continue;
+    const near = e.x > cam.x - 48 && e.x < cam.x + W + 24;
+    if (!e.active) {
+      if (!near) continue;
+      e.active = true; e.dir = player.x < e.x ? -1 : 1;
+    }
+    if (e.state === 'flat' || e.state === 'captured') { if (--e.t <= 0) e.dead = true; continue; }
+    if (e.state === 'flip') {
+      e.vy += 0.3; e.x += e.vx; e.y += e.vy;
+      if (e.y > H + 32) e.dead = true;
+      continue;
+    }
+    if (e.state === 'lit') {   // 点火したボムボムは画面外でもカウントを進める
+      e.vy = Math.min(e.vy + 0.3, 5); e.y += e.vy; collideY(e);
+      if (--e.t <= 0) { e.dead = true; explode(e.x + 7, e.y + 7, false); }
+      continue;
+    }
+    if (!near) continue;   // 画面外の敵はその場で待つ
+    const m = MON[e.type];
+    if (m.fly) updateFlyer(e, m); else updateWalker(e, m);
+    if (e.dead) continue;
+
+    if (!m.fly) for (const o of enemies) {
+      if (o === e || o.dead || !o.active || o.state !== 'walk' || MON[o.type].fly) continue;
+      if (overlap(e, o)) { if (e.x < o.x) { e.dir = -1; o.dir = 1; } else { e.dir = 1; o.dir = -1; } }
+    }
+    if (state === 'play' && p.growT <= 0 && overlap(p, e)) {
+      const stomp = p.vy > 0 && p.py + p.h <= e.y + 8;
+      if (p.form === 'slime' || p.pound) flipEnemy(e);
+      else if (stomp && (!m.spiky || p.form === 'spiky' || p.form === 'rock')) stompEnemy(e, m);
+      else if (p.form === 'ghost') { /* すり抜ける */ }
+      else if (p.inv <= 0) hurt();
+    }
+  }
+  enemies = enemies.filter(e => !e.dead);
+}
+
+function updateItems() {
+  for (const it of items) {
+    if (it.emerge > 0) { it.y -= 0.5; it.emerge -= 0.5; continue; }
+    it.vx = it.dir;
+    it.vy = Math.min(it.vy + 0.3, 5);
+    it.x += it.vx;
+    if (collideX(it)) it.dir *= -1;
+    it.y += it.vy;
+    collideY(it);
+    if (it.y > ROWS * T + 32) it.dead = true;
+    if (state === 'play' && overlap(player, it)) { it.dead = true; grow(); }
+  }
+  items = items.filter(i => !i.dead);
+}
+
+function updateEffects() {
+  for (const b of bumps) b.t++;
+  bumps = bumps.filter(b => b.t < 10);
+  for (const c of pops) { c.y += c.vy; c.vy += 0.35; c.t++; }
+  pops = pops.filter(c => c.t < 28);
+  for (const s of particles) {
+    s.x += s.vx; s.y += s.vy;
+    if (s.puff) { s.vx *= 0.9; s.vy *= 0.9; } else s.vy += 0.3;
+    s.t--;
+  }
+  particles = particles.filter(s => s.t > 0 && s.y < H + 16);
+  for (const s of scorePops) { s.y -= 0.6; s.t--; }
+  scorePops = scorePops.filter(s => s.t > 0);
+  for (const m of melts) {
+    if (--m.t <= 0) {
+      m.dead = true;
+      if (getT(m.c, m.r) === 12) { setT(m.c, m.r, 0); puff(m.c * T + 8, m.r * T + 8, '#bfefff'); }
+    }
+  }
+  melts = melts.filter(m => !m.dead);
+  if (cam.shake > 0) cam.shake--;
+}
+
+function updateCam() {
+  const sx = player.x - cam.x;
+  if (sx > 176) cam.x = player.x - 176;
+  else if (sx < 128) cam.x = player.x - 128;
+  cam.x = Math.max(0, Math.min(cam.x, mapW * T - W));
+}
+
+// ============================================================
+//  メイン更新
+// ============================================================
+function update() {
+  frame++; stateT++;
+  if (menuOpen) { clearInput(); return; }
+  switch (state) {
+    case 'title':
+      if (input.cont && loadProgress()) { initAudio(); newGame(true); }
+      else if (input.start) { initAudio(); howtoEl.classList.add('show'); setState('howto'); }
+      break;
+    case 'howto':   // あそびかた → Enter / タップでスタート
+      if (stateT > 15 && input.start) { howtoEl.classList.remove('show'); newGame(false); }
+      break;
+    case 'intro':
+      if (stateT > 150) { setState('play'); startBGM(curTheme); }
+      break;
+    case 'play':
+      if (input.pause) paused = !paused;
+      if (input.menu) { openMenu(); break; }
+      if (paused) break;
+      if (input.morph !== null) transform(input.morph);
+      if (input.action && player.growT <= 0) {
+        if (player.form && MON[player.form].skill) useSkill(MON[player.form].skill);
+        else throwCapture();
+      }
+      updatePlayer();
+      if (state === 'play') updateGimmicks();
+      if (state === 'play' || state === 'flag') {
+        updateShots(); updatePShots(); updateEShots();
+        updateEnemies(); updateItems(); updateEffects();
+        if (state === 'play') updateGates();
+        updateCam();
+        if (state === 'play' && !debugMode && ++timeTick >= 24) {
+          timeTick = 0; timeLeft--;
+          if (timeLeft === 100) seq([84, 88, 91, 96], 0.08, 'square', 0.2);
+          if (timeLeft <= 0) { timeLeft = 0; die(); }
+        }
+      }
+      break;
+    case 'dying': {
+      const p = player;
+      updateEffects();
+      if (stateT > 30) { p.vy += 0.25; p.y += p.vy; }
+      if (stateT > 200) {
+        lives--;
+        if (lives <= 0) { saveHi(); setState('gameover'); }
+        else startLevel(false);
+      }
+      break;
+    }
+    case 'flag': {
+      const p = player;
+      updateEffects();
+      const bottom = 12 * T;
+      if (p.y + p.h < bottom) p.y = Math.min(p.y + 2, bottom - p.h);
+      if (flagY < 11 * T) flagY = Math.min(flagY + 2, 11 * T);
+      if (p.y + p.h >= bottom && flagY >= 11 * T && stateT > 30) {
+        p.x = flagCol * T + 10; p.face = 1;
+        setState('walk'); SFX.clear();
+      }
+      break;
+    }
+    case 'walk': {
+      const p = player;
+      updateEffects();
+      if (stateT < 20) break;
+      p.vx = 1.2; p.anim += 0.15;
+      p.vy = Math.min(p.vy + 0.42, 5.5);
+      p.x += p.vx; collideX(p);
+      p.y += p.vy; collideY(p);
+      updateCam();
+      if (p.x + p.w / 2 >= (castleCol + 2) * T + 8) { p.hidden = true; setState('tally'); }
+      break;
+    }
+    case 'tally':
+      updateEffects();
+      if (stateT > 30 && timeLeft > 0) {
+        const n = Math.min(timeLeft, 2);
+        timeLeft -= n; score += 50 * n;
+        if (frame % 3 === 0) SFX.tick();
+        stateT = 31;
+      } else if (timeLeft <= 0 && stateT > 90) {
+        saveHi();
+        if (stageIdx >= STAGES.length - 1) {
+          try { localStorage.removeItem('pico_save'); } catch (e) {}
+          SFX.allclear(); setState('ending');
+        } else setState('clear');
+      }
+      break;
+    case 'clear':
+      if (stateT > 40 && input.start) { stageIdx++; startLevel(true); }
+      break;
+    case 'gameover':
+      if (stateT > 60 && input.cont && loadProgress()) newGame(true);   // 同じステージからやり直し
+      else if (stateT > 60 && input.start) toTitle();
+      break;
+    case 'ending':
+      if (stateT > 60 && input.start) toTitle();
+      break;
+  }
+  clearInput();
+}
+function toTitle() {
+  stageIdx = 0; buildStage(STAGES[0]);
+  player = newPlayer(); enemies = []; items = []; shots = []; pshots = []; eshots = []; cam.x = 0;
+  setState('title');
+}
+
+// ============================================================
+//  描画
+// ============================================================
+function drawCastle(cx) {
+  const x0 = castleCol * T - cx;
+  if (x0 > W || x0 < -6 * T) return;
+  const B = tileset(curTheme)[2];
+  for (let c = 0; c < 5; c++) for (let r = 10; r <= 12; r++) ctx.drawImage(B, x0 + c * T, r * T);
+  for (let c = 0; c < 5; c += 2) ctx.drawImage(B, x0 + c * T, 9 * T);
+  for (let c = 1; c < 4; c++) for (let r = 7; r <= 8; r++) ctx.drawImage(B, x0 + c * T, r * T);
+  for (let c = 1; c < 4; c += 2) ctx.drawImage(B, x0 + c * T, 6 * T);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x0 + 2 * T + 2, 11 * T, 12, 2 * T);
+  ctx.beginPath(); ctx.arc(x0 + 2 * T + 8, 11 * T, 6, Math.PI, 0); ctx.fill();
+  ctx.fillRect(x0 + 1 * T + 10, 7 * T + 4, 4, 9); ctx.fillRect(x0 + 3 * T + 2, 7 * T + 4, 4, 9);
+}
+function drawFlag(cx) {
+  const px = flagCol * T + 7 - cx;
+  if (px < -40 || px > W + 20) return;
+  ctx.fillStyle = '#7ed957'; ctx.fillRect(px, 2 * T + 8, 2, 10 * T - 8);
+  ctx.fillStyle = '#0a5e0a'; ctx.beginPath(); ctx.arc(px + 1, 2 * T + 5, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.moveTo(px, flagY); ctx.lineTo(px - 16, flagY + 7); ctx.lineTo(px, flagY + 14); ctx.fill();
+  ctx.fillStyle = '#e8483c'; ctx.beginPath(); ctx.arc(px - 5, flagY + 7, 3, 0, Math.PI * 2); ctx.fill();
+}
+function drawCoin(x, y, phase) {
+  const w = [8, 6, 2, 6][phase];
+  const ox = x + (16 - w) / 2;
+  ctx.fillStyle = '#a86000'; ctx.fillRect(ox, y + 2, w, 12);
+  ctx.fillStyle = '#ffd800'; ctx.fillRect(ox, y + 2, Math.max(1, w - 1), 11);
+  if (w > 4) { ctx.fillStyle = '#fff6b0'; ctx.fillRect(ox + 2, y + 4, 1, 6); }
+}
+function drawTiles(cx) {
+  const ts = tileset(curTheme), lava = THEMES[curTheme].lava;
+  const bm = new Map();
+  for (const b of bumps) bm.set(b.c + ',' + b.r, -Math.round(Math.sin(b.t / 10 * Math.PI) * 5));
+  const qf = [0, 0, 0, 1, 2, 1][(frame >> 3) % 6];
+  const c0 = Math.floor(cx / T), c1 = c0 + W / T + 1;
+  for (let r = 0; r < ROWS; r++) for (let c = c0; c <= c1; c++) {
+    if (c < 0 || c >= mapW) continue;
+    const v = map[r * mapW + c];
+    const x = c * T - cx, y = r * T;
+    if (!v) {
+      if (lava && r >= 13 && !map[14 * mapW + c]) {   // 城の穴（底まで空いている所）はマグマ
+        ctx.fillStyle = '#ff4a00'; ctx.fillRect(x, y, T, T);
+        if (r === 13) {
+          ctx.fillStyle = '#ffc000';
+          const o = Math.floor(Math.sin((frame + c * 8) / 12) * 2);
+          ctx.fillRect(x, y + 2 + o, T, 3);
+        }
+      }
+      continue;
+    }
+    if (v === 11) { drawCoin(x, y, (frame >> 3) % 4); continue; }
+    const oy = bm.get(c + ',' + r) || 0;
+    if (v >= 13) {   // ギミックのブロック
+      const off = v === 16 ? crateOffset(c, r) : null;
+      ctx.drawImage(gimmickTile(v), x + (off ? off[0] : 0), y + oy + (off ? off[1] : 0));
+      if (v === 20 || v === 21) drawRuneDots(x, y + oy, runeNum[c + ',' + r], v === 21);
+      continue;
+    }
+    ctx.drawImage(v === 3 || v === 4 ? QIMG[qf] : ts[v], x, y + oy);
+  }
+}
+
+function drawPico(x, y, big, pose, face) {
+  const r = pen(x, y, 16, face);
+  if (!big) {
+    r(7, 0, 3, 1, PC.pom); r(4, 1, 9, 3, PC.hat); r(3, 4, 11, 1, PC.brim);
+    r(3, 5, 2, 2, PC.hair); r(5, 5, 8, 5, PC.skin);
+    if (pose === 'dead') { r(6, 6, 1, 2, PC.eye); r(10, 6, 1, 2, PC.eye); r(7, 9, 3, 1, '#b05030'); }
+    else { r(9, 6, 1, 2, PC.eye); r(11, 6, 1, 2, PC.eye); r(11, 8, 2, 1, PC.cheek); r(9, 9, 2, 1, '#b05030'); }
+    r(4, 10, 9, 4, PC.hood); r(6, 12, 5, 1, PC.hoodD);
+    if (pose === 'jump' || pose === 'dead') { r(12, 7, 2, 3, PC.hoodD); r(12, 6, 2, 1, PC.skin); if (pose === 'dead') { r(2, 7, 2, 3, PC.hoodD); r(2, 6, 2, 1, PC.skin); } }
+    else if (pose === 'skid') { r(1, 10, 3, 2, PC.hoodD); r(0, 10, 1, 2, PC.skin); }
+    else { r(11, 10, 2, 3, PC.hoodD); r(11, 13, 2, 1, PC.skin); }
+    if (pose === 'walk0') { r(4, 14, 3, 1, PC.pants); r(10, 14, 3, 1, PC.pants); r(3, 15, 4, 1, PC.boot); r(10, 15, 4, 1, PC.boot); }
+    else if (pose === 'walk1') { r(6, 14, 5, 1, PC.pants); r(6, 15, 5, 1, PC.boot); }
+    else if (pose === 'jump') { r(4, 14, 3, 1, PC.pants); r(10, 13, 3, 1, PC.pants); r(3, 15, 4, 1, PC.boot); r(11, 14, 3, 1, PC.boot); }
+    else if (pose === 'skid') { r(3, 14, 3, 1, PC.pants); r(9, 14, 3, 1, PC.pants); r(1, 15, 5, 1, PC.boot); r(8, 15, 4, 1, PC.boot); }
+    else { r(5, 14, 3, 1, PC.pants); r(9, 14, 3, 1, PC.pants); r(4, 15, 4, 1, PC.boot); r(9, 15, 4, 1, PC.boot); }
+  } else {
+    r(7, 0, 3, 2, PC.pom); r(4, 1, 9, 4, PC.hat); r(3, 5, 11, 2, PC.brim);
+    r(3, 7, 2, 3, PC.hair); r(4, 7, 9, 6, PC.skin); r(3, 7, 1, 2, PC.hair);
+    r(9, 8, 1, 3, PC.eye); r(11, 8, 1, 3, PC.eye); r(11, 11, 2, 1, PC.cheek); r(9, 12, 3, 1, '#b05030');
+    r(3, 13, 11, 8, PC.hood); r(5, 18, 7, 2, PC.hoodD); r(6, 13, 4, 1, PC.hoodD);
+    if (pose === 'jump') { r(12, 9, 3, 5, PC.hoodD); r(12, 8, 3, 2, PC.skin); }
+    else if (pose === 'skid') { r(0, 14, 3, 3, PC.hoodD); r(0, 17, 2, 1, PC.skin); }
+    else { r(11, 14, 3, 5, PC.hoodD); r(11, 19, 3, 2, PC.skin); }
+    r(4, 21, 9, 3, PC.pants);
+    if (pose === 'walk0') { r(3, 24, 3, 2, PC.pants); r(11, 24, 3, 2, PC.pants); r(2, 26, 5, 2, PC.boot); r(10, 26, 5, 2, PC.boot); }
+    else if (pose === 'walk1') { r(6, 24, 5, 2, PC.pants); r(5, 26, 6, 2, PC.boot); }
+    else if (pose === 'jump') { r(3, 24, 3, 2, PC.pants); r(11, 22, 3, 3, PC.pants); r(2, 26, 5, 2, PC.boot); r(11, 25, 4, 2, PC.boot); }
+    else if (pose === 'skid') { r(2, 24, 3, 2, PC.pants); r(9, 24, 3, 2, PC.pants); r(0, 26, 6, 2, PC.boot); r(8, 26, 5, 2, PC.boot); }
+    else { r(4, 24, 3, 2, PC.pants); r(10, 24, 3, 2, PC.pants); r(3, 26, 5, 2, PC.boot); r(9, 26, 5, 2, PC.boot); }
+  }
+}
+function drawPlayer(cx) {
+  const p = player;
+  if (p.hidden) return;
+  if (p.inv > 0 && p.growT <= 0 && (frame >> 2) % 2) return;
+  if (p.form) {
+    const a = p.onGround ? (Math.abs(p.vx) > 0.1 && Math.floor(p.anim) % 2) : (frame >> 2) % 2;
+    drawMonster(Math.round(p.x - 2 - cx), Math.round(p.y + p.h - 16), p.form, p.face,
+      { a, hat: true, alpha: p.form === 'ghost' ? 0.65 : null });
+    if (p.armor > 0) {   // ゴロンのガード
+      ctx.strokeStyle = 'rgba(200,255,200,.6)'; ctx.lineWidth = 1;
+      ctx.strokeRect(Math.round(p.x - 3 - cx) + 0.5, Math.round(p.y - 2) + 0.5, p.w + 5, p.h + 3);
+    }
+    return;
+  }
+  let big = p.big;
+  if (p.growT > 0) big = ((p.growT >> 2) % 2 === 0) ? p.growTo : !p.growTo;
+  let pose = 'stand';
+  if (state === 'dying') pose = 'dead';
+  else if (state === 'flag') pose = 'jump';
+  else if (!p.onGround) pose = 'jump';
+  else if (p.skid) pose = 'skid';
+  else if (Math.abs(p.vx) > 0.1) pose = ['walk0', 'walk1', 'stand'][Math.floor(p.anim) % 3];
+  const sh = big ? 28 : 16;
+  drawPico(Math.round(p.x - 2 - cx), Math.round(p.y + p.h - sh), big, pose, p.face);
+}
+function drawEnemy(e, cx) {
+  const x = Math.round(e.x - 1 - cx), y = Math.round(e.y + e.h - 16);
+  if (x < -16 || x > W) return;
+  if (e.state === 'flat') {
+    ctx.fillStyle = MON[e.type].col[0]; ctx.fillRect(x + 1, y + 11, 14, 5);
+    ctx.fillStyle = '#fff'; ctx.fillRect(x + 4, y + 12, 3, 1); ctx.fillRect(x + 9, y + 12, 3, 1);
+    return;
+  }
+  if (e.state === 'captured') {
+    const k = e.t / 30;
+    ctx.save();
+    ctx.translate(x + 8, y + 8); ctx.scale(k, k); ctx.rotate((1 - k) * 6);
+    drawMonster(-8, -8, e.type, e.dir, { alpha: (frame >> 1) % 2 ? 0.5 : 1 });
+    ctx.restore();
+    return;
+  }
+  const m = MON[e.type];
+  const a = m.fly ? (frame >> 2) % 2 : ((frame >> 3) % 2 && e.onGround) || (e.dash > 0 && (frame >> 1) % 2);
+  drawMonster(x, y, e.type, e.dir, {
+    a, flip: e.state === 'flip', lit: e.state === 'lit', cracked: e.hp < (m.hp || 1), shy: e.shy,
+    alpha: e.type === 'ghost' ? (e.shy ? 0.5 : 0.85) : null,
+  });
+  if (e.tame && e.state === 'walk') {   // LVに関係なく捕まえられる印
+    const r = pen(x + 4, y - 9 + ((frame >> 4) % 2), 8, 1), c = '#ff5fa8';
+    r(1, 0, 2, 1, c); r(5, 0, 2, 1, c); r(0, 1, 8, 2, c); r(1, 3, 6, 1, c); r(2, 4, 4, 1, c); r(3, 5, 2, 1, c);
+    r(1, 1, 1, 1, '#ffd0e8');
+  }
+}
+function drawFruit(it, cx) {
+  const r = pen(Math.round(it.x - 1 - cx), Math.round(it.y + it.h - 16), 16, 1);
+  r(4, 5, 8, 10, '#ff3b5c'); r(3, 7, 10, 6, '#ff3b5c'); r(5, 15, 6, 1, '#b8203a');
+  r(5, 7, 2, 2, '#ffd0d8'); r(7, 2, 2, 4, '#6b3e1e'); r(9, 2, 4, 2, '#2ecc40'); r(10, 1, 2, 1, '#2ecc40');
+}
+function drawShot(s, cx) {   // キャプチャー玉
+  const r = pen(Math.round(s.x - cx), Math.round(s.y), 6, 1);
+  r(1, 0, 4, 1, '#ff5fa8'); r(0, 1, 6, 2, '#ff5fa8');
+  r(0, 3, 6, 2, '#fff'); r(1, 5, 4, 1, '#fff');
+  r(0, 3, 6, 1, '#222'); r(2, 2, 2, 2, (frame >> 2) % 2 ? '#fff' : '#ffd800');
+}
+function drawPShot(s, cx) {
+  const x = Math.round(s.x - cx), y = Math.round(s.y);
+  if (s.kind === 'fire') {
+    ctx.fillStyle = '#ff5020'; ctx.fillRect(x + 1, y, 6, 8); ctx.fillRect(x, y + 1, 8, 6);
+    ctx.fillStyle = (frame >> 1) % 2 ? '#ffd23a' : '#fff4a0'; ctx.fillRect(x + 2, y + 2, 4, 4);
+  } else if (s.kind === 'ice') {
+    ctx.fillStyle = '#bfefff'; ctx.fillRect(x, y + 2, 8, 2); ctx.fillRect(x + 2, y, 4, 6);
+    ctx.fillStyle = '#fff'; ctx.fillRect(x + 3, y + 2, 2, 2);
+  } else {
+    ctx.fillStyle = '#2c2c3a'; ctx.fillRect(x + 1, y + 1, 6, 7); ctx.fillRect(x, y + 2, 8, 5);
+    ctx.fillStyle = '#7a7a90'; ctx.fillRect(x + 2, y + 2, 2, 2);
+    ctx.fillStyle = (frame >> 1) % 2 ? '#ffd800' : '#ff6a00'; ctx.fillRect(x + 4, y - 1, 2, 2);
+  }
+}
+function drawEShot(s, cx) {
+  const x = Math.round(s.x - cx), y = Math.round(s.y);
+  ctx.fillStyle = '#ff3a1a'; ctx.fillRect(x, y + 1, 6, 4); ctx.fillRect(x + 1, y, 4, 6);
+  ctx.fillStyle = (frame >> 1) % 2 ? '#ffd23a' : '#ff9a3a'; ctx.fillRect(x + 2, y + 2, 2, 2);
+}
+
+function drawHUD() {
+  for (let i = 0; i < 2; i++) {
+    const bx = 4 + i * 24, by = 4;
+    const active = player && player.slot === i;
+    ctx.fillStyle = active ? 'rgba(255,216,0,.35)' : 'rgba(0,0,0,.45)';
+    ctx.fillRect(bx, by, 22, 22);
+    ctx.strokeStyle = active ? '#ffd800' : '#fff'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx + 0.5, by + 0.5, 21, 21);
+    if (party[i]) drawMonster(bx + 3, by + 5, party[i], 1, { hat: true });
+    ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillStyle = active ? '#ffd800' : '#ddd'; ctx.fillText(String(i + 1), bx + 2, by + 2);
+  }
+  ctx.fillStyle = '#222'; ctx.fillRect(4, 28, 46, 4);
+  ctx.fillStyle = player && player.form ? '#ffd800' : gauge >= 60 ? '#5fe0ff' : '#557';
+  ctx.fillRect(4, 28, Math.round(46 * gauge / gaugeMax()), 4);
+
+  text('LV' + lv, 56, 6, '#7dffb0');
+  if (debugMode) text('DEBUG', 56, 24, (frame >> 4) % 2 ? '#ff6060' : '#ffb0b0');
+  if (player && player.hasKey) drawKey(4, 35);
+  ctx.fillStyle = '#222'; ctx.fillRect(56, 17, 40, 3);
+  ctx.fillStyle = '#7dffb0'; ctx.fillRect(56, 17, Math.round(40 * exp / expNext()), 3);
+
+  text('SCORE', 106, 6);
+  text(String(score).padStart(6, '0'), 106, 16);
+  drawCoin(160, 12, (frame >> 3) % 4 === 2 ? 1 : 0);
+  text('x' + String(coins).padStart(2, '0'), 174, 16);
+  text('WORLD', 214, 6); text(' ' + stage().name, 214, 16);
+  text('TIME', 274, 6);
+  if (state !== 'title' && state !== 'intro') text(String(timeLeft).padStart(3, '0'), 282, 16, timeLeft < 100 ? '#ffb0a0' : '#fff');
+}
+
+function render() {
+  ctx.imageSmoothingEnabled = false;
+  if (state === 'intro' || state === 'gameover' || state === 'ending') {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    drawHUD();
+    if (state === 'intro') {
+      text('WORLD ' + stage().name, W / 2, 76, '#fff', 8, 'center');
+      text(THEMES[curTheme].label, W / 2, 90, '#ffd800', 8, 'center');
+      drawPico(W / 2 - 28, 110, false, 'stand', 1);
+      text('x  ' + lives, W / 2 - 4, 114);
+      text('LV' + lv + '   PARTY ' + box.length + '/' + MON_ORDER.length, W / 2, 140, '#7dffb0', 8, 'center');
+      const news = Object.keys(stage().pool || { slime: 1, hopper: 1 }).filter(t => !box.includes(t));
+      news.slice(0, 5).forEach((t, i) => drawMonster(W / 2 - news.slice(0, 5).length * 10 + i * 20, 158, t, 1, { a: (frame >> 4) % 2 }));
+      text('Q: PARTY  V: CAPTURE/SKILL', W / 2, 186, '#aaa', 8, 'center');
+    } else if (state === 'gameover') {
+      text('GAME OVER', W / 2, 96, '#fff', 8, 'center');
+      text('SCORE ' + score, W / 2, 116, '#ffd800', 8, 'center');
+      text('C: CONTINUE FROM ' + stage().name, W / 2, 140, '#7dffb0', 8, 'center');
+      if (stateT > 60 && (frame >> 5) % 2) text('PRESS ENTER', W / 2, 166, '#aaa', 8, 'center');
+    } else {
+      text('ALL CLEAR!', W / 2, 70, '#ffd800', 16, 'center');
+      text('THANK YOU FOR PLAYING', W / 2, 100, '#fff', 8, 'center');
+      text('SCORE ' + score, W / 2, 120, '#fff', 8, 'center');
+      text('LV' + lv + '  PARTY ' + box.length + '/' + MON_ORDER.length, W / 2, 136, '#7dffb0', 8, 'center');
+      box.forEach((t, i) => drawMonster(W / 2 - box.length * 10 + i * 20, 156, t, 1, { a: (frame >> 4) % 2, hat: true }));
+      if (stateT > 60 && (frame >> 5) % 2) text('PRESS ENTER', W / 2, 190, '#aaa', 8, 'center');
+    }
+    return;
+  }
+  const cx = Math.floor(cam.x);
+  ctx.save();
+  if (cam.shake > 0) ctx.translate(0, (cam.shake % 4 < 2 ? -1 : 1) * Math.ceil(cam.shake / 4));
+  drawBackground(cx, curTheme);
+  drawCastle(cx);
+  drawFlag(cx);
+  for (const it of items) if (it.emerge > 0) drawFruit(it, cx);
+  drawTiles(cx);
+  drawGimmicksBack(cx);
+  for (const c of pops) drawCoin(Math.round(c.x - 4 - cx), Math.round(c.y), (c.t >> 2) % 4);
+  for (const it of items) if (!(it.emerge > 0)) drawFruit(it, cx);
+  drawGimmicksFront(cx);
+  for (const e of enemies) if (e.active) drawEnemy(e, cx);
+  for (const s of shots) drawShot(s, cx);
+  for (const s of pshots) drawPShot(s, cx);
+  for (const s of eshots) drawEShot(s, cx);
+  if (state !== 'title') drawPlayer(cx);
+  for (const s of particles) {
+    if (s.puff) {
+      ctx.globalAlpha = s.t / 24; ctx.fillStyle = s.col || '#fff';
+      ctx.fillRect(Math.round(s.x - cx) - 2, Math.round(s.y) - 2, 4, 4); ctx.globalAlpha = 1;
+    } else { ctx.fillStyle = '#7a2e0a'; ctx.fillRect(Math.round(s.x - cx), Math.round(s.y), 6, 6); }
+  }
+  for (const s of scorePops) text(s.text, Math.round(s.x - cx), Math.round(s.y), s.col || '#fff', 8);
+  ctx.restore();
+  drawHUD();
+
+  if (state === 'title') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(16, 44, W - 32, 156);
+    ctx.strokeStyle = '#ffd800'; ctx.lineWidth = 2; ctx.strokeRect(17, 45, W - 34, 154);
+    text("PICO'S", W / 2, 54, '#ffd800', 16, 'center');
+    text('ADVENTURE', W / 2, 74, '#ffd800', 16, 'center');
+    text('ARROWS:MOVE  Z:JUMP  X:DASH', W / 2, 100, '#fff', 8, 'center');
+    text('V:CAPTURE/SKILL  DOWN:POUND', W / 2, 112, '#fff', 8, 'center');
+    text('1/2:MORPH  C:SWITCH  Q:PARTY', W / 2, 124, '#fff', 8, 'center');
+    if ((frame >> 5) % 2) text(matchMedia('(pointer:coarse)').matches ? 'TAP : NEW GAME' : 'CLICK / ENTER : NEW GAME', W / 2, 146, '#ffd800', 8, 'center');
+    const s = loadProgress();
+    if (s && s.stage > 0) text('C : CONTINUE ' + (STAGES[s.stage] || STAGES[0]).name + ' (LV' + (s.lv || 1) + ')', W / 2, 160, '#7dffb0', 8, 'center');
+    text('TOP ' + String(hiScore).padStart(6, '0'), W / 2, 182, '#fff', 8, 'center');
+    drawPico(3 * T, 12 * T, false, 'stand', 1);
+  }
+  if (paused) {
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(0, 0, W, H);
+    text('PAUSE', W / 2, 110, '#fff', 8, 'center');
+  }
+  if (state === 'clear') {
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(40, 76, W - 80, 88);
+    text('COURSE CLEAR!', W / 2, 88, '#ffd800', 8, 'center');
+    text('SCORE ' + score, W / 2, 106, '#fff', 8, 'center');
+    text('NEXT: WORLD ' + STAGES[stageIdx + 1].name, W / 2, 122, '#7dffb0', 8, 'center');
+    if (stateT > 40 && (frame >> 5) % 2) text('PRESS ENTER', W / 2, 142, '#aaa', 8, 'center');
+  }
+}
+
+// ============================================================
+//  なかま図鑑（Q キー）
+// ============================================================
+const menuEl = document.getElementById('menu');
+const howtoEl = document.getElementById('howto');
+howtoEl.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); input.start = true; });
+let swapType = null;   // 入れかえ画面で新しく入れるキャラ（null のときは図鑑）
+function openMenu() {
+  if (state !== 'play') return;
+  menuOpen = true;
+  renderMenu();
+  menuEl.classList.add('show');
+}
+function closeMenu() {
+  if (swapType) { chooseSwap(-1); return; }
+  menuOpen = false; menuEl.classList.remove('show');
+}
+function menuKey(e) {
+  e.preventDefault();
+  if (swapType) {
+    if (e.code === 'Digit1' || e.code === 'Numpad1') chooseSwap(0);
+    else if (e.code === 'Digit2' || e.code === 'Numpad2') chooseSwap(1);
+    else if (['Escape', 'KeyQ', 'Digit3', 'Numpad3', 'Backspace'].includes(e.code)) chooseSwap(-1);
+    return;
+  }
+  if (e.code === 'KeyQ' || e.code === 'Escape' || e.code === 'Tab') closeMenu();
+}
+
+// ---- スロットが満員の時の入れかえ画面 ----
+function openSwap(type) {
+  swapType = type; menuOpen = true;
+  hideInfo();
+  const m = MON[type];
+  const slotBtn = i => `<button class="pick" data-swap="${i}">
+      <span class="key">${i + 1}</span>
+      <canvas width="16" height="16" data-icon="${party[i]}" data-got="1"></canvas>
+      <span><b>${MON[party[i]].name}</b><br><small>と入れかえる</small></span></button>`;
+  menuEl.innerHTML = `<div class="swap">
+    <div class="sh">スロットがいっぱい！</div>
+    <div class="newc"><canvas width="16" height="16" data-icon="${type}" data-got="1"></canvas>
+      <div><div class="nm">${m.name} <span class="rq ok">が なかまになった！</span></div>
+      <ul>${m.abilities.map(a => `<li>${a}</li>`).join('')}</ul></div></div>
+    <div class="q">どちらのスロットと入れかえる？</div>
+    <div class="picks">${slotBtn(0)}${slotBtn(1)}</div>
+    <button class="skip" data-swap="-1">入れかえない（Esc）</button>
+    <div class="note">入れかえなかったキャラも図鑑に入るので、あとで Q キーで入れかえられます</div>
+  </div>`;
+  menuEl.querySelectorAll('canvas[data-icon]').forEach(c => {
+    withCtx(c.getContext('2d'), () => drawMonster(0, 0, c.dataset.icon, 1, { hat: true }));
+  });
+  menuEl.classList.add('show');
+}
+function chooseSwap(i) {
+  const t = swapType;
+  swapType = null; menuOpen = false; menuEl.classList.remove('show');
+  if (i >= 0) {
+    if (player.form && player.slot === i) revert(true);   // 変身中のスロットを入れかえる時は元に戻る
+    const old = party[i];
+    party[i] = t;
+    SFX.coin(); saveProgress();
+    showInfo(t, 'なかまになった！ ', `${MON[old].name} と入れかえて、スロット${i + 1}に入った！ ${i + 1} キーで変身`);
+  } else {
+    showInfo(t, '図鑑に登録した！ ', 'Q キーの「なかま図鑑」でいつでもスロットに入れかえられる');
+  }
+}
+function renderMenu() {
+  const cards = MON_ORDER.map(t => {
+    const m = MON[t], got = box.includes(t);
+    const can = lv >= m.req;
+    const btns = got ? [0, 1].map(i =>
+      `<button data-slot="${i}" data-t="${t}" class="${party[i] === t ? 'on' : ''}">${party[i] === t ? 'スロット' + (i + 1) + ' ✓' : (i + 1) + 'に入れる'}</button>`).join('') : '';
+    return `<div class="card ${got ? '' : 'locked'}">
+      <canvas width="16" height="16" data-icon="${t}" data-got="${got ? 1 : 0}"></canvas>
+      <div class="body">
+        <div class="nm">${got ? m.name : '？？？'} <span class="rq ${can ? 'ok' : ''}">キャプチャー LV${m.req}${can && !got ? ' ✓できる' : ''}</span></div>
+        ${got ? '<ul>' + m.abilities.map(a => `<li>${a}</li>`).join('') + '</ul>' : `<div class="note">${MON_NOTE[t]}</div>`}
+        ${got ? `<div class="note">敵のとき：${MON_NOTE[t]}</div>` : ''}
+        <div class="bt">${btns}</div>
+      </div></div>`;
+  }).join('');
+  menuEl.innerHTML = `<div class="mhd"><b>なかま図鑑 ${box.length}/${MON_ORDER.length}</b>
+    <span>LV${lv}　<button class="close">とじる（Q）</button></span></div><div class="grid">${cards}</div>`;
+  menuEl.querySelectorAll('canvas[data-icon]').forEach(c => {
+    withCtx(c.getContext('2d'), () => drawMonster(0, 0, c.dataset.icon, 1, { hat: c.dataset.got === '1' }));
+  });
+}
+menuEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.classList.contains('close')) { closeMenu(); return; }
+  if (b.dataset.swap !== undefined) { chooseSwap(+b.dataset.swap); return; }
+  const i = +b.dataset.slot, t = b.dataset.t;
+  if (b.dataset.slot === undefined) return;
+  if (player.form) revert(true);
+  const other = 1 - i;
+  if (party[other] === t) party[other] = party[i];   // もう片方に入っていたら入れかえ
+  party[i] = t;
+  SFX.coin();
+  saveProgress();
+  renderMenu();
+});
+
+// ============================================================
+//  ループ（60fps固定ステップ）
+// ============================================================
+buildStage(STAGES[0]);
+player = newPlayer();
+let last = performance.now(), acc = 0;
+function loop(now) {
+  acc += Math.min(100, now - last); last = now;
+  while (acc >= 1000 / 60) { update(); acc -= 1000 / 60; }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
