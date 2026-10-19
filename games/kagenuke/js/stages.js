@@ -457,6 +457,9 @@ const STAGES = [
   }
 ];
 
+// チュートリアル: 1-1 と同じ配置（解けることは 1-1 と同じ）
+STAGES.tutorial = Object.assign(JSON.parse(JSON.stringify(STAGES[0])), { id: 'T', name: 'あそびかた', hint: '' });
+
 if (typeof module !== 'undefined' && module.exports) module.exports = STAGES;
 else root.KG_STAGES = STAGES;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -15,6 +15,10 @@ const FONT = '"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic
 // ---------- 状態 ----------
 let screen = 'title';         // title | play | clear
 let stageIdx = 0, world = null;
+let tutorial = null;          // チュートリアル中の進みぐあい
+let tutDone = false;
+try { tutDone = localStorage.getItem('kagenuke.tutorial') === '1'; } catch (e) {}
+const T_BTN = { x: 60, y: 44, w: 330, h: 74 };
 let cursor = 0, timer = 0, msg = '', msgT = 0, clock = 0, fade = 0;
 let paused = false, pauseCur = 0;
 const PAUSE_ITEMS = ['さいかい', 'やりなおし', 'ステージえらびへ'];
@@ -110,6 +114,7 @@ cv.addEventListener('pointerdown', e => {
   const tb = btnAt(x, y);
   if (tb) { btnPress(e.pointerId, tb); e.preventDefault(); return; }
   if (screen === 'title') {
+    if (x >= T_BTN.x && x <= T_BTN.x + T_BTN.w && y >= T_BTN.y && y <= T_BTN.y + T_BTN.h) { startTutorial(); return; }
     const i = stageAt(x, y);
     if (i >= 0) { cursor = i; startStage(i); }
   } else if (screen === 'play' && paused) {
@@ -137,12 +142,23 @@ cv.addEventListener('wheel', e => { wheelZ += Math.sign(e.deltaY) * 30; e.preven
 
 // ---------- 画面遷移 ----------
 function startStage(i) {
+  tutorial = null;
   stageIdx = i; world = K.createWorld(STAGES[i]);
   screen = 'play'; paused = false; timer = 0; msg = ''; fade = 1; dragDX = dragDY = wheelZ = 0;
   prevPressed = world.switches.map(() => false);
   M.duck(false); M.play(M.chapterTrack(STAGES[i].id));
+  if (!tutDone && i === 0) say('はじめての人は、タイトルの「あそびかた」から！');
 }
+function startTutorial() {
+  stageIdx = -1; world = K.createWorld(STAGES.tutorial);
+  tutorial = { walked: false, jumped: false, moved: false, zmoved: false, lamp0: null, x0: world.actors[0].x };
+  screen = 'play'; paused = false; timer = 0; msg = ''; fade = 1; dragDX = dragDY = wheelZ = 0;
+  prevPressed = world.switches.map(() => false);
+  M.duck(false); M.play('c1');
+}
+const restartCur = () => (tutorial ? startTutorial() : startStage(stageIdx));
 function nextStage() {
+  if (tutorial) { tutorial = null; screen = 'title'; cursor = 0; M.play('title'); return; }
   if (stageIdx + 1 < STAGES.length) startStage(stageIdx + 1);
   else { screen = 'title'; cursor = 0; M.play('title'); }
 }
@@ -155,8 +171,8 @@ function pauseAt(x, y) {
 }
 function pauseDo(i) {
   if (i === 0) paused = false;
-  else if (i === 1) startStage(stageIdx);
-  else { paused = false; screen = 'title'; cursor = stageIdx; M.duck(false); M.play('title'); }
+  else if (i === 1) restartCur();
+  else { paused = false; tutorial = null; screen = 'title'; cursor = Math.max(0, stageIdx); M.duck(false); M.play('title'); }
 }
 
 // ---------- 更新 ----------
@@ -167,6 +183,7 @@ function tick(dt) {
     if (hit('ArrowLeft', 'KeyA')) cursor = ch[cc].start + Math.max(0, ci - 1);
     if (hit('ArrowDown', 'KeyS') && cc < ch.length - 1) cursor = ch[cc + 1].start + Math.min(ch[cc + 1].count - 1, ci);
     if (hit('ArrowUp', 'KeyW') && cc > 0) cursor = ch[cc - 1].start + Math.min(ch[cc - 1].count - 1, ci);
+    if (hit('KeyT', 'KeyH')) { startTutorial(); return; }
     if (hit('Enter', 'Space')) startStage(cursor);
     return;
   }
@@ -188,15 +205,19 @@ function tick(dt) {
     return;
   }
   if (hit('KeyP') || (hit('Escape') && !w.control && !w.dead && !w.won)) { paused = true; pauseCur = 0; return; }
-  if (hit('KeyR')) { startStage(stageIdx); return; }
+  if (hit('KeyR')) { restartCur(); return; }
   if (w.dead) {
     timer += dt;
-    if (timer > 0.9) startStage(stageIdx);
+    if (timer > 0.9) restartCur();
     return;
   }
   if (w.won) {
     timer += dt;
-    if (timer > 1.4) { cleared[STAGES[stageIdx].id] = true; saveCleared(); screen = 'clear'; timer = 0; confettiBurst(); M.play('clear'); }
+    if (timer > 1.4) {
+      if (tutorial) { tutDone = true; try { localStorage.setItem('kagenuke.tutorial', '1'); } catch (e) {} }
+      else { cleared[STAGES[stageIdx].id] = true; saveCleared(); }
+      screen = 'clear'; timer = 0; confettiBurst(); M.play('clear');
+    }
     return;
   }
   const inp = {};
@@ -226,6 +247,7 @@ function tick(dt) {
     if (hit('Tab')) K.selectNext(w);
   }
   K.update(w, dt, inp);
+  if (tutorial) tutorialUpdate(w);
   for (const ev of w.events) {
     if (ev.t === 'kage') {
       A.burst(ev.x, ev.y - 14, 18, { speed: 110, g: -40, life: 0.9, size: 2.4, colors: ['#d8ceff', '#b9a6ff', '#fff'], type: 'wisp', drag: 1.5 });
@@ -238,6 +260,67 @@ function tick(dt) {
     }
   }
   w.events.length = 0;
+}
+
+// ---------- チュートリアル ----------
+const TUT_N = 11;
+const inRoomA = (a, r) => a.x >= r.x && a.x <= r.x + r.w && a.y >= r.y && a.y <= r.y + r.h + 2;
+function tutorialUpdate(w) {
+  const t = tutorial, a = w.actors[0], l = w.lights[0];
+  if (Math.abs(a.x - t.x0) > 120) t.walked = true;
+  if (!a.ground && a.vy < -150) t.jumped = true;
+  if (w.control) {
+    if (!t.lamp0) t.lamp0 = { x: l.x, y: l.y, z: l.z };
+    if (Math.hypot(l.x - t.lamp0.x, l.y - t.lamp0.y) > 150) t.moved = true;
+    if (Math.abs(l.z - t.lamp0.z) > 80) t.zmoved = true;
+  }
+}
+function tutStep(w) {
+  const t = tutorial;
+  if (w.won) return TUT_N;
+  if (!t.walked) return 0;
+  if (!t.jumped) return 1;
+  if (!t.moved || !t.zmoved) return w.control ? (!t.moved ? 3 : 4) : 2;
+  if (w.control) return 5;
+  const room = w.def.ink[0];
+  const inK = w.actors.slice(1).some(k => inRoomA(k, room));
+  if (!inK) return 6;
+  if (!w.switches[0].pressed) return w.sel > 0 ? 8 : 7;
+  return w.sel === 0 ? 10 : 9;
+}
+function tutInfo(w) {
+  const n = tutStep(w), tc = touchMode;
+  const X = (pc, touch) => (tc ? touch : pc);
+  const out = [
+    ['あるく', X('← → キー（A D でも OK）で、歩いてみよう。', '画面左の ◀ ▶ を おして、歩いてみよう。')],
+    ['ジャンプ', X('Space キー（↑ でも OK）で、ジャンプ！', '右下の「ジャンプ」を おしてみよう。')],
+    ['あかりを うごかす', X('L キーを おして、「あかりを動かすモード」に入ろう。入っている間は、時間がとまるよ。', '「ひかり」ボタンを おして、あかりを動かすモードに入ろう。入っている間は、時間がとまるよ。')],
+    ['あかりを うごかす', X('矢印キー（マウスのドラッグでも OK）で あかりを動かそう。壁の影が、いっしょに動くのを見てみよう。', '画面を ゆびで なぞって、あかりを動かそう。壁の影が、いっしょに動くよ。')],
+    ['おくゆき', X('Q / E キー（マウスのホイール）で、あかりが 手前・奥へ動く。あかりが近いほど、影は大きくうつるよ。', '「ちかく」「とおく」ボタンで、あかりの奥行きをかえよう。近いほど、影は大きくうつるよ。')],
+    ['もどる', X('L キー（Space でも OK）で、あかりのモードをおえよう。', '「おわる」ボタンを おそう。')],
+    ['影を つくる', (w.actors.length > 1 ? 'へやの外に出たね。' + X('X キーで影を消して、', '「けす」で影を消して、') : '') +
+      X('あかりを動かして（L）、足もとの「自分の影」を、右下の「影のへや」に落とそう。そこで C キーを押すと、影が切りはなされる！', '「ひかり」で あかりを動かして、足もとの「自分の影」を 右下の「影のへや」に落とそう。そこで「影」ボタンを おすと、影が切りはなされる！')],
+    ['影に きりかえ', X('Tab キーで、操作する相手を「影」にきりかえよう。', '「きりかえ」ボタンで、操作する相手を「影」にきりかえよう。')],
+    ['スイッチを おす', X('← → で影を歩かせて、光っているスイッチの上へ。のっている間だけ、とびらが開くよ。', '◀ ▶ で影を歩かせて、光っているスイッチの上へ。のっている間だけ、とびらが開くよ。')],
+    ['実体に もどる', X('Tab キーで、実体にもどろう。影はスイッチの上に残しておく。', '「きりかえ」で、実体にもどろう。影はスイッチの上に残しておく。')],
+    ['ゴール！', 'とびらを通って、光っている出口へ！']
+  ][Math.min(n, TUT_N - 1)];
+  return { n: Math.min(n, TUT_N - 1), title: out[0], text: out[1] };
+}
+function drawTutorialMarks(w) {
+  const n = tutStep(w), p = 0.5 + 0.5 * Math.sin(clock * 5);
+  let r = null, label = '';
+  if (n === 6) { const k = w.def.ink[0]; r = { x: k.x, y: k.y, w: k.w, h: k.h }; label = '影のへや'; }
+  else if (n === 8) { const s = w.switches[0]; r = { x: s.x - 40, y: s.y - 44, w: 80, h: 56 }; label = 'スイッチ'; }
+  else if (n === 10) { const e = w.def.exit; r = { x: e.x - 10, y: e.y - 20, w: e.w + 20, h: e.h + 20 }; label = '出口'; }
+  if (!r) return;
+  ctx.save();
+  ctx.strokeStyle = `rgba(255,214,90,${0.5 + 0.5 * p})`; ctx.lineWidth = 5; ctx.setLineDash([14, 10]); ctx.lineDashOffset = -clock * 40;
+  ctx.strokeRect(r.x - 6, r.y - 6, r.w + 12, r.h + 12); ctx.setLineDash([]);
+  ctx.fillStyle = '#ffd65a'; ctx.font = `bold 26px ${FONT}`; ctx.textAlign = 'center';
+  const ay = r.y - 24 - p * 8;
+  ctx.fillText('▼ ' + label, r.x + r.w / 2, ay);
+  ctx.restore();
 }
 
 function confettiBurst() {
@@ -353,14 +436,16 @@ function drawHUD(w) {
   const def = w.def;
   ctx.save();
   // タイトルと吹き出し
-  const lines = wrap(def.hint, 40);
+  let hintText = def.hint, titleText = def.name, tagText = A.themeOf(def).name + '　' + def.id;
+  if (tutorial) { const ti = tutInfo(w); hintText = ti.text; titleText = ti.title; tagText = 'あそびかた　STEP ' + (ti.n + 1) + ' / ' + TUT_N; }
+  const lines = wrap(hintText, 40);
   const ph = 86 + lines.length * 26;
   ctx.fillStyle = 'rgba(24,14,48,.78)'; rr(ctx, 16, 14, 860, ph, 16); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5; rr(ctx, 16.75, 14.75, 858.5, ph - 1.5, 16); ctx.stroke();
   A.drawFace(ctx, 'body', 66, 14 + ph / 2, 36, clock, 'happy');
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#ffd65a'; ctx.font = `bold 16px ${FONT}`; ctx.fillText(A.themeOf(def).name + '　' + def.id, 118, 44);
-  ctx.fillStyle = '#fff'; ctx.font = `bold 30px ${FONT}`; ctx.fillText(def.name, 118, 78);
+  ctx.fillStyle = '#ffd65a'; ctx.font = `bold 16px ${FONT}`; ctx.fillText(tagText, 118, 44);
+  ctx.fillStyle = '#fff'; ctx.font = `bold 30px ${FONT}`; ctx.fillText(titleText, 118, 78);
   ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = `19px ${FONT}`;
   lines.forEach((l, i) => ctx.fillText(l, 118, 108 + i * 26));
   // 状態
@@ -404,6 +489,7 @@ function drawScene(w) {
   A.drawExit(ctx, w.def.exit, clock);
   for (const d of w.doors) A.drawDoor(ctx, d, th, clock);
   for (const s of w.switches) A.drawSwitch(ctx, s, clock);
+  if (tutorial) drawTutorialMarks(w);
   w.lights.forEach((l, i) => A.drawLamp(ctx, w.lpos[i], w.lon[i], w.control && w.control.i === i, l.blink ? { blink: l.blink, t: w.t } : null));
   w.actors.forEach((a, i) => { if (a.kind === 'body') A.drawActor(ctx, a, i === w.sel, clock, w.control); });
   w.actors.forEach((a, i) => { if (a.kind === 'kage') A.drawActor(ctx, a, i === w.sel, clock, w.control); });
@@ -563,6 +649,19 @@ function drawTitle() {
   ctx.restore();
   ctx.fillStyle = 'rgba(236,223,196,.85)'; ctx.font = `24px ${FONT}`;
   ctx.fillText('あかりを うごかせば、影も うごく。……影が、ひとりでに うごきだす まえに。', W / 2, 282);
+  // あそびかた（チュートリアル）
+  {
+    const pulse = tutDone ? 0 : 0.5 + 0.5 * Math.sin(t * 4);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; rr(ctx, T_BTN.x + 4, T_BTN.y + 8, T_BTN.w, T_BTN.h, 18); ctx.fill();
+    ctx.fillStyle = tutDone ? 'rgba(30,20,40,.85)' : 'rgba(232,216,186,.97)'; rr(ctx, T_BTN.x, T_BTN.y, T_BTN.w, T_BTN.h, 18); ctx.fill();
+    ctx.strokeStyle = tutDone ? 'rgba(236,223,196,.35)' : `rgba(184,97,63,${0.6 + 0.4 * pulse})`; ctx.lineWidth = tutDone ? 1.5 : 4; rr(ctx, T_BTN.x, T_BTN.y, T_BTN.w, T_BTN.h, 18); ctx.stroke();
+    ctx.textAlign = 'left'; ctx.fillStyle = tutDone ? '#ecdfc4' : '#2a1a38'; ctx.font = `bold 28px ${FONT}`;
+    ctx.fillText('あそびかた', T_BTN.x + 22, T_BTN.y + 36);
+    ctx.font = `15px ${FONT}`; ctx.fillStyle = tutDone ? 'rgba(236,223,196,.7)' : 'rgba(42,26,56,.8)';
+    ctx.fillText(tutDone ? '★ クリアずみ（もう一度 あそべる）' : (touchMode ? 'はじめての人は ここから！' : 'はじめての人は ここから！（T キー）'), T_BTN.x + 22, T_BTN.y + 60);
+    ctx.restore();
+  }
   // 章タブ
   const chs = chapters(), cur = chapOf(cursor);
   chs.forEach((c, k) => {
@@ -649,9 +748,9 @@ function drawClear() {
   ctx.drawImage(meadowBg(), 0, 0);
   const fy = 800;
   // 二人でならんで立つ（そよ風でゆれる）
-  ctx.fillStyle = 'rgba(20,70,20,.22)'; ctx.beginPath(); ctx.ellipse(560, fy + 4, 74, 11, 0, 0, TAU); ctx.ellipse(1040, fy + 4, 74, 11, 0, 0, TAU); ctx.fill();
-  A.drawChar(ctx, 'body', 560, fy, 9, { face: 1, t: clock, move: 0, blink: Math.sin(clock * 1.5) > 0.96 ? 1 : 0, emote: 'happy', wave: Math.sin(clock * 3) > 0 });
-  A.drawChar(ctx, 'kage', 1040, fy, 9, { face: -1, t: clock + 1, move: 0, blink: Math.sin(clock * 1.2 + 2) > 0.96 ? 1 : 0 });
+  ctx.fillStyle = 'rgba(20,70,20,.22)'; ctx.beginPath(); ctx.ellipse(tutorial ? 330 : 560, fy + 4, 74, 11, 0, 0, TAU); ctx.ellipse(tutorial ? 1270 : 1040, fy + 4, 74, 11, 0, 0, TAU); ctx.fill();
+  A.drawChar(ctx, 'body', tutorial ? 330 : 560, fy, 9, { face: 1, t: clock, move: 0, blink: Math.sin(clock * 1.5) > 0.96 ? 1 : 0, emote: 'happy', wave: Math.sin(clock * 3) > 0 });
+  A.drawChar(ctx, 'kage', tutorial ? 1270 : 1040, fy, 9, { face: -1, t: clock + 1, move: 0, blink: Math.sin(clock * 1.2 + 2) > 0.96 ? 1 : 0 });
   // 手前の草
   ctx.strokeStyle = '#3f8a34'; ctx.lineWidth = 3; ctx.lineCap = 'round';
   for (let i = 0; i < 60; i++) {
@@ -663,9 +762,17 @@ function drawClear() {
   ctx.fillStyle = '#2f4a2a'; ctx.font = `bold 92px ${FONT}`; ctx.fillText('かげから ぬけだした！', W / 2, 300 + Math.sin(clock * 2) * 5);
   ctx.restore();
   ctx.fillStyle = 'rgba(47,74,42,.85)'; ctx.font = `26px ${FONT}`;
-  ctx.fillText(`${STAGES[stageIdx].id}  ${STAGES[stageIdx].name}`, W / 2, 360);
+  ctx.fillText(tutorial ? 'チュートリアル' : `${STAGES[stageIdx].id}  ${STAGES[stageIdx].name}`, W / 2, 360);
   if (timer > 0.6) {
     ctx.fillStyle = 'rgba(47,74,42,.95)'; ctx.font = `bold 28px ${FONT}`;
+    if (tutorial) {
+      ctx.fillText(touchMode ? 'タップで ステージえらびへ' : 'Enter：ステージえらびへ', W / 2, 420);
+      ctx.font = `21px ${FONT}`; ctx.fillStyle = 'rgba(47,74,42,.95)';
+      const tips = touchMode
+        ? ['やりなおし：ポーズ（Ⅱ）→「やりなおし」', '影をけす：「けす」ボタン', '音：♪ ボタン', 'ほかの影が出せるあかりは、「ひかり」モードで「つぎの」ボタンで 切りかえ']
+        : ['R：やりなおし　　X：影を消す　　Esc / P：ポーズ　　M：音', 'あかりが 複数あるときは、あかりモードで Tab（または 1・2）で 切りかえ', 'あかり 1つにつき、影は 1人まで'];
+      tips.forEach((tx, i) => ctx.fillText(tx, W / 2, 455 + i * 30));
+    } else
     ctx.fillText(stageIdx + 1 < STAGES.length ? 'Enter：つぎのステージ　　Esc：メニュー' : 'ぜんぶクリア！ Enter：メニューへ', W / 2, 450);
   }
   A.drawParticles(ctx);
@@ -698,5 +805,5 @@ requestAnimationFrame(frame);
 M.play('title');
 
 // 検証用
-window.__kg = { setTouchMode, get touchMode() { return touchMode; }, get world() { return world; }, get paused() { return paused; }, get screen() { return screen; }, startStage, K, STAGES };
+window.__kg = { tutStep: () => (tutorial ? tutStep(world) : -1), setTouchMode, get touchMode() { return touchMode; }, get world() { return world; }, get paused() { return paused; }, get screen() { return screen; }, startStage, K, STAGES };
 })();
