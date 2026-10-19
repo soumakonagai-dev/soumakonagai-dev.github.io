@@ -171,3 +171,4 @@ a { color: inherit; }
 }
 .bugform select:focus, .bugform textarea:focus, .bugform input:focus { border-color: var(--brand); outline: none; }
 .bugform .play { border: 0; cursor: pointer; --accent: var(--brand); }
+.video-frame video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; object-fit: contain; }

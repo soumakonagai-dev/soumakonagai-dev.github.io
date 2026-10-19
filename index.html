@@ -276,9 +276,10 @@
       <div class="trailers">
         <!--
           新作を載せるときは、下のブロックをコピーして <section id="upcoming"> の hidden を外し、
-          data-yt に YouTube の動画ID（URL の v= のあと）を入れる。
+          data-src に動画ファイル（site/videos/ に置いた mp4。例: videos/trailer.mp4）を入れる。
+          表紙画像を出したいときは data-poster="images/xxx.jpg" も付ける。
         <article class="trailer" style="--accent:#ffd34d">
-          <div class="video" data-yt="動画ID" data-title="ゲーム名 トレーラー"></div>
+          <div class="video" data-src="videos/trailer.mp4" data-title="ゲーム名 トレーラー"></div>
           <p class="game-genre">ジャンル</p>
           <h3 class="game-title">ゲーム名（仮）</h3>
           <p class="game-desc">ひとこと説明。</p>

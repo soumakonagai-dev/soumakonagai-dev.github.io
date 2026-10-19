@@ -3,9 +3,16 @@
   var REPO = 'soumakonagai-dev/soumakonagai-dev.github.io';
 
   document.querySelectorAll('.video').forEach(function (box) {
-    var id = (box.dataset.yt || '').trim();
+    var id = (box.dataset.yt || '').trim(), src = (box.dataset.src || '').trim();
     var game = box.closest('.game');
     var title = box.dataset.title || ((game && game.querySelector('.game-title').textContent) || '') + ' 解説動画';
+    if (src) {
+      // サイト内の動画ファイル（videos/xxx.mp4）。data-poster で表紙画像も指定できる
+      var label = box.closest('.trailer') ? 'TRAILER' : '解説動画';
+      var p = box.dataset.poster ? ' poster="' + box.dataset.poster + '"' : '';
+      box.innerHTML = '<p class="video-label">' + label + '</p><div class="video-frame"><video src="' + src + '" controls playsinline preload="none"' + p + ' title="' + title + '"></video></div>';
+      return;
+    }
     if (!id) {
       if (box.closest('.trailer')) { box.remove(); return; }
       box.innerHTML = '<div class="video-empty">解説動画は準備中</div>';
