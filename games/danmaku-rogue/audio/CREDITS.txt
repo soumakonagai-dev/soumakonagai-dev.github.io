@@ -1,0 +1,6 @@
+BGM の楽器音源（サンプル）
+  piano / organ / violin / harp / contrabass / guitar-electric / bass-electric / saxophone / trumpet / french-horn / clarinet / xylophone
+  ... tonejs-instruments (Nicholaus Brosowsky, MIT License)  https://github.com/nbrosowsky/tonejs-instruments
+  元の録音は公共利用できる音源（VSO2 = Versilian Studios Community Sample Library, CC0 / Karoryfer Samples など。
+  詳細は sample-source-info.txt と上流リポジトリの説明を参照）。ライセンス全文: LICENSE-tonejs-instruments.txt
+曲（打ち込み）は js/music.js のオリジナル。
