@@ -154,6 +154,7 @@ function drawHUD() {
   panel(4, H - 46, W - 8, 42);
   run.weapons.forEach((w, i) => miniIcon(w.id, 28 + i * 40, H - 25, 0, w.evo, w.lv));
   Object.keys(run.passives).forEach((k, i) => miniIcon(k, W - 28 - i * 40, H - 25, 0, !!run.pevo[k], run.passives[k]));
+  if (run.pending > 0) { ctx.globalAlpha = 0.65 + 0.35 * Math.sin(ui.tick * 0.12); T(`強化待ち ×${run.pending}（敵がいなくなると選べます）`, W / 2, 124, 12, '#fd5', 'center', 'bold'); ctx.globalAlpha = 1; }
   // バナー
   if (run.banner) {
     const bn = run.banner, a = Math.max(0, Math.min(1, bn.t / 20, (bn.max - bn.t) / 15 + 0.2));
@@ -292,7 +293,7 @@ function drawTitle() {
   else if (!Music.ready) T(`BGM 読み込み中… ${Math.round(Music.progress * 100)}%`, W / 2, 622, 12, '#9ab', 'center');
   T('Enter: ゲーム開始   E: 強化メニュー   N: BGM切替', W / 2, 646, 12, '#789', 'center');
   if (debugOn()) { button(10, 44, 100, 26, 'DEBUG', () => { scene = 'debug'; ui.msg = ''; }, { size: 12, col: '#f8f' }); T('F1無敵 F2ボス戦 F3レベルUP（プレイ中）', W / 2, 668, 11, '#a6a', 'center'); }
-  T('マウス移動/WASD:移動  Shift:低速  X・右クリック:ボム  P:一時停止', W / 2, 666, 11, '#678', 'center');
+  T('WASD/矢印:移動  Shift:低速  X・右クリック:ボム  P:一時停止', W / 2, 666, 11, '#678', 'center');
 }
 
 // ===== ゲーム開始メニュー（ステージ選択 + 難易度 + 機体）=====

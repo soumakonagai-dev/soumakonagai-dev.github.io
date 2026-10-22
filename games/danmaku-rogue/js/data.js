@@ -5,11 +5,11 @@
 //   どの弾幕でも「濃さ」だけが素直に上がる。burst は「同じ濃さを、まとめ撃ちで出すか」の違い。
 const DIFFICULTY = [
   // EASY〜HARD は「弾幕に慣れていない人でも抜けられる」難しさ。LUNATIC・ABYSS は一気に跳ね上がる。
-  { id: 1, name: 'EASY',    col: '#6f8', who: 'STG 初心者',   dens: 0.35, burst: -1, speed: 0.75, gap: 110, aimJitter: 20, layers: 0, bossLayers: 0, revenge: null,        enemyCount: 0.7,  enemyHp: 0.7,  hp: 6, iframes: 130, exp: 0.8, core: 0.5 },
-  { id: 2, name: 'NORMAL',  col: '#6cf', who: '一般',         dens: 0.7,  burst:  0, speed: 0.9,  gap: 90,  aimJitter: 14, layers: 0, bossLayers: 0, revenge: null,        enemyCount: 0.85, enemyHp: 0.85, hp: 5, iframes: 110, exp: 1.0, core: 1.0 },
-  { id: 3, name: 'HARD',    col: '#fd5', who: '弾幕に慣れた人', dens: 1.05, burst: 0, speed: 1.0,  gap: 76,  aimJitter: 9,  layers: 0, bossLayers: 0, revenge: null,        enemyCount: 1.0,  enemyHp: 1.0,  hp: 4, iframes: 95,  exp: 1.2, core: 1.5 },
-  { id: 4, name: 'LUNATIC', col: '#f86', who: '上級者向け・激ムズ', dens: 3.0, burst: 2, speed: 1.25, gap: 46, aimJitter: 2,  layers: 1, bossLayers: 2, revenge: 'aim3',      enemyCount: 1.35, enemyHp: 1.5,  hp: 2, iframes: 60,  exp: 1.7, core: 2.5 },
-  { id: 5, name: 'ABYSS',   col: '#f4f', who: '極限・理不尽の一歩手前', dens: 4.6, burst: 3, speed: 1.4,  gap: 38, aimJitter: 0,  layers: 2, bossLayers: 2, revenge: 'aim5accel', enemyCount: 1.55, enemyHp: 1.9,  hp: 1, iframes: 48,  exp: 2.1, core: 4.0 },
+  { id: 1, name: 'EASY',    col: '#6f8', who: 'STG 初心者',   dens: 0.5, burst: -1, speed: 0.82, gap: 100, aimJitter: 16, layers: 0, bossLayers: 0, revenge: null,        enemyCount: 0.8,  enemyHp: 0.8,  hp: 5, iframes: 120, exp: 0.8, core: 0.5 },
+  { id: 2, name: 'NORMAL',  col: '#6cf', who: '一般',         dens: 0.85,  burst:  0, speed: 0.97,  gap: 80,  aimJitter: 10, layers: 0, bossLayers: 0, revenge: null,        enemyCount: 0.95, enemyHp: 0.95, hp: 4, iframes: 100, exp: 1.0, core: 1.0 },
+  { id: 3, name: 'HARD',    col: '#fd5', who: '弾幕に慣れた人', dens: 1.2, burst: 0, speed: 1.0,  gap: 76,  aimJitter: 9,  layers: 0, bossLayers: 0, revenge: null,        enemyCount: 1.0,  enemyHp: 1.0,  hp: 4, iframes: 95,  exp: 1.2, core: 1.5 },
+  { id: 4, name: 'LUNATIC', col: '#f86', who: '上級者向け・激ムズ', dens: 2.6, burst: 2, speed: 1.2, gap: 52, aimJitter: 2, layers: 1, bossLayers: 2, revenge: 'aim3', enemyCount: 1.2, enemyHp: 1.5, hp: 3, iframes: 72, exp: 1.7, core: 2.5 },
+  { id: 5, name: 'ABYSS',   col: '#f4f', who: '極限・クリアできたら達人', dens: 3.3, burst: 2, speed: 1.25, gap: 46, aimJitter: 0, layers: 1, bossLayers: 2, revenge: 'aim5accel', enemyCount: 1.3, enemyHp: 1.6, hp: 2, iframes: 62, exp: 2.1, core: 4.0 },
 ];
 // 表示・トレーラー用（量と間隔の目安）
 DIFFICULTY.forEach(x => { x.ways = +(Math.pow(x.dens, 0.6)).toFixed(2); x.interval = +(1 / Math.pow(x.dens, 0.4)).toFixed(2); });

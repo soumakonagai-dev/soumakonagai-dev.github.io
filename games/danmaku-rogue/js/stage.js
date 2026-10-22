@@ -4,8 +4,9 @@ const EN = [];
 
 function banner(text, col, t) { run.banner = { text, col: col || '#fff', t: t || 120, max: t || 120 }; }
 
+const ENEMY_HP_SCALE = 2.5, BOSS_HP_SCALE = 1.8;   // 敵が弱すぎたので全体に底上げ。ここを変えるだけで調整できる
 function spawnEnemy(kind, x, y, dir) {
-  const def = ENEMIES[kind], hpMul = D.enemyHp * (1 + 0.15 * (run.stage - 1));
+  const def = ENEMIES[kind], hpMul = D.enemyHp * ENEMY_HP_SCALE * (1 + 0.15 * (run.stage - 1));
   const e = { kind, def, x, y, y0: y, r: def.r, col: def.col, hp: Math.max(1, Math.round(def.hp * hpMul)), t: 0, flash: 0,
     boss: false, enter: 0, dir: dir || 1, vx: 0, vy: 0, state: 0, hold: 0, ems: [], dead: false };
   e.maxhp = e.hp;
@@ -30,7 +31,7 @@ function moveEnemy(e) {
 
 function spawnBoss(isMid) {
   const def = isMid ? MIDBOSSES[run.stage - 1] : BOSSES[run.stage - 1];
-  const hp = Math.round(def.hp * D.enemyHp);
+  const hp = Math.round(def.hp * D.enemyHp * BOSS_HP_SCALE);
   const e = { kind: isMid ? 'mid' : 'boss', def, boss: true, x: W / 2, y: -60, r: isMid ? 22 : 30, col: def.col, hp, maxhp: hp,
     t: 0, flash: 0, enter: 90, phase: 0, phT: 0, tx: W / 2, ems: [], silent: true, dead: false };
   EN.push(e); phaseStart(e);

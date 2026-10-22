@@ -221,10 +221,15 @@ function toggleMute() { save.muted = !save.muted; persist(); Music.setMuted(save
 
 // ----- 入力処理 -----
 const numKey = p => { for (let i = 1; i <= 5; i++) if (p['Digit' + i] || p['Numpad' + i]) return i - 1; return -1; };
+// 敵も敵弾もいない瞬間（ウェーブの切れ目・ボス撃破後を含む）
+function safeMoment() {
+  if (run.state === 'wavedone' || run.state === 'bossdead' || run.state === 'warn') return true;
+  return run.state === 'road' && EN.length === 0 && run.spawnQ.length === 0 && ebCount() === 0 && EL.length === 0;
+}
 function updateRun() {
   run.f++; run.grazeB = Math.min(12, run.grazeB + 8 / 60);   // グレイズ経験値は毎秒8まで（弾の海に居座る稼ぎ防止）
   updatePlayer(); updateWeapons(); updatePlayerBullets(); updateStageFlow(); updateEnemies(); updateEnemyBullets(); updateGems(); updateParticles();
-  if (scene === 'run' && run.pending > 0) openLevelUp();
+  if (scene === 'run' && run.pending > 0 && safeMoment()) openLevelUp();   // 戦闘中は止めない。強化は『敵も敵弾もいない』瞬間か、ウェーブの切れ目に
 }
 function updateScene() {
   const p = pressed, n = numKey(p);
@@ -283,7 +288,7 @@ function updateScene() {
       if (debugOn()) {   // デバッグ用キー: F1 無敵 / F2 ボス戦へ / F3 レベルアップ
         if (p.F1) dbg.inv = !dbg.inv;
         if (p.F2 && (run.state === 'road' || run.state === 'mid')) startWave(5, 'normal');
-        if (p.F3) gainExp(needExp(run.level));
+        if (p.F3) { gainExp(needExp(run.level)); if (run.pending > 0) openLevelUp(); }
       }
       if (!paused) updateRun();
       break;

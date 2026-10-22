@@ -32,14 +32,13 @@ function bindPointer(cv) {
   const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
   cv.addEventListener('pointerdown', e => {
     const [x, y] = pos(e); mouse.x = x; mouse.y = y; mouse.click = true; mouse.down = true;
-    mouse.touch = e.pointerType === 'touch'; if (!mouse.touch) mouse.follow = true;
+    mouse.touch = e.pointerType === 'touch';
     if (e.button === 2) pressed.KeyX = true;   // 右クリック = ボム
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   });
   cv.addEventListener('pointermove', e => {
     const [x, y] = pos(e);
     if (e.pointerType === 'touch') { if (mouse.down) { mouse.dx += x - mouse.x; mouse.dy += y - mouse.y; } }
-    else mouse.follow = true;   // マウスは動かすだけで自機が追従
     mouse.x = x; mouse.y = y;
   });
   const up = () => { mouse.down = false; };
