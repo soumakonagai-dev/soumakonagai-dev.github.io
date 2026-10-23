@@ -8,7 +8,7 @@
     var title = box.dataset.title || ((game && game.querySelector('.game-title').textContent) || '') + ' 解説動画';
     if (src) {
       // サイト内の動画ファイル（videos/xxx.mp4）。data-poster で表紙画像も指定できる
-      var label = box.dataset.label || (box.closest('.trailer') ? 'TRAILER' : '解説動画');
+      var label = box.closest('.trailer') ? 'TRAILER' : '解説動画';
       var p = box.dataset.poster ? ' poster="' + box.dataset.poster + '"' : '';
       box.innerHTML = '<p class="video-label">' + label + '</p><div class="video-frame"><video src="' + src + '" controls playsinline preload="none"' + p + ' title="' + title + '"></video></div>';
       return;
