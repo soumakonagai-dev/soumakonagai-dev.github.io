@@ -34,7 +34,7 @@ function setDiff(v) { diffLv = v; try { localStorage.setItem(DIFF_KEY, String(v)
 const BASE_ENEMY = { hp: 1.25, spd: 1.1, turret: .9 };
 let EN = null;
 function makeEN(lev) {
-  const d = LEVEL_DIFFS[diffLv], h = (lev && lev.hard) || 1;
+  const d = LEVEL_DIFFS[lev && (WORLDS[lev.world] || {}).tutorial ? 0 : diffLv], h = (lev && lev.hard) || 1;
   const hp = BASE_ENEMY.hp * d.hp * h, spd = BASE_ENEMY.spd * d.spd;
   EN = {
     hp, spd, cost: d.cost, boss: d.boss * h,
@@ -55,9 +55,11 @@ function waterHit(e, n) {
   if (e.wAcc < EN.cost) return false;
   e.wAcc -= EN.cost; damage(e, n); return true;
 }
-const grabR = () => GRAB_R * LEVEL_DIFFS[diffLv].reach;
-const followR = () => L.follow * LEVEL_DIFFS[diffLv].reach;
-const maxHold = () => Math.max(10, Math.round(L.maxHold * DIFF.holdScale * LEVEL_DIFFS[diffLv].hold * ((L && L.holdMul) || 1)));
+// いま遊んでいるステージの難易度（チュートリアルはいつも「かんたん」）
+const GD = () => LEVEL_DIFFS[L && (WORLDS[L.world] || {}).tutorial ? 0 : diffLv];
+const grabR = () => GRAB_R * GD().reach;
+const followR = () => L.follow * GD().reach;
+const maxHold = () => Math.max(10, Math.round(L.maxHold * DIFF.holdScale * GD().hold * ((L && L.holdMul) || 1)));
 const GATE_CH = { G: 0, A: 0, B: 1, C: 2 }, SENSOR_CH = { S: 0, '1': 0, '2': 1, '3': 2 }, PLATE_CH = { '4': 0, '5': 1, '6': 2 };
 const GROUP_COL = ['#ffd860', '#ff8ad8', '#8affc0'];
 
@@ -161,14 +163,15 @@ function award(id) {
   const b = BADGES.find(b => b.id === id); if (!b) return;
   badgeGot.add(id); saveBadges(); sfx('key');
   toasts.push({ text: '🏅 バッジ「' + b.name + '」', t: 200 });
-  if (badgeGot.size === BADGES.length) toasts.push({ text: '✨ ぜんぶ集めた！ ステージえらびに何かが…', t: 320 });
+  if (allBadges()) toasts.push({ text: '✨ ぜんぶ集めた！ ステージえらびに何かが…', t: 320 });
 }
 function stat(name, n, limit, id) { // 合計の記録をふやし、limit に達したらバッジ
   if (testMode) return;
   badges.stats[name] = (badges.stats[name] || 0) + n;
   if (badges.stats[name] >= limit) award(id); else if (frame % 30 === 0) saveBadges();
 }
-const allBadges = () => badgeGot.size >= BADGES.length;
+const allBadges = () => BADGES.every(b => badgeGot.has(b.id));
+const badgeCount = () => BADGES.filter(b => badgeGot.has(b.id)).length;
 const isHiddenLevel = i => !!(WORLDS[LEVELS[i].world] || {}).hidden;
 const isTutorialLevel = i => !!(WORLDS[LEVELS[i].world] || {}).tutorial;
 const levelVisible = i => !isTutorialLevel(i) && (!isHiddenLevel(i) || allBadges() || cleared.has(i));
@@ -481,7 +484,7 @@ function loadLevel(i, fresh = true) {
     while (k !== null) { path.unshift([k % TW, k / TW | 0]); k = prev.get(k); }
     fuses.push({ path, prog: 0, out: false, bomb: end[2] });
   }
-  for (let g = 0; g < 3; g++) sensorNeed[g] = Math.floor(sensors.filter(s => s[2] === g).length * 16 * (L.need || .7) * (L.hold ? LEVEL_DIFFS[diffLv].hold : 1));
+  for (let g = 0; g < 3; g++) sensorNeed[g] = Math.floor(sensors.filter(s => s[2] === g).length * 16 * (L.need || .7) * (L.hold ? GD().hold : 1));
   prerenderStatic();
   state = 'play'; stateTimer = 0;
 }
@@ -570,7 +573,7 @@ function touchSpecial(x, y) {
     const nx = x + (d === 0) - (d === 1), ny = y + (d === 2) - (d === 3), t = get(nx, ny);
     if (t === FIRE) { hitFire(nx, ny); return true; }
     if (t === SEED) { feedSeed(nx, ny); return true; }
-    if (t === DRAIN && Math.random() < (L.drainRate || .05) * LEVEL_DIFFS[diffLv].hold) return true;
+    if (t === DRAIN && Math.random() < (L.drainRate || .05) * GD().hold) return true;
   }
   return false;
 }
@@ -892,7 +895,7 @@ function updatePlayer() {
   const dir = (I.right ? 1 : 0) - (I.left ? 1 : 0);
   if (dir) P.face = dir;
   const top = inM ? .45 : P.climb ? 1 : inW ? 1.3 : 1.9;
-  P.vx += (dir * top * LEVEL_DIFFS[diffLv].walk - P.vx) * .3;
+  P.vx += (dir * top * GD().walk - P.vx) * .3;
 
   if (I.down && P.ground && !onVine) P.drop = 14; // すり抜け床から降りる
   if (P.drop > 0) P.drop--;
@@ -2193,7 +2196,7 @@ function draw() {
 
   const w = LEVELS[levelIndex].world;
   text(WORLDS[w].tutorial ? `📘 ${L.name}` : `${WORLDS[w].hidden ? '?' : w + 1}-${levelIndex - WORLDS[w].start + 1}  ${L.name}`, 8, 16, 12, '#fff');
-  { const d = LEVEL_DIFFS[diffLv]; text(d.name, W - 8, 46, 10, d.col, 'right'); }
+  if (!WORLDS[L.world].tutorial) { const d = LEVEL_DIFFS[diffLv]; text(d.name, W - 8, 46, 10, d.col, 'right'); }
   if (keyItems.length || L.keyOnClear) text(`🔑×${keys_}`, 8, 32, 12, '#ffd84a');
   ctx.fillStyle = '#000a'; ctx.fillRect(W - 128, 6, 120, 12);
   ctx.fillStyle = '#4af'; ctx.fillRect(W - 126, 8, 116 * held.length / maxHold(), 8);
@@ -2216,7 +2219,7 @@ function draw() {
     ctx.fillStyle = '#000a'; ctx.fillRect(0, 104, W, 140);
     const last = !(levelIndex + 1 < LEVELS.length && levelVisible(levelIndex + 1));
     text(last ? 'ALL CLEAR!  あそんでくれてありがとう！' : 'STAGE CLEAR!', W / 2, 132, 22, '#ffd860', 'center');
-    { const bits = starBits(levelIndex); for (let k = 0; k < 3; k++) drawStar(W / 2 + (k - 1) * 22, 150, 8, bits & (1 << k), STAR_COLS[k]); text(LEVEL_DIFFS[diffLv].name + ' クリア！', W / 2 + 40, 154, 10, LEVEL_DIFFS[diffLv].col); }
+    if (!WORLDS[L.world].tutorial) { const bits = starBits(levelIndex); for (let k = 0; k < 3; k++) drawStar(W / 2 + (k - 1) * 22, 150, 8, bits & (1 << k), STAR_COLS[k]); text(LEVEL_DIFFS[diffLv].name + ' クリア！', W / 2 + 40, 154, 10, LEVEL_DIFFS[diffLv].col); }
     clearButtons().forEach((b, i) => {
       const on = i === clearChoice;
       ctx.fillStyle = on ? '#3a6ad0' : '#1c2748'; ctx.fillRect(b.x, b.y, b.w, b.h);
@@ -2306,7 +2309,7 @@ function drawTitle() {
       'マウス長押し：水をつかむ（点線の範囲の中だけ）   はなす：水を投げる',
       'R：やりなおし    Esc / P：ポーズ（中断）'];
   lines.forEach((l, i) => text(l, W / 2, 190 + i * 20, 11, '#fff', 'center'));
-  text(`クリア ${clearedVisible()} / ${visibleCount()}    🏅 バッジ ${badgeGot.size} / ${BADGES.length}`, W / 2, 268, 12, '#9cf', 'center');
+  text(`クリア ${clearedVisible()} / ${visibleCount()}    🏅 バッジ ${badgeCount()} / ${BADGES.length}`, W / 2, 268, 12, '#9cf', 'center');
   text('はじめての人は、ステージえらびの「📘 チュートリアル」から！', W / 2, 286, 11, '#bfffe8', 'center');
   if ((frame >> 5) & 1) text(touchMode ? 'タップでスタート' : 'クリックでスタート', W / 2, 312, 16, '#ffd860', 'center');
   text('BGM音源: FluidR3_GM (Frank Wen, CC BY 3.0) / midi-js-soundfonts (Benjamin Gleitzman)', W / 2, H - 6, 8, '#6a7a9a', 'center');
@@ -2383,7 +2386,7 @@ function drawSelect() {
   // 上のボタン
   const bb = BADGE_BTN;
   ctx.fillStyle = hov(bb) ? '#5a4a10' : '#3a3010'; ctx.fillRect(bb.x, bb.y, bb.w, bb.h); ctx.strokeStyle = '#ffd860'; ctx.strokeRect(bb.x + .5, bb.y + .5, bb.w - 1, bb.h - 1);
-  text(`🏅 バッジ ${badgeGot.size}/${BADGES.length}`, bb.x + bb.w / 2, bb.y + 17, 12, '#ffd860', 'center');
+  text(`🏅 バッジ ${badgeCount()}/${BADGES.length}`, bb.x + bb.w / 2, bb.y + 17, 12, '#ffd860', 'center');
   const tb = TUTO_BTN;
   ctx.fillStyle = hov(tb) ? '#1f5a4a' : '#143a30'; ctx.fillRect(tb.x, tb.y, tb.w, tb.h); ctx.strokeStyle = '#7fe8c0'; ctx.strokeRect(tb.x + .5, tb.y + .5, tb.w - 1, tb.h - 1);
   text('📘 チュートリアル', tb.x + tb.w / 2, tb.y + 17, 12, '#bfffe8', 'center');
@@ -2407,7 +2410,7 @@ let badgePage = 0;
 const BADGES_PER_PAGE = 27, badgePages = () => Math.ceil(BADGES.length / BADGES_PER_PAGE);
 function drawBadges() {
   text('🏅 バッジ', W / 2, 26, 18, '#ffd860', 'center');
-  text(`${badgeGot.size} / ${BADGES.length}`, W - 12, 26, 11, '#9cf', 'right');
+  text(`${badgeCount()} / ${BADGES.length}`, W - 12, 26, 11, '#9cf', 'right');
   text(`${badgePage + 1} / ${badgePages()}`, 12, 26, 11, '#9cf');
   const cols = 3, cw = 206, ch = 28, x0 = 10, y0 = 38;
   BADGES.slice(badgePage * BADGES_PER_PAGE, (badgePage + 1) * BADGES_PER_PAGE).forEach((b, i) => {
@@ -2470,8 +2473,15 @@ function drawToasts() {
 }
 
 // ---------------- メインループ ----------------
+let prevState = 'title';
 function update() {
   frame++;
+  // ステージからステージえらびにもどったら、いま遊んでいたワールドが見えるところまでスクロール
+  if (state === 'select' && prevState !== 'select' && prevState !== 'badges' && prevState !== 'title' && L) {
+    const y = L.world * SEL.rowH, view = LIST.bottom - LIST.top - SEL.rowH;
+    if (y < selScrollT || y > selScrollT + view) selScrollT = selScroll = Math.max(0, Math.min(maxScroll(), y - view / 2));
+  }
+  prevState = state;
   if (state === 'title') {
     if (pressed.Click || pressed.Enter || pressed.Space || pressed.Jump) {
       state = 'select'; sfx('select');
