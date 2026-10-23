@@ -172,3 +172,6 @@ a { color: inherit; }
 .bugform select:focus, .bugform textarea:focus, .bugform input:focus { border-color: var(--brand); outline: none; }
 .bugform .play { border: 0; cursor: pointer; --accent: var(--brand); }
 .video-frame video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; object-fit: contain; }
+
+/* ---------- 学校の端末についての注意 ---------- */
+.school-note { background: #ffd34d; color: #3a1c00; font-weight: bold; font-size: 14px; line-height: 1.6; text-align: center; padding: 8px 16px; border-bottom: 2px solid #000; }
