@@ -175,7 +175,7 @@ const HomeBG = (() => {
     if (S) setItems(S.items || {});
     const maxA = S ? S.apd + 3 : 3;
     if (screen === 'title') { todTarget = 0.62; camMode = 'title'; }
-    else if (screen === 'select') { todTarget = 0.04; camMode = 'select'; }
+    else if (screen === 'select' || screen === 'league') { todTarget = 0.04; camMode = 'select'; }
     else if (screen === 'shop') { todTarget = 0.34; camMode = 'shop'; }
     else if (screen === 'skills' || screen === 'items' || screen === 'equip') { todTarget = 0.95; camMode = 'skills'; }
     else if (screen === 'result') { todTarget = extra && extra.win ? 0.34 : 0.66; win = !!(extra && extra.win); }

@@ -6,13 +6,14 @@ const META_KEY = 'sodate-battle-meta-v1';
 const DEBUG = /[?&]debug/.test(location.search);
 
 let S = null;                       // セーブデータ
-let meta = { cleared: false };      // 周回をまたぐ記録
+let meta = { cleared: false, leagues: {} };      // 周回をまたぐ記録
 let scr = 'title';
 let toast = '';
 let sel = null;                     // 対戦前に選んだ相手 { tr, nora }
 let result = null;                  // バトル結果
 let mapArea = 0;
 let selChar = 'leo';
+let selLeague = 'plain';
 let selMode = 'normal';           // normal=100日 / short=10日（1日30回行動）
 
 const $ = s => document.querySelector(s);
@@ -22,7 +23,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 // ---------- セーブ ----------
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* 無視 */ } }
 function loadSave() { try { const j = localStorage.getItem(SAVE_KEY); return j ? JSON.parse(j) : null; } catch (e) { return null; } }
-function loadMeta() { try { const j = localStorage.getItem(META_KEY); if (j) meta = Object.assign(meta, JSON.parse(j)); } catch (e) { /* 無視 */ } }
+function loadMeta() { try { const j = localStorage.getItem(META_KEY); if (j) meta = Object.assign(meta, JSON.parse(j)); } catch (e) { /* 無視 */ } if (!meta.leagues) meta.leagues = {}; if (meta.cleared && !meta.leagues.plain) meta.leagues.plain = true; }
 function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) { /* 無視 */ } }
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 無視 */ } }
 
@@ -41,14 +42,16 @@ function trainBonus(tid) {
 }
 function newGame(charId) {
   const c = CHARS[charId];
+  setLeague(selLeague);
   S = {
+    league: selLeague,
     day: 1, tp: 0, charId, stats: Object.assign({}, c.start), stamina: 100, mood: 2,
     equip: {}, maxDay: selMode === 'short' ? 10 : MAX_DAY, apd: selMode === 'short' ? 30 : 3, actions: selMode === 'short' ? 30 : 3,
     learned: [], equipped: [null, null, null, null], items: {}, defeated: {}, areaUnlocked: 1, protein: false,
   };
   learnCheck(true);
   S.equipped = S.learned.slice(0, 4).concat([null, null, null, null]).slice(0, 4);
-  toast = c.name + ' との' + S.maxDay + '日間がはじまった！\n' + S.maxDay + '日目にチャンピオン戦が待っている。' + (S.apd > 3 ? '\n（1日に30回、行動できる）' : '');
+  toast = c.name + ' との' + S.maxDay + '日間がはじまった！\n' + LEAGUE.icon + ' ' + LEAGUE.name + '：' + S.maxDay + '日目にチャンピオン戦が待っている。' + (S.apd > 3 ? '\n（1日に30回、行動できる）' : '');
   save();
 }
 // 能力が条件に届いた技を覚える
@@ -142,8 +145,8 @@ function startBattle(e) {
   const c = CHARS[S.charId];
   const stats = statsFromTotal(e.type, e.total);
   const pdef = { name: c.name, type: c.type, elem: c.elem, color: c.color, stats: effStats(S), skills: S.equipped.slice(), ult: 'ult_' + S.charId, atkElem: weaponElem(S), powMul: PLAYER_POW, normMul: PLAYER_NORM, hpMul: PLAYER_HP };
-  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: enemySkillIds(e, stats), ai: e.ai, lvl: e.area / 5, line: e.line, boss: e.boss, champion: e.champion, rank: rankOf(e.total) };
-  Battle.start({ player: pdef, enemy: edef, area: e.area, onEnd: r => battleEnd(r, sel) });
+  const edef = { name: e.name, type: e.type, elem: e.elem, color: e.elem === 'none' ? 0x8a6a4a : ELEM[e.elem].c, stats, skills: enemySkillIds(Object.assign({}, e, { area: Math.min(5, e.area + (LEAGUE.skillPlus || 0)) }), stats), ai: e.ai, lvl: Math.min(1, e.area / 5 + (LEAGUE.diff - 1) * 0.3), line: e.line, boss: e.boss, champion: e.champion, rank: rankOf(e.total) };
+  Battle.start({ player: pdef, enemy: edef, area: AREAS[e.area].scene, onEnd: r => battleEnd(r, sel) });
 }
 function battleEnd(r, s) {
   const tr = s.tr, nora = s.nora;
@@ -195,8 +198,11 @@ document.addEventListener('click', e => {
 function act(a, v) {
   switch (a) {
     case 'new': scr = 'select'; break;
-    case 'cont': S = loadSave(); if (S) { S.maxDay = S.maxDay || 100; S.apd = S.apd || 3; S.equip = S.equip || {}; batchN = 1; scr = 'home'; toast = ''; } break;
+    case 'cont': S = loadSave(); if (S) { S.maxDay = S.maxDay || 100; S.apd = S.apd || 3; S.equip = S.equip || {}; S.league = S.league || 'plain'; setLeague(S.league); batchN = 1; scr = 'home'; toast = ''; } break;
     case 'pickchar': selChar = v; break;
+    case 'toleague': scr = 'league'; break;
+    case 'pickleague': selLeague = v; break;
+    case 'toselect': scr = 'select'; break;
     case 'pickmode': selMode = v; break;
     case 'startgame': newGame(selChar); batchN = 1; scr = 'home'; break;
     case 'title': scr = 'title'; break;
@@ -251,9 +257,12 @@ function afterResult() {
 }
 function ending(win) {
   const total = totalOf(S.stats);
-  S.end = { win, day: S.day, total, rank: rankOf(total), score: total + (win ? Math.round((S.maxDay - S.day) / S.maxDay * 3000) + 2000 : 0) };
+  S.end = { win, day: S.day, total, rank: rankOf(total), score: total + (win ? Math.round((S.maxDay - S.day) / S.maxDay * 3000) + 2000 : 0), league: LEAGUE.id, unlockedChars: [], unlockedLeagues: [] };
   if (win) {
-    meta.cleared = true; saveMeta();
+    const beforeC = Object.keys(CHARS).filter(charUnlocked), beforeL = LEAGUES.filter(leagueUnlocked).map(l => l.id);
+    meta.cleared = true; meta.leagues[LEAGUE.id] = true; saveMeta();
+    S.end.unlockedChars = Object.keys(CHARS).filter(id => charUnlocked(id) && !beforeC.includes(id));
+    S.end.unlockedLeagues = LEAGUES.filter(l => leagueUnlocked(l) && !beforeL.includes(l.id)).map(l => l.id);
   }
   scr = 'ending'; render();
 }
@@ -303,11 +312,11 @@ function debug(v) {
 // ---------- 描画 ----------
 function render() {
   const ui = $('#ui');
-  const f = { title: vTitle, select: vSelect, home: vHome, skills: vSkills, items: vItems, equip: vEquip, shop: vShop, map: vMap, versus: vVersus, result: vResult, ending: vEnding }[scr];
+  const f = { title: vTitle, select: vSelect, home: vHome, league: vLeague, skills: vSkills, items: vItems, equip: vEquip, shop: vShop, map: vMap, versus: vVersus, result: vResult, ending: vEnding }[scr];
   ui.innerHTML = f();
   document.querySelectorAll('canvas.radar').forEach(drawRadar);
   Sound.bgm('home');
-  try { HomeBG.set(scr, S, { area: scr === 'versus' ? (sel.tr ? sel.tr.area : sel.nora.area) : mapArea, win: scr === 'result' ? result.win : (S && S.end ? S.end.win : false) }); } catch (e) { /* 背景は飾りなので、失敗しても続ける */ }
+  try { HomeBG.set(scr, S, { area: (AREAS[scr === 'versus' ? (sel.tr ? sel.tr.area : sel.nora.area) : mapArea] || { scene: 0 }).scene, win: scr === 'result' ? result.win : (S && S.end ? S.end.win : false) }); } catch (e) { /* 背景は飾りなので、失敗しても続ける */ }
   const pv = document.getElementById('pv');
   if (pv) { const c = CHARS[S.charId]; Preview.mount(pv, { type: c.type, elem: c.elem, color: c.color }); }
   window.scrollTo(0, 0);
@@ -346,28 +355,48 @@ function vTitle() {
   </div>`;
 }
 function vSelect() {
+  const aptTxt = c => STATS.filter(k => c.apt[k] >= 1.2).map(k => STAT_NAME[k]).join('・') || 'バランス型';
   const cards = Object.keys(CHARS).map(id => {
-    const c = CHARS[id], t = ATK_TYPES[c.type], locked = !c.starter && !meta.cleared;
-    return `<div class="card" style="${selChar === id ? 'border-color:var(--accent)' : ''};${locked ? 'opacity:.45' : ''}">
+    const c = CHARS[id], t = ATK_TYPES[c.type], ok = charUnlocked(id), uc = c.unlock || 'any';
+    return `<div class="card" style="${selChar === id ? 'border-color:var(--accent)' : ''};${ok ? '' : 'opacity:.5'}">
       <h3>${t.icon} ${c.name}</h3>
       <div style="margin:4px 0"><span class="tag">${t.name}</span>${elemTag(c.elem)}</div>
       <p class="sub">${c.desc}</p>
-      <div class="sub">通常攻撃：${t.desc}</div>
-      ${statRows(c.start)}
-      <button class="${selChar === id ? 'main' : ''}" style="width:100%;margin-top:6px" data-a="pickchar" data-v="${id}" ${locked ? 'disabled' : ''}>${locked ? '🔒 クリアで解放' : selChar === id ? '✔ 選択中' : 'このこにする'}</button>
+      <div class="sub">のびやすい：${aptTxt(c)}　通常攻撃：${t.desc}</div>
+      <button class="${selChar === id ? 'main' : ''}" style="width:100%;margin-top:6px" data-a="pickchar" data-v="${id}" ${ok ? '' : 'disabled'}>${ok ? (selChar === id ? '✔ 選択中' : 'このこにする') : '🔒 ' + (uc === 'any' ? 'どれかのリーグをクリアで解放' : LEAGUE_BY_ID[uc].name + 'をクリアで解放')}</button>
     </div>`;
   }).join('');
-  const modes = [['normal', '🌱 じっくり 100日', '1日3回の行動。じっくり育てる標準モード。'], ['short', '⚡ さくっと 10日', '1日30回の行動。時間がない人向けの短いモード（中身は同じ強さ・同じ量の育成）。']]
-    .map(([id, n, d]) => `<button class="card ${selMode === id ? '' : ''}" style="text-align:left;${selMode === id ? 'border-color:var(--accent);background:#2f3870' : ''}" data-a="pickmode" data-v="${id}"><b>${n}</b>${selMode === id ? ' ✔' : ''}<div class="sub">${d}</div></button>`).join('');
-  return `<div class="top"><h2>モードとパートナーをえらぼう</h2><button data-a="title">もどる</button></div>
-    <div class="grid g2" style="margin-bottom:12px">${modes}</div>
+  return `<div class="top"><h2>パートナーをえらぼう</h2><button data-a="title">もどる</button></div>
     <div class="grid g3">${cards}</div>
-    <p class="center"><button class="main" style="font-size:20px;padding:14px 40px" data-a="startgame">${CHARS[selChar].name} と はじめる！</button></p>`;
+    <p class="center"><button class="main" style="font-size:20px;padding:14px 40px" data-a="toleague">${CHARS[selChar].name} で つぎへ（リーグをえらぶ）</button></p>`;
+}
+function vLeague() {
+  const c = CHARS[selChar], t = ATK_TYPES[c.type];
+  const modes = [['normal', '🌱 じっくり 100日', '1日3回の行動。じっくり育てる標準モード。'], ['short', '⚡ さくっと 10日', '1日30回の行動。時間がない人向けの短いモード（中身は同じ強さ・同じ量の育成）。']]
+    .map(([id, n, d]) => `<button class="card" style="text-align:left;${selMode === id ? 'border-color:var(--accent);background:#2f3870' : ''}" data-a="pickmode" data-v="${id}"><b>${n}</b>${selMode === id ? ' ✔' : ''}<div class="sub">${d}</div></button>`).join('');
+  if (!leagueUnlocked(LEAGUE_BY_ID[selLeague])) selLeague = 'plain';
+  const cards = LEAGUES.map(l => {
+    const ok = leagueUnlocked(l), done = meta.leagues && meta.leagues[l.id], stars = '★'.repeat(Math.max(1, Math.round(l.diff * 4 - 3))) + '☆'.repeat(4 - Math.max(1, Math.round(l.diff * 4 - 3)));
+    return `<div class="card" style="${selLeague === l.id ? 'border-color:var(--accent)' : ''};${ok ? '' : 'opacity:.5'}">
+      <h3>${l.icon} ${l.name} ${done ? '<span class="tag" style="color:#7dff9a">クリア済</span>' : ''}</h3>
+      <p class="sub">${l.desc}</p>
+      <div class="sub">むずかしさ <span class="tp">${stars}</span></div>
+      <div class="sub" style="font-size:12px;margin-top:4px">${l.areas.map(a => a.name).join(' → ')}</div>
+      <button class="${selLeague === l.id ? 'main' : ''}" style="width:100%;margin-top:6px" data-a="pickleague" data-v="${l.id}" ${ok ? '' : 'disabled'}>${ok ? (selLeague === l.id ? '✔ 選択中' : 'このリーグにする') : '🔒 ' + leagueUnlockText(l)}</button>
+    </div>`;
+  }).join('');
+  return `<div class="top"><h2>リーグをえらぼう</h2><button data-a="toselect">もどる</button></div>
+    <div class="card" style="margin-bottom:10px"><b>${t.icon} ${c.name}</b> <span class="tag">${t.name}</span>${elemTag(c.elem)}<div class="sub">${c.desc}</div></div>
+    <h3 style="margin:6px 0">あそぶ長さ</h3>
+    <div class="grid g2" style="margin-bottom:12px">${modes}</div>
+    <h3 style="margin:6px 0">リーグ</h3>
+    <div class="grid g3">${cards}</div>
+    <p class="center"><button class="main" style="font-size:20px;padding:14px 40px" data-a="startgame">${LEAGUE_BY_ID[selLeague].icon} ${LEAGUE_BY_ID[selLeague].name} で はじめる！</button></p>`;
 }
 function topBar() {
   const left = S.maxDay - S.day, total = totalOf(S.stats), warnAt = S.maxDay > 20 ? 10 : 2;
   return `<div class="top">
-    <div class="day">${S.day}日目 <small>/ ${S.maxDay}日　</small><small class="${left <= warnAt ? 'warn' : ''}">のこり${left}日${left <= 0 ? '（決戦の日）' : ''}</small></div>
+    <div class="day"><small>${LEAGUE.icon}${LEAGUE.name}　</small>${S.day}日目 <small>/ ${S.maxDay}日　</small><small class="${left <= warnAt ? 'warn' : ''}">のこり${left}日${left <= 0 ? '（決戦の日）' : ''}</small></div>
     <div><span class="tp">TP ${S.tp}</span>　<span class="tag">ランク ${rankOf(total)}</span><span class="tag">合計 ${total}</span></div>
   </div>`;
 }
@@ -405,7 +434,7 @@ function vHome() {
           <b>きょうの行動</b><span class="pips">${pips}</span>
         </div>
         ${fz ? `<p class="warn center" style="font-size:18px">🔥 ${S.maxDay}日目！ 決戦の日だ！${S.apd > 3 ? '<br><small>最後の日。行動が残っていれば、鍛えてから挑める。</small>' : ''}</p>
-          <button class="main" style="width:100%;font-size:18px;margin-bottom:8px" data-a="versus" data-v="regulus">チャンピオンに挑む</button>` : ''}
+          <button class="main" style="width:100%;font-size:18px;margin-bottom:8px" data-a="versus" data-v="${LEAGUE.champion}">チャンピオンに挑む</button>` : ''}
         ${S.apd > 3 ? `<div class="row" style="margin-bottom:8px;align-items:center"><span class="sub">まとめて鍛える：</span>${[1, 5, 10].map(n => `<button class="${batchN === n ? 'main' : ''}" style="padding:4px 12px" data-a="batch" data-v="${n}">×${n}</button>`).join('')}</div>` : ''}
         ${canAct() || !fz ? `<div class="grid g3" style="grid-template-columns:repeat(2,1fr)">${train}
           <button class="tbtn" data-a="rest" ${!canAct() ? 'disabled' : ''}><b>😴 休む</b><span class="sub">スタミナ+${Math.round(60 * costF())}${S.apd > 3 ? '' : ' / 調子が上がることも'}</span></button>
@@ -523,14 +552,16 @@ function vResult() {
     </div></div>`;
 }
 function vEnding() {
-  const e = S.end;
+  const e = S.end, L = LEAGUE_BY_ID[e.league] || LEAGUE;
+  const nc = (e.unlockedChars || []).map(id => CHARS[id].name), nl = (e.unlockedLeagues || []).map(id => LEAGUE_BY_ID[id].name);
   return `<div class="title">
     <div class="big">${e.win ? '🏆' : '🌙'}</div>
-    <h1>${e.win ? 'チャンピオンに勝利！' : '期限が、終わった…'}</h1>
+    <h1>${e.win ? L.name + ' チャンピオンに勝利！' : '期限が、終わった…'}</h1>
     <p>${e.win ? `${e.day}日目に頂点へ。のこり ${S.maxDay - e.day} 日を残してのクリア！` : '今回はここまで。鍛え方を変えて、もう一度挑戦しよう。'}</p>
-    <div class="card" style="min-width:260px"><div>ランク <b class="tp">${e.rank}</b>　合計 <b>${e.total}</b></div>
+    <div class="card" style="min-width:260px"><div>${L.icon} ${L.name}</div><div>ランク <b class="tp">${e.rank}</b>　合計 <b>${e.total}</b></div>
       <div>スコア <b class="tp" style="font-size:28px">${e.score}</b></div></div>
-    ${e.win ? '<p class="tp">🔓 シズクとルイナが仲間に加わった！（次の育成から選べる）</p>' : ''}
+    ${nc.length ? `<p class="tp">🔓 新しい仲間：${nc.join('、')}（次の育成から選べる）</p>` : ''}
+    ${nl.length ? `<p class="tp">🗺️ 新しいリーグ：${nl.join('、')}</p>` : ''}
     <button class="main" data-a="endtitle">タイトルへ</button>
   </div>`;
 }

@@ -346,3 +346,141 @@ SKILLS.push(
   { id: 'elem_guard', name: '属性の守り', type: 'support', elem: 'weapon', power: 0, ct: 14, pat: 'elemguard', self: true, equipDep: true, any: true, learn: { DEF: 100, RES: 100 }, users: ['leo', 'miruru', 'gantetsu', 'shizuku', 'ruina'], desc: '武器の属性の力をまとう。火:攻撃UP／水:回復／土:殻／風:加速／光:回復＋殻／闇:吸血／無:防御UP' },
 );
 SKILLS.forEach(s => { SKILL_BY_ID[s.id] = s; });
+
+// ---------- 仲間モンスターを増やす ----------
+// like = 技のならいかた（このモンスターと同じ技を覚えられる）。unlock = 解放のしかた（'any'＝どれかのリーグをクリア／リーグのid＝そのリーグをクリア）
+Object.assign(CHARS, {
+  gaou: {
+    name: 'ガオウ', type: 'fist', elem: 'fire', color: 0xd0702a, starter: true, like: 'leo', ultName: 'ばくれつラッシュ',
+    desc: '火をまとった大きな拳のゴリラ。攻撃とすばやさが伸びやすい、近距離の連打型。',
+    start: { HP: 45, ATK: 56, DEF: 28, MAG: 8, RES: 18, SPD: 42 }, apt: { HP: 1.1, ATK: 1.35, DEF: 0.9, MAG: 0.55, RES: 0.8, SPD: 1.2 },
+  },
+  seiryu: {
+    name: 'セイリュウ', type: 'sword', elem: 'water', color: 0x3a86e0, unlock: 'water', like: 'leo', ultName: '大瀑布',
+    desc: '水をまとう青いドラゴン。攻撃も魔力もバランスよく伸びる。（みずリーグをクリアで解放）',
+    start: { HP: 40, ATK: 48, DEF: 30, MAG: 30, RES: 30, SPD: 38 }, apt: { HP: 1.0, ATK: 1.2, DEF: 1.0, MAG: 1.1, RES: 1.1, SPD: 1.0 },
+  },
+  tsurara: {
+    name: 'ツララ', type: 'archer', elem: 'water', color: 0x7fd0f0, unlock: 'water', like: 'shizuku', ultName: '氷雨の羽根',
+    desc: '氷のつららをまとう小鳥。すばやさが高く、羽根の溜め撃ちが得意。（みずリーグをクリアで解放）',
+    start: { HP: 28, ATK: 38, DEF: 20, MAG: 35, RES: 30, SPD: 52 }, apt: { HP: 0.85, ATK: 1.1, DEF: 0.8, MAG: 1.1, RES: 1.0, SPD: 1.4 },
+  },
+  raiu: {
+    name: 'ライウ', type: 'mage', elem: 'wind', color: 0xe8d040, unlock: 'sky', like: 'miruru', ultName: '万雷',
+    desc: 'かみなりを呼ぶ黄色いクラゲ。魔力とすばやさが高い。（そらリーグをクリアで解放）',
+    start: { HP: 30, ATK: 14, DEF: 18, MAG: 58, RES: 36, SPD: 44 }, apt: { HP: 0.9, ATK: 0.6, DEF: 0.8, MAG: 1.4, RES: 1.1, SPD: 1.2 },
+  },
+  hoshimaru: {
+    name: 'ホシマル', type: 'mage', elem: 'light', color: 0xf4e8a0, unlock: 'sky', like: 'miruru', ultName: 'スターダスト',
+    desc: '星の光をあやつる白いクラゲ。魔力と精神が伸び、打たれ強い魔法型。（そらリーグをクリアで解放）',
+    start: { HP: 34, ATK: 12, DEF: 24, MAG: 54, RES: 46, SPD: 30 }, apt: { HP: 1.0, ATK: 0.6, DEF: 0.9, MAG: 1.3, RES: 1.4, SPD: 0.9 },
+  },
+  ganmaru: {
+    name: 'ガンマル', type: 'heavy', elem: 'fire', color: 0xb85a30, unlock: 'flame', like: 'gantetsu', ultName: '溶岩崩し',
+    desc: '体に溶岩が流れるゴーレム。体力と攻撃が高い、力まかせの重戦型。（ほのおリーグをクリアで解放）',
+    start: { HP: 58, ATK: 46, DEF: 46, MAG: 10, RES: 22, SPD: 18 }, apt: { HP: 1.3, ATK: 1.3, DEF: 1.2, MAG: 0.5, RES: 0.9, SPD: 0.7 },
+  },
+  kuroko: {
+    name: 'クロコ', type: 'dual', elem: 'dark', color: 0x6a4a9a, unlock: 'night', like: 'ruina', ultName: '闇夜の終焉',
+    desc: '闇に溶ける黒い子ギツネ。爪も魔法も使える上級者向け。（やみリーグをクリアで解放）',
+    start: { HP: 34, ATK: 40, DEF: 20, MAG: 40, RES: 26, SPD: 40 }, apt: { HP: 0.95, ATK: 1.15, DEF: 0.8, MAG: 1.2, RES: 1.0, SPD: 1.1 },
+  },
+  kogane: {
+    name: 'コガネ', type: 'heavy', elem: 'light', color: 0xe0c050, unlock: 'plain', like: 'gantetsu', ultName: '黄金の裁き',
+    desc: '金色にかがやくゴーレム。防御と精神が高く、とても打たれ強い。（はじまりリーグをクリアで解放）',
+    start: { HP: 52, ATK: 36, DEF: 52, MAG: 20, RES: 40, SPD: 22 }, apt: { HP: 1.2, ATK: 1.0, DEF: 1.4, MAG: 0.8, RES: 1.3, SPD: 0.75 },
+  },
+});
+// 新しい仲間にも、同じ型の技と、その属性の必殺技をもたせる
+Object.keys(CHARS).forEach(id => {
+  const c = CHARS[id]; if (!c.like) return;
+  SKILLS.forEach(s => { if (!s.ult && s.users.includes(c.like) && !s.users.includes(id)) s.users.push(id); });
+  const base = SKILL_BY_ID['ult_' + c.like];
+  const u = Object.assign({}, base, { id: 'ult_' + id, name: c.ultName || base.name, elem: c.elem, users: [id] });
+  SKILLS.push(u); SKILL_BY_ID[u.id] = u;
+});
+function charUnlocked(id) {
+  const c = CHARS[id]; if (c.starter) return true;
+  const u = c.unlock || 'any';
+  if (u === 'any') return !!meta.cleared;
+  return !!(meta.leagues && meta.leagues[u]);
+}
+
+// ---------- リーグ ----------
+const AREAS_PLAIN = AREAS.map((a, i) => Object.assign({}, a, { scene: i }));
+const TRAINERS_PLAIN = TRAINERS.slice();
+const NAME_PRE = {
+  fire: ['ヒノ', 'ホノオ', 'マグマ', 'カエン', 'ヒダマ', 'ゴウカ'], water: ['ミズ', 'アクア', 'シズク', 'ナミ', 'ツララ', 'スイ'],
+  earth: ['イワ', 'ツチ', 'ガレキ', 'ダイチ', 'ドロ', 'ガン'], wind: ['カゼ', 'ハヤテ', 'ソラ', 'ツムジ', 'アラシ', 'フウ'],
+  light: ['ヒカリ', 'ホシ', 'コガネ', 'ルミ', 'セイ', 'キラ'], dark: ['ヤミ', 'カゲ', 'クロ', 'ヨル', 'ノロイ', 'ムゲン'],
+  none: ['ノラ', 'ドン', 'モリ', 'ゴロ', 'ポコ', 'タロ'],
+};
+const NAME_SUF = {
+  sword: ['トカゲ', 'リザード', 'ドラコ', 'ワーム'], fist: ['ゴリラ', 'ゴリ', 'モンキー', 'ボクサー'], mage: ['クラゲ', 'ウィスプ', 'ピクシー', 'フラワー'],
+  archer: ['ドリ', 'バード', 'タカ', 'ツバメ'], heavy: ['ゴーレム', 'ロック', 'ガメ', 'タイタン'], dual: ['ギツネ', 'キツネ', 'フォックス', 'ルナ'],
+};
+const CRIES = {
+  sword: ['ガウッ！ ガウッ！', 'シャーッ！ かかってこい！', 'グルル……いくぞ！'], fist: ['ウホッ！ ウホホッ！', 'ウホォッ！ ぶんなぐる！', 'ドコドコ……やるか？'],
+  mage: ['ぷるん！ くらえー！', 'ふわり……ここは とおさない。', 'ぷかぷか……えいっ！'], archer: ['ピィーッ！ ねらいうち！', 'ピヨヨッ！ とんでけー！', 'ケーン！ そらから くるぞ！'],
+  heavy: ['ゴゴゴ……ここは とおさない。', 'グオオ！ おしつぶす！', 'ボォォ……かたいぞ。'], dual: ['コン！ いっしょに たたかおう！', 'コォン……ついてこられるかな？', 'コン！ ばけるのは とくいだよ！'],
+};
+function genLeague(d) {
+  let h = 7; for (const ch of d.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const BASE = [340, 860, 1400, 2000, 2600];
+  const trainers = [], areas = [], used = new Set();
+  const mkName = (type, elem) => { for (let i = 0; i < 20; i++) { const n = pick(NAME_PRE[elem] || NAME_PRE.none) + pick(NAME_SUF[type]); if (!used.has(n)) { used.add(n); return n; } } return pick(NAME_PRE.none) + pick(NAME_SUF[type]) + (used.size % 9 + 1); };
+  d.areas.forEach((a, ai) => {
+    const totals = [];
+    if (ai < 5) {
+      for (let k = 0; k < 4; k++) {
+        const boss = k === 3, type = pick(d.types), elem = pick(d.elems), nm = mkName(type, elem);
+        const total = Math.round(BASE[ai] * d.diff * (boss ? 1.18 : 1 + k * 0.05));
+        totals.push(total);
+        trainers.push({
+          id: d.id + '_' + ai + '_' + k, name: boss ? a.name + 'のぬし ' + nm : nm, area: ai, type, elem, total,
+          ai: boss ? 'counter' : pick(['rush', 'careful', 'counter', 'rush']), tp: Math.round(total * 0.17 * (boss ? 1.8 : 1)), boss: boss || undefined, line: pick(CRIES[type]),
+        });
+      }
+    } else {
+      const total = Math.round(3800 * d.diff * 1.05); totals.push(total);
+      const nm = mkName(d.champ.type, d.champ.elem);
+      trainers.push({ id: d.id + '_champ', name: d.champ.title + ' ' + nm, area: 5, type: d.champ.type, elem: d.champ.elem, total, ai: 'counter', tp: Math.round(1000 * d.diff), boss: true, champion: true, line: 'よく来たな。全力で、かかってこい！' });
+    }
+    areas.push({ name: a.name, scene: a.scene, theme: AREAS_PLAIN[a.scene].theme, rank: ai === 5 ? 'S' : rankOf(Math.min(...totals)) + '〜' + rankOf(Math.max(...totals)) });
+  });
+  return { areas, trainers, champion: d.id + '_champ' };
+}
+const LEAGUES = [
+  { id: 'plain', name: 'はじまりリーグ', icon: '🌱', desc: '草原から塔へ。はじめてのリーグ。', diff: 1.0, skillPlus: 0, unlock: null, areas: AREAS_PLAIN, trainers: TRAINERS_PLAIN, champion: 'regulus' },
+  Object.assign({ id: 'flame', name: 'ほのおリーグ', icon: '🔥', desc: '火山と砂漠をめぐる、炎の使い手たちのリーグ。重くて力強い敵が多い。', diff: 1.25, skillPlus: 1, unlock: null }, genLeague({
+    id: 'flame', diff: 1.25, areas: [{ name: '火山のふもと', scene: 1 }, { name: '溶岩洞くつ', scene: 1 }, { name: '灼熱の砂漠', scene: 3 }, { name: '炎の峡谷', scene: 3 }, { name: '煉獄の神殿', scene: 4 }, { name: '炎帝の塔', scene: 5 }],
+    elems: ['fire', 'fire', 'fire', 'earth', 'none'], types: ['heavy', 'sword', 'fist', 'mage', 'dual'], champ: { type: 'heavy', elem: 'fire', title: '炎帝' } })),
+  Object.assign({ id: 'water', name: 'みずリーグ', icon: '🌊', desc: '森と湖と海をめぐる、水の使い手たちのリーグ。魔法や遠距離の敵が多い。', diff: 1.15, skillPlus: 1, unlock: null }, genLeague({
+    id: 'water', diff: 1.15, areas: [{ name: '水辺の森', scene: 0 }, { name: '水晶の湖', scene: 2 }, { name: '氷の洞くつ', scene: 2 }, { name: '嵐の海岸', scene: 3 }, { name: '月影の神殿', scene: 4 }, { name: '深海の塔', scene: 5 }],
+    elems: ['water', 'water', 'water', 'wind', 'none'], types: ['mage', 'archer', 'dual', 'heavy', 'sword'], champ: { type: 'mage', elem: 'water', title: '海王' } })),
+  Object.assign({ id: 'sky', name: 'そらリーグ', icon: '🌤️', desc: '風と光の舞台をめぐる、空のリーグ。すばやい敵が多く、むずかしい。（どれかのリーグをクリアで解放）', diff: 1.45, skillPlus: 1, unlock: 'any' }, genLeague({
+    id: 'sky', diff: 1.45, areas: [{ name: '風の草原', scene: 0 }, { name: '雲の峡谷', scene: 3 }, { name: '天空の島', scene: 2 }, { name: '雷鳴の峡谷', scene: 3 }, { name: '星の神殿', scene: 4 }, { name: '天空の塔', scene: 5 }],
+    elems: ['wind', 'wind', 'wind', 'light', 'none'], types: ['archer', 'dual', 'mage', 'sword', 'fist'], champ: { type: 'archer', elem: 'wind', title: '天帝' } })),
+  Object.assign({ id: 'night', name: 'やみリーグ', icon: '🌙', desc: '呪いと闇の世界をめぐる、いちばん難しいリーグ。（そらリーグをクリアで解放）', diff: 1.7, skillPlus: 2, unlock: 'sky' }, genLeague({
+    id: 'night', diff: 1.7, areas: [{ name: '月夜の森', scene: 4 }, { name: '呪いの沼', scene: 2 }, { name: '荒れ地', scene: 1 }, { name: '黒い峡谷', scene: 3 }, { name: '闇の神殿', scene: 4 }, { name: '終焉の塔', scene: 5 }],
+    elems: ['dark', 'dark', 'dark', 'dark', 'none'], types: ['dual', 'mage', 'fist', 'sword', 'heavy'], champ: { type: 'dual', elem: 'dark', title: '闇王' } })),
+];
+const LEAGUE_BY_ID = {};
+LEAGUES.forEach(l => { LEAGUE_BY_ID[l.id] = l; });
+let LEAGUE = LEAGUES[0];
+// 選んだリーグの、エリア・敵の一覧に切りかえる（AREAS / TRAINERS はいまのリーグのもの）
+function setLeague(id) {
+  LEAGUE = LEAGUE_BY_ID[id] || LEAGUES[0];
+  AREAS.length = 0; AREAS.push(...LEAGUE.areas);
+  TRAINERS.length = 0; TRAINERS.push(...LEAGUE.trainers);
+  for (const k in TRAINER_BY_ID) delete TRAINER_BY_ID[k];
+  TRAINERS.forEach(t => { TRAINER_BY_ID[t.id] = t; });
+}
+function leagueUnlocked(l) {
+  if (!l.unlock) return true;
+  if (l.unlock === 'any') return !!meta.cleared;
+  return !!(meta.leagues && meta.leagues[l.unlock]);
+}
+function leagueUnlockText(l) { return l.unlock === 'any' ? 'どれかのリーグをクリアで解放' : (LEAGUE_BY_ID[l.unlock].name + 'をクリアで解放'); }
