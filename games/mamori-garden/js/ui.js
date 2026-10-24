@@ -66,12 +66,12 @@ function button(id, x, y, w, h, label, o, onClick, onDown) {
     lines.forEach((ln, i) => txt(c, ln, x + w / 2, y + h / 2 + fs * .35 + (i - (lines.length - 1) / 2) * (fs + 2), fs, dis ? '#a09cb8' : (o.col || '#fff'), 'center', { oc: dis ? 'rgba(20,10,40,.6)' : 'rgba(70,20,60,.75)', maxW: w - 12 }));
   }
   if (o.draw) o.draw(c, x, y, w, h);
-  if (o.glow && !dis) glowRing(c, x, y, w, h, o.r || 10, o.glow === true ? '#fff2a0' : o.glow);
+  if (o.glow && !dis) pulseRing(c, x, y, w, h, o.r || 10, o.glow === true ? '#fff2a0' : o.glow);
   c.restore();
   APP.btns.push({ id, x, y, w, h, onClick: dis ? null : onClick, onDown: dis ? null : onDown, dis });
 }
 // 「いま押せる」ことを知らせる、ゆっくり脈打つ光のふち
-function glowRing(c, x, y, w, h, r, col) {
+function pulseRing(c, x, y, w, h, r, col) {
   const p = .5 + .5 * Math.sin(APP.t * 4.2); c.save();
   if (!PERF.lite) { c.shadowColor = col; c.shadowBlur = 6 + p * 12; }
   rr(c, x - 1, y - 1, w + 2, h + 2, r + 1); c.strokeStyle = rgba(col, .45 + p * .5); c.lineWidth = 2 + p * 1.6; c.stroke(); c.restore();
@@ -347,7 +347,7 @@ function drawPanel(c, B) {
     unitCard(c, key, r.x, r.y, r.w, r.h, { cost: sc, sel: active, small: true, lv: (G.mlv[key] || 1) > 1 ? G.mlv[key] : 0 });
     c.restore();
     if (!afford) { rr(c, r.x, r.y, r.w, r.h, 10); c.fillStyle = 'rgba(10,6,30,.35)'; c.fill(); }
-    else if (!active && G.units.length < unitCap() && !G.over) glowRing(c, r.x, r.y, r.w, r.h, 10, ELEM[d.elem].c);
+    else if (!active && G.units.length < unitCap() && !G.over) pulseRing(c, r.x, r.y, r.w, r.h, 10, ELEM[d.elem].c);
     txt(c, '' + (i + 1), r.x + r.w - 10, r.y + 16, 11, 'rgba(255,255,255,.5)', 'right', { outline: false });
     const cnt = G.units.filter(u => u.key === key).length; if (cnt) txt(c, '×' + cnt, r.x + r.w - 8, r.y + 31, 11, COL.dim, 'right', { outline: false });
     const lv = G.lv[key] || 0, uc = upgradeCost(key), ur = R.upg[i];
