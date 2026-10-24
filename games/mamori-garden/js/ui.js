@@ -356,6 +356,7 @@ function drawPanel(c, B) {
   }
   // ライフと、★いくつで召喚するか（召喚欄の右上）
   { const bw = 44, bh = 24, x0 = L.W - 3 * bw - 16, y0 = L.panelY - 30; if (!B.sumStar) B.sumStar = 1;
+    button('auto', x0 - 106 - 74, y0, 68, bh, APP.autoSkip ? 'オート：ON' : 'オート：OFF', { glow: false, style: APP.autoSkip ? 'good' : 'ghost', size: 11, r: 8 }, () => { APP.autoSkip = !APP.autoSkip; try { localStorage.setItem('mamori-auto', APP.autoSkip ? '1' : '0'); } catch (e) { } toast(APP.autoSkip ? '待ち時間を自動でスキップします' : '自動スキップをやめました'); });
     panelBox(c, x0 - 106, y0, 98, bh, { r: 10, fill: 'rgba(24,18,64,.82)', stroke: G.life <= 5 ? '#ff7a7a' : 'rgba(255,233,168,.5)', lw: 1.2, shine: false }); heartIcon(c, x0 - 92, y0 + 12, 8); txt(c, 'ライフ ' + Math.ceil(G.life), x0 - 78, y0 + 17, 12, G.life <= 5 ? '#ff9a9a' : '#fff', 'left', { outline: false });
     for (let k = 1; k <= 3; k++) button('ss' + k, x0 + (k - 1) * (bw + 4), y0, bw, bh, '★' + k, { style: B.sumStar === k ? 'gold' : 'ghost', size: 13, col: B.sumStar === k ? '#5a3000' : '#ffe9a8', r: 8 }, () => { B.sumStar = k; B.placing = null; if (k > 1) toast('★' + k + 'をいきなり召喚（お値段 ×' + SUM_MUL[k - 1] + '）'); }); }
   // 情報
@@ -419,6 +420,8 @@ function battleOver(c) {   // ユニットの上（ゴースト）
 function drawBattle(c, dt) {
   const B = APP.b, L = G.L;
   G.holdPrep = !!(B.placing || (B.dragU && B.dragU.moved));
+  // 待ち時間の自動スキップ：準備が始まって少し（置く・合成する余裕）たったら、自動で次のウェーブへ
+  if (G.phase === 'prep' && !G.over && !B.paused && APP.autoSkip && !G.holdPrep) { B.autoT = (B.autoT || 0) + dt; if (B.autoT > 1.6) { B.autoT = 0; skipPrep(); } } else if (G.phase !== 'prep') B.autoT = 0;
   const hooks = { sel: B.sel, dragUnit: B.dragU && B.dragU.moved ? B.dragU.u : null, guide: battleGuide, over: battleOver };
   drawWorld(c, G, dt, hooks);
   drawOverlayFx(c, L);
@@ -440,6 +443,7 @@ function drawBattle(c, dt) {
     button('p_resume', x, y, bw, 52, '再開', { style: 'primary', size: 20 }, () => { B.paused = false; });
     button('p_q', x, y + 222, bw, 40, PERF.lite ? 'がぞう：かんたん（かるい）' : 'がぞう：きれい', { style: 'ghost', size: 14 }, () => perfSet(!PERF.lite));
     button('p_dn', x, y + 268, bw, 40, FXCFG.num ? 'ダメージ表示：ON' : 'ダメージ表示：OFF', { style: 'ghost', size: 14 }, () => dnSetOn(!FXCFG.num));
+    button('p_auto', x, y + 314, bw, 40, APP.autoSkip ? '自動スキップ：ON' : '自動スキップ：OFF', { style: 'ghost', size: 14 }, () => { APP.autoSkip = !APP.autoSkip; try { localStorage.setItem('mamori-auto', APP.autoSkip ? '1' : '0'); } catch (e) { } });
     button('p_fx', x, y + 176, bw, 40, FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF（かるくなる）', { style: 'ghost', size: 14 }, () => { fxSetOn(!FXCFG.on); });
     button('p_retry', x, y + 64, bw, 46, 'はじめからやり直す', { style: 'ghost', size: 16 }, () => startBattle());
     button('p_quit', x, y + 120, bw, 46, 'マップへもどる', { style: 'ghost', size: 16 }, () => { bgmIntensity(0); go('map'); });

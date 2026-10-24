@@ -17,7 +17,7 @@ function updateBattle(dt) {
 }
 function frame(now) {
   if (PERF.lite && lastT && now - lastT < 28) { requestAnimationFrame(frame); return; }   // かんたん表示は30fpsまで（熱とカクつきをおさえる）
-  const dt = Math.min(0.05, (now - lastT) / 1000 || 0.016); lastT = now;
+  const dt = clamp((now - lastT) / 1000 || 0.016, 0, 0.05); lastT = now;
   APP.t += dt; ART.t = APP.t; if (typeof perfWatch === 'function') perfWatch(dt);
   const c = APP.c; c.setTransform(ART.sc, 0, 0, ART.sc, 0, 0); c.clearRect(0, 0, APP.L.W, APP.L.H);
   APP.btns.length = 0;
@@ -38,6 +38,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 window.addEventListener('load', () => {
+  try { APP.autoSkip = localStorage.getItem('mamori-auto') === '1'; } catch (e) { }
   APP.cv = document.getElementById('c'); APP.save = loadSave();
   if (APP.save.form.length !== 5 || APP.save.form.some(k => !UNITS[k] || !isUnlocked(k))) APP.save.form = ['sword', 'archer', 'mage', 'ice', 'siren'];
   APP.diff = APP.save.lastDiff != null ? clamp(APP.save.lastDiff, 0, DIFFS.length - 1) : DEFAULT_DIFF; APP.mapPage = 0; APP.fpage = 0; APP.cpage = 0;

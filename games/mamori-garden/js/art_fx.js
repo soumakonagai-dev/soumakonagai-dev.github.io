@@ -138,12 +138,12 @@ function drawFx(c, S, t) {
     c.restore();
   }
   if (FXCFG.on) drawMisc(c, S, t);
-  for (const g of FXS.goos) { const k = g.t / g.max, a = k < .12 ? k / .12 : 1 - (k - .12) / .88; c.save(); gooBlob(c, g.x, g.y, g.R * (.7 + .3 * Math.min(1, k * 5)), t, g.col, a, g.x * .01, .7); c.restore(); }
-  for (const w of FXS.waters) { const k = w.t / w.max; for (let i = 0; i < 2; i++) { const kk = clamp(k * 1.3 - i * .25, 0, 1); if (kk <= 0 || kk >= 1) continue; c.strokeStyle = rgba(i ? '#e8fbff' : w.col, (1 - kk) * .9); c.lineWidth = 3 * (1 - kk) + 1; c.beginPath(); c.ellipse(w.x, w.y, w.R * (.2 + easeOut(kk) * .9), w.R * (.2 + easeOut(kk) * .9) * .5, 0, 0, TAU); c.stroke(); }
+  for (const g of FXS.goos) { const k = clamp(g.t / g.max, 0, 1), a = k < .12 ? k / .12 : 1 - (k - .12) / .88; c.save(); gooBlob(c, g.x, g.y, g.R * (.7 + .3 * Math.min(1, k * 5)), t, g.col, a, g.x * .01, .7); c.restore(); }
+  for (const w of FXS.waters) { const k = clamp(w.t / w.max, 0, 1); for (let i = 0; i < 2; i++) { const kk = clamp(k * 1.3 - i * .25, 0, 1); if (kk <= 0 || kk >= 1) continue; c.strokeStyle = rgba(i ? '#e8fbff' : w.col, (1 - kk) * .9); c.lineWidth = 3 * (1 - kk) + 1; c.beginPath(); c.ellipse(w.x, w.y, w.R * (.2 + easeOut(kk) * .9), w.R * (.2 + easeOut(kk) * .9) * .5, 0, 0, TAU); c.stroke(); }
     c.fillStyle = rgba(w.col, (1 - k) * .3); c.beginPath(); c.ellipse(w.x, w.y, w.R * (.2 + easeOut(k) * .8), w.R * (.2 + easeOut(k) * .8) * .5, 0, 0, TAU); c.fill();
     const h = Math.sin(Math.min(1, k * 2.2) * Math.PI) * S * .8 * (1 - k * .5); c.strokeStyle = rgba('#bfeaff', (1 - k) * .85); c.lineWidth = 2; for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(w.x + i * 4, w.y); c.quadraticCurveTo(w.x + i * 7, w.y - h, w.x + i * 10 * (1 + k), w.y - h * .3); c.stroke(); } }
   for (const w of FXS.tornados) {
-    const k = w.t / w.max, a = k < .15 ? k / .15 : k > .75 ? (1 - k) / .25 : 1, H = S * 2.3 * (.45 + .55 * Math.min(1, k * 4)); c.save(); c.translate(w.x, w.y); c.lineCap = 'round';
+    const k = clamp(w.t / w.max, 0, 1), a = k < .15 ? k / .15 : k > .75 ? (1 - k) / .25 : 1, H = S * 2.3 * (.45 + .55 * Math.min(1, k * 4)); c.save(); c.translate(w.x, w.y); c.lineCap = 'round';
     c.fillStyle = 'rgba(0,0,0,' + .15 * a + ')'; c.beginPath(); c.ellipse(0, 2, w.R * .5, w.R * .16, 0, 0, TAU); c.fill();
     for (let i = 0; i < 16; i++) { const f = i / 15, yy = -f * H, rx = w.R * (.16 + f * .5), ox = Math.sin(t * 8 + f * 5) * rx * .25, ang = t * 11 + f * 4; c.strokeStyle = 'rgba(' + Math.round(225 - f * 40) + ',255,' + Math.round(236 - f * 24) + ',' + a * (.9 - f * .55) + ')'; c.lineWidth = 2.4 - f * .8; c.beginPath(); c.ellipse(ox, yy, rx, rx * .3, 0, ang, ang + 4.4); c.stroke(); }
     for (let i = 0; i < 7; i++) { const f = ((i / 7 + t * .9) % 1), rx = w.R * (.2 + f * .55), ang = t * 9 + i * 2.1; c.fillStyle = i % 2 ? 'rgba(150,235,140,' + a + ')' : 'rgba(255,255,255,' + a + ')'; c.beginPath(); c.ellipse(Math.cos(ang) * rx, -f * H + Math.sin(ang) * rx * .3, 2.4, 1.3, ang, 0, TAU); c.fill(); }

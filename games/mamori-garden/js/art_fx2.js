@@ -103,7 +103,7 @@ Object.assign(FX, {
 const TAU2 = Math.PI * 2;
 function drawMisc(c, S, t) {
   for (const m of FXS.misc) {
-    const k = m.t / m.max, a = 1 - k, x = m.x, y = m.y, R = m.R; c.save();
+    const k = clamp(m.t / m.max, 0, 1), a = 1 - k, x = m.x, y = m.y, R = m.R; c.save();
     switch (m.k) {
       case 'boom': { c.globalCompositeOperation = 'lighter'; const r = R * (.3 + easeOut(k) * .8); const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(255,240,170,${a})`); g.addColorStop(.5, `rgba(255,140,50,${a * .7})`); g.addColorStop(1, 'rgba(255,60,20,0)'); c.fillStyle = g; c.beginPath(); c.ellipse(x, y, r, r * .8, 0, 0, TAU); c.fill(); break; }
       case 'flame': { c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 5; i++) { const ph = t * 6 + i * 1.7 + m.s, fx0 = x + Math.cos(i * 1.3 + m.s) * R * .5, fy0 = y + Math.sin(i * 2.1) * R * .25 - k * 8; c.fillStyle = `rgba(255,${130 + i * 20},50,${.7 * a})`; c.beginPath(); c.ellipse(fx0, fy0 - Math.abs(Math.sin(ph)) * 5, 2.6, 5.5 + Math.sin(ph) * 2, 0, 0, TAU); c.fill(); } break; }
