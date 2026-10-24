@@ -1,4 +1,6 @@
 'use strict';
+// canvas の save/restore の深さを数える（描画の途中でエラーが起きても、あとで元にもどせるように）
+(function () { if (typeof CanvasRenderingContext2D === 'undefined') return; const P = CanvasRenderingContext2D.prototype, sv = P.save, rs = P.restore; P.save = function () { this.__d = (this.__d || 0) + 1; return sv.call(this); }; P.restore = function () { if (this.__d > 0) this.__d--; return rs.call(this); }; })();
 // ===== 起動・メインループ =====
 let lastT = 0;
 function updateBattle(dt) {
@@ -19,7 +21,8 @@ function frame(now) {
   if (PERF.lite && lastT && now - lastT < 28) { requestAnimationFrame(frame); return; }   // かんたん表示は30fpsまで（熱とカクつきをおさえる）
   const dt = clamp((now - lastT) / 1000 || 0.016, 0, 0.05); lastT = now;
   APP.t += dt; ART.t = APP.t; if (typeof perfWatch === 'function') perfWatch(dt);
-  const c = APP.c; c.setTransform(ART.sc, 0, 0, ART.sc, 0, 0); c.clearRect(0, 0, APP.L.W, APP.L.H);
+  const c = APP.c; { let g = 0; while (c.__d > 0 && g++ < 200) c.restore(); }   // 前のコマで閉じ忘れた状態を元にもどす
+  c.setTransform(ART.sc, 0, 0, ART.sc, 0, 0); c.clearRect(0, 0, APP.L.W, APP.L.H);
   APP.btns.length = 0;
   try {
     if (AUD.ctx && !AUD.timer && !AUD.muted) bgmStart(APP.screen === 'battle' ? STAGES[APP.stage].theme : 'meadow');
@@ -77,6 +80,7 @@ function perfWatch(dt) {
 const ERRS = { n: 0, t0: 0, last: '' };
 function frameError(err) {
   const txt = String(err && err.stack || err); ERRS.last = txt; console.error(err);
+  try { const c = APP.c; let g = 0; while (c && c.__d > 0 && g++ < 200) c.restore(); if (c) c.setTransform(ART.sc, 0, 0, ART.sc, 0, 0); } catch (e) { }   // 描画の途中で止まっても、はみ出し制限（クリップ）が残らないようにする
   try { localStorage.setItem('mamori-lasterr', txt.slice(0, 600)); } catch (e) { }
   const d = document.getElementById('err');
   if (d && typeof DEBUG !== 'undefined' && DEBUG.on) { d.style.display = 'block'; d.textContent = txt; }

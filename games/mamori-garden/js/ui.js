@@ -436,17 +436,34 @@ function drawBattle(c, dt) {
     txt(c, '② 同じ仲間・同じ★どうしを重ねると合成してランクUP！', x + 16, y + 70, L.portrait ? 13 : 15, '#fff', 'left', { outline: false });
   }
   if (APP.toast) { const tt = APP.toast; tt.t += dt; const a = tt.t < 0.15 ? tt.t / 0.15 : tt.t > 1.4 ? Math.max(0, 1 - (tt.t - 1.4) / 0.4) : 1; if (tt.t > 1.8) APP.toast = null; else { c.save(); c.globalAlpha = a; const w = Math.min(L.W - 40, 400); panelBox(c, (L.W - w) / 2, L.panelY - 54, w, 38, { r: 19, fill: 'rgba(60,20,70,.92)', shine: false }); txt(c, tt.s, L.W / 2, L.panelY - 29, 14, '#fff', 'center', { outline: false }); c.restore(); } }
-  // ポーズ
+  // ポーズ：項目が多いので、枠の中でスクロールできる
   if (B.paused && !G.over) {
-    modal(c, L, 'ポーズ中');
-    const bw = 240, x = L.W / 2 - bw / 2, y = L.H / 2 - 70;
-    button('p_resume', x, y, bw, 52, '再開', { style: 'primary', size: 20 }, () => { B.paused = false; });
-    button('p_q', x, y + 222, bw, 40, PERF.lite ? 'がぞう：かんたん（かるい）' : 'がぞう：きれい', { style: 'ghost', size: 14 }, () => perfSet(!PERF.lite));
-    button('p_dn', x, y + 268, bw, 40, FXCFG.num ? 'ダメージ表示：ON' : 'ダメージ表示：OFF', { style: 'ghost', size: 14 }, () => dnSetOn(!FXCFG.num));
-    button('p_auto', x, y + 314, bw, 40, APP.autoSkip ? '自動スキップ：ON' : '自動スキップ：OFF', { style: 'ghost', size: 14 }, () => { APP.autoSkip = !APP.autoSkip; try { localStorage.setItem('mamori-auto', APP.autoSkip ? '1' : '0'); } catch (e) { } });
-    button('p_fx', x, y + 176, bw, 40, FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF（かるくなる）', { style: 'ghost', size: 14 }, () => { fxSetOn(!FXCFG.on); });
-    button('p_retry', x, y + 64, bw, 46, 'はじめからやり直す', { style: 'ghost', size: 16 }, () => startBattle());
-    button('p_quit', x, y + 120, bw, 46, 'マップへもどる', { style: 'ghost', size: 16 }, () => { bgmIntensity(0); go('map'); });
+    const items = [
+      ['p_resume', '再開', { style: 'primary', size: 20 }, 52, () => { B.paused = false; }],
+      ['p_retry', 'はじめからやり直す', { style: 'ghost', size: 16 }, 46, () => startBattle()],
+      ['p_quit', 'マップへもどる', { style: 'ghost', size: 16 }, 46, () => { bgmIntensity(0); go('map'); }],
+      ['p_auto', APP.autoSkip ? '自動スキップ：ON' : '自動スキップ：OFF', { style: APP.autoSkip ? 'good' : 'ghost', size: 14 }, 40, () => { APP.autoSkip = !APP.autoSkip; try { localStorage.setItem('mamori-auto', APP.autoSkip ? '1' : '0'); } catch (e) { } }],
+      ['p_fx', FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF（かるくなる）', { style: 'ghost', size: 14 }, 40, () => { fxSetOn(!FXCFG.on); }],
+      ['p_dn', FXCFG.num ? 'ダメージ表示：ON' : 'ダメージ表示：OFF', { style: 'ghost', size: 14 }, 40, () => dnSetOn(!FXCFG.num)],
+      ['p_q', PERF.lite ? 'がぞう：かんたん（かるい）' : 'がぞう：きれい', { style: 'ghost', size: 14 }, 40, () => perfSet(!PERF.lite)],
+    ];
+    const gap = 10, bw = 240, contentH = items.reduce((t, it) => t + it[3] + gap, 0) - gap;
+    const pw = 300, ph = Math.min(L.H - 40, contentH + 96), px = (L.W - pw) / 2, py = (L.H - ph) / 2, vy = py + 62, vh = ph - 62 - 16;
+    c.fillStyle = 'rgba(8,4,28,.7)'; c.fillRect(0, 0, L.W, L.H);
+    button('modal_bg', 0, 0, L.W, L.H, '', { style: 'ghost', transparent: true }, null);
+    panelBox(c, px, py, pw, ph, { r: 18 });
+    txt(c, 'ポーズ中', L.W / 2, py + 40, 26, '#fff8e8', 'center');
+    const maxS = Math.max(0, contentH - vh); B.pScroll = clamp(B.pScroll || 0, 0, maxS);
+    c.save(); c.beginPath(); c.rect(px + 4, vy, pw - 8, vh); c.clip();
+    let yy = vy - B.pScroll;
+    for (const [id, label, o, h, fn] of items) { if (yy + h > vy && yy < vy + vh) button(id, L.W / 2 - bw / 2, yy, bw, h, label, o, fn); yy += h + gap; }
+    c.restore();
+    if (maxS > 0) {   // スクロールバーと、まだ続きがあるしるし
+      const bh2 = Math.max(24, vh * vh / contentH), by2 = vy + (vh - bh2) * (B.pScroll / maxS);
+      rr(c, px + pw - 12, by2, 5, bh2, 2.5); c.fillStyle = 'rgba(255,233,168,.7)'; c.fill();
+      if (B.pScroll < maxS - 4) txt(c, '▼ スクロール', L.W / 2, py + ph - 3, 11, '#ffe9a8', 'center', { outline: false });
+    }
+    B.pView = { x: px, y: py, w: pw, h: ph };
   }
   if (G.over) drawResult(c, B, dt);
 }
@@ -498,19 +515,22 @@ function setupInput() {
     APP.down = null; if (APP.screen === 'battle') battleDown(x, y);
   });
   cv.addEventListener('pointermove', e => {
-    const [x, y] = logicalPos(e); APP.ptr.x = x; APP.ptr.y = y; if (APP.ptr.down) APP.ptr.moved = Math.hypot(x - APP.ptr.sx, y - APP.ptr.sy);
+    const [x, y] = logicalPos(e); const ly = APP.ptr.y; APP.ptr.x = x; APP.ptr.y = y; if (APP.ptr.down) APP.ptr.moved = Math.hypot(x - APP.ptr.sx, y - APP.ptr.sy);
+    if (APP.ptr.down && APP.screen === 'battle' && APP.b && APP.b.paused && APP.b.pView && APP.ptr.moved > 6) APP.b.pScroll = (APP.b.pScroll || 0) - (y - ly);
     const b = hitBtn(x, y); APP.hover = b && !b.dis && (b.onClick || b.onDown) ? b.id : null;
     if (APP.screen === 'battle') battleMove(x, y);
   });
   const up = e => {
     const [x, y] = logicalPos(e); APP.ptr.x = x; APP.ptr.y = y; const d = APP.down; APP.down = null; APP.ptr.down = false;
     const hit = d && inRect(d, x, y);
-    if (hit && d.onClick) { SFX.play('click'); d.onClick(); }
+    const dragged = APP.screen === 'battle' && APP.b && APP.b.paused && APP.ptr.moved > 12;   // ポーズ中のスクロール操作はクリックにしない
+    if (hit && d.onClick && !dragged) { SFX.play('click'); d.onClick(); }
     if (APP.screen === 'battle') battleUp(x, y, hit ? d : null);
   };
   cv.addEventListener('pointerup', e => { e.preventDefault(); up(e); });
   cv.addEventListener('pointercancel', () => { APP.down = null; APP.ptr.down = false; if (APP.b) { APP.b.dragU = null; if (APP.b.placing && !APP.b.placing.sticky) APP.b.placing = null; } });
   cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('wheel', e => { if (APP.screen === 'battle' && APP.b && APP.b.paused) { e.preventDefault(); APP.b.pScroll = (APP.b.pScroll || 0) + e.deltaY * 0.6 / (APP.css || 1); } }, { passive: false });
   addEventListener('keydown', e => {
     audioInit(); const B = APP.b; if (APP.screen !== 'battle' || !B) return;
     if (G.over) return;
