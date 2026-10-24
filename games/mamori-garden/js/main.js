@@ -93,3 +93,18 @@ function frameError(err) {
 }
 window.addEventListener('error', e => { try { localStorage.setItem('mamori-lasterr', String(e.message || e).slice(0, 600)); } catch (x) { } });
 window.addEventListener('unhandledrejection', e => { try { localStorage.setItem('mamori-lasterr', String(e.reason && e.reason.stack || e.reason).slice(0, 600)); } catch (x) { } });
+
+// ===== 新しい版が公開されたら、自動で入れかえる（古い版が残って直したはずの不具合が出るのを防ぐ） =====
+const CUR_VER = (document.querySelector('meta[name=app-version]') || {}).content || 'dev';
+let needReload = false;
+async function checkVersion() {
+  if (CUR_VER === 'dev') return;
+  try {
+    const r = await fetch(location.pathname + '?_=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
+    const m = (await r.text()).match(/name="app-version" content="([0-9a-f]+)"/);
+    if (m && m[1] !== CUR_VER) { needReload = true; if (APP.screen !== 'battle') location.reload(); else toast('新しい版があります（バトルが終わると自動で更新）'); }
+  } catch (e) { }
+}
+setTimeout(checkVersion, 4000); setInterval(checkVersion, 120000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+setInterval(() => { if (needReload && APP.screen !== 'battle') location.reload(); }, 3000);
