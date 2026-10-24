@@ -362,16 +362,6 @@ const BGM = {
     mel: [69,0,72,0, 76,0,0,74,  72,0,0,0, 69,0,0,0,  71,0,74,0, 79,0,77,76,  76,0,0,0, 75,0,0,0,
           81,0,79,76, 0,74,72,0,  77,0,76,72, 0,0,69,0,  74,0,72,0, 71,0,69,68, 69,0,0,0, 0,0,0,0],
     bas: [45,52,45,52, 41,48,41,48, 43,50,43,50, 40,47,40,44, 45,52,45,52, 41,48,41,48, 38,45,38,45, 40,47,40,47] },
-  // ジャングル：ペンタトニックで、木琴のような音と太鼓
-  jungle: { step: 0.18, lead: 'triangle', lv: 0.16, dr: 'k.hk.sh.',
-    mel: [72,0,74,76, 79,0,76,74,  72,0,69,0, 72,74,76,0,  79,0,81,79, 76,74,72,0,  74,76,74,72, 69,0,72,0,
-          84,0,81,79, 76,0,79,81,  84,81,79,76, 74,0,72,0,  69,72,74,76, 79,76,74,72, 72,0,0,0, 0,0,0,0],
-    bas: [48,0,55,48, 45,0,52,45, 41,0,48,41, 43,0,50,43, 48,0,55,48, 45,0,52,45, 41,0,48,41, 43,50,43,0] },
-  // 火山：D マイナーで重く走る
-  volcano: { step: 0.16, lead: 'sawtooth', lv: 0.05, dr: 'k.skk.s.', bass8: true,
-    mel: [62,0,62,65, 69,0,67,65,  64,0,0,61, 62,0,0,0,  62,0,65,69, 74,0,72,70,  69,0,67,65, 64,0,61,0,
-          74,0,72,74, 77,0,76,74,  72,0,70,69, 70,0,0,0,  69,70,72,74, 76,74,72,70, 69,0,0,0, 61,0,0,0],
-    bas: [38,38,45,38, 38,38,45,38, 34,34,41,34, 33,33,40,33, 38,38,45,38, 34,34,41,34, 31,31,38,31, 33,40,45,40] },
   // 城・とりで：C マイナーで走る
   castle: { step: 0.14, lead: 'sawtooth', lv: 0.05, dr: 'k.hsk.hs', bass8: true,
     mel: [72,0,72,75, 0,74,72,70,  72,0,0,68, 0,0,0,0,  70,0,70,74, 0,72,70,68,  67,0,71,0, 74,0,77,0,
@@ -489,11 +479,6 @@ const THEMES = {
   castle: { label: 'FORTRESS', soil: ['#4a3434', '#684848', '#281a1a'], top: ['#8a6a5c', '#b88e7c', '#523a32'],
             rock: ['#6a4e4a', '#9a7670', '#3a2826'], stone: ['#5e4a4a', '#8e7070', '#2e2222'], pillar: 'torch', sky: ['#1a0606', '#4a1410'],
             ceiling: true, lava: true },
-  jungle: { label: 'JUNGLE', soil: ['#5a3a22', '#7a5434', '#3a2414'], top: ['#2e9a3e', '#7ae07a', '#145a22'],
-            rock: ['#7a8a6a', '#aabc98', '#3e4a34'], stone: ['#6a7a5a', '#9aac88', '#3a4630'], pillar: 'vine', sky: ['#2a7a5a', '#c8f0b0'] },
-  volcano: { label: 'VOLCANO', soil: ['#3a2a2a', '#5a4040', '#1a1212'], top: ['#5a3a30', '#e07a3a', '#2a1a14'],
-            rock: ['#5a4a48', '#8a7470', '#2a2020'], stone: ['#4a3e3e', '#7a6a68', '#221a1a'], pillar: 'basalt', sky: ['#2a0a08', '#d0582a'],
-            lava: true },
 };
 
 function mkTile(fn, w = T, h = T) {
@@ -550,8 +535,6 @@ function pillarTiles(kind) {
     icicle:   ['#a8d8f8', '#eef8ff', '#5a8ac0', '#ffffff', '#88c0ec'],   // 氷柱
     mushroom: ['#e8d8c8', '#fff4e8', '#a08c7a', '#c84a6a', '#ff8aa8'],   // 大きなキノコ
     torch:    ['#6a5050', '#9a7a74', '#3a2828', '#ffb030', '#ff6020'],   // かがり火の柱
-    vine:     ['#6a4a2a', '#9a7044', '#3a2410', '#2ea83e', '#8ae07a'],   // ツタのからまった大木
-    basalt:   ['#3a3438', '#6a6068', '#1a161a', '#ff7a30', '#ffc070'],   // 火山の玄武岩（ひびが光る）
   }[kind];
   const [B, L, D, A, A2] = P;
   const top = (left) => mkTile(r => {
@@ -562,16 +545,6 @@ function pillarTiles(kind) {
     }
     if (kind === 'torch') {      // 上で火がゆれる石の台
       r(0, 6, 16, 10, D); r(1, 7, 14, 8, B); r(1, 7, 14, 2, L);
-      return;
-    }
-    if (kind === 'vine') {       // 葉っぱのしげった木のてっぺん
-      r(0, 3, 16, 13, A); r(0, 3, 16, 2, A2); r(left ? 3 : 6, 6, 3, 2, A2); r(left ? 9 : 1, 10, 3, 2, A2);
-      r(0, 14, 16, 2, '#145a22');
-      return;
-    }
-    if (kind === 'basalt') {     // 六角の柱頭
-      r(0, 2, 16, 14, D); r(left ? 1 : 0, 3, 15, 12, B); r(left ? 1 : 0, 3, 15, 2, L);
-      r(left ? 9 : 4, 7, 1, 6, A); r(left ? 10 : 5, 9, 1, 2, A2);
       return;
     }
     r(0, 0, 16, 16, D); r(left ? 1 : 0, 1, 15, 14, B);
@@ -592,8 +565,6 @@ function pillarTiles(kind) {
     if (kind === 'stump') { r(left ? 5 : 2, 0, 1, 16, D); r(left ? 10 : 7, 2, 1, 10, D); r(left ? 4 : 0, 0, 1, 16, L); }
     else if (kind === 'crystal' || kind === 'icicle') { r(left ? 5 : 1, 0, 2, 16, A); r(left ? 11 : 7, 0, 1, 16, L); }
     else if (kind === 'column') { r(left ? 6 : 2, 0, 2, 16, D); r(left ? 11 : 7, 0, 1, 16, L); }
-    else if (kind === 'vine') { r(left ? 5 : 1, 0, 2, 16, D); r(left ? 3 : 4, 2, 9, 2, A); r(left ? 6 : 0, 9, 8, 2, A); r(left ? 10 : 6, 4, 2, 5, A); }
-    else if (kind === 'basalt') { r(left ? 7 : 3, 0, 1, 16, D); r(left ? 4 : 0, 0, 1, 16, L); r(left ? 9 : 5, 4, 1, 7, A); }
     else r(left ? 4 : 0, 0, 2, 16, L);
   });
   return { 7: top(true), 8: top(false), 9: body(true), 10: body(false) };
@@ -857,32 +828,6 @@ function drawBackground(cx, theme) {
       }
       ridge(cx, 0.6, 250, 40, '#200a0a', 6);
       break;
-    case 'jungle':
-      skyGradient(THEMES.jungle.sky);
-      treeline(cx, 0.15, 150, 22, '#4a9a6a', false, 4);
-      treeline(cx, 0.35, 185, 28, '#2e7a4a', false, 9);
-      ctx.fillStyle = 'rgba(230,255,230,.18)'; ctx.fillRect(0, 150 + Math.sin(frame / 90) * 4, W, 24);   // ただよう霧
-      for (let i = Math.floor(cx * 0.6 / 40) - 1; i <= Math.floor((cx * 0.6 + W) / 40) + 1; i++) {   // たれ下がるツタ
-        const x = i * 40 + hash(i) % 20 - cx * 0.6, len = 30 + hash(i * 7) % 70;
-        ctx.fillStyle = '#1e6a32'; ctx.fillRect(x, 0, 2, len);
-        ctx.fillStyle = '#3aa84a'; ctx.fillRect(x - 2, len - 4, 6, 4); ctx.fillRect(x + 1, len * 0.5, 4, 3);
-      }
-      treeline(cx, 0.55, 215, 34, '#1a5a32', false, 13);
-      break;
-    case 'volcano':
-      skyGradient(THEMES.volcano.sky);
-      peaks(cx, 0.15, 210, 150, '#3a1a14', '#ff6a20', 5);   // 火をふく火山（てっぺんが赤く光る）
-      for (let i = 0; i < 5; i++) {   // もくもくの煙
-        let x = ((hash(i * 19) % 400) - cx * 0.2 + frame * 0.1) % 400; if (x < 0) x += 400;
-        ctx.fillStyle = 'rgba(40,20,20,.35)'; ctx.beginPath(); ctx.ellipse(x, 40 + hash(i) % 40, 40, 14, 0, 0, Math.PI * 2); ctx.fill();
-      }
-      ridge(cx, 0.4, 235, 50, '#1e0e0c', 8);
-      for (let i = 0; i < 30; i++) {  // 舞い上がる火の粉
-        let x = ((hash(i * 23) % W) - cx * 0.5 + Math.sin(frame / 30 + i) * 6) % W; if (x < 0) x += W;
-        const y = H - ((frame * (0.5 + (i % 3) * 0.3) + hash(i * 3) % H) % H);
-        ctx.fillStyle = i % 3 ? '#ff9a40' : '#ffe080'; ctx.fillRect(x, y, 1, 1 + (i % 2));
-      }
-      break;
     default: // field
       skyGradient(THEMES.field.sky);
       softClouds(cx, 0.1, 160, 'rgba(255,255,255,.75)', 24, 50);
@@ -908,8 +853,8 @@ function drawBackground(cx, theme) {
 const MON = {
   slime: {
     name: 'スライム', req: 2, exp: 1, col: ['#8e44ad', '#c39bd3', '#4a235a'], speed: 0.5,
-    form: { walk: 1.3, run: 2.1, jump: 4.6 },
-    abilities: ['敵を踏むと、ふつうよりずっと高くはねる', '足とジャンプは少し弱い'],
+    form: { walk: 1.2, run: 2.0, jump: 4.4 },
+    abilities: ['体当たりで敵をたおせる', '敵や弾にふれてもダメージなし', '足は少しおそい'],
   },
   hopper: {
     name: 'ホッパー', req: 3, exp: 2, col: ['#16a085', '#7be0c8', '#0b5345'], speed: 0.6, hop: true,
@@ -961,39 +906,8 @@ const MON = {
     form: { walk: 1.5, run: 2.5, jump: 5.0 },
     abilities: ['敵や弾にふれてもダメージなし', 'ジャンプ長押しでふわふわ浮く'],
   },
-  magnet: {
-    name: 'ジシャクン', req: 4, exp: 2, col: ['#d83a3a', '#ff9a8a', '#7a1010'], speed: 0.5, magnet: true,
-    form: { walk: 1.5, run: 2.5, jump: 5.0 },
-    abilities: ['近くのほしのかけらを自動で吸いよせる', 'ハートの実も引きよせる'],
-  },
-  snail: {
-    name: 'デンデン', req: 13, exp: 4, col: ['#c89838', '#f0d890', '#6a4a10'], speed: 0.3, snail: true, skill: 'spin',
-    form: { walk: 1.1, run: 1.8, jump: 4.4 },
-    abilities: ['V でカラにこもってスピン（敵をたおしながら進む）', 'スピン中はダメージを受けない・壁ではね返る'],
-  },
-  mole: {
-    name: 'モグラン', req: 15, exp: 4, col: ['#8a5a3a', '#c08a64', '#4a2a14'], speed: 0.6, mole: true,
-    form: { walk: 1.5, run: 2.4, jump: 4.8 },
-    abilities: ['地面で ↓ 長押しで地中にもぐる', 'もぐっている間は無敵（ゆっくり移動）'],
-  },
-  jelly: {
-    name: 'プルルン', req: 16, exp: 5, col: ['#5ad0e8', '#c8f6ff', '#1a6a8a'], fly: 'jelly',
-    form: { walk: 1.4, run: 2.3, jump: 5.0 },
-    abilities: ['トゲ床にふれてもダメージなし', 'マグマに落ちても、ぽよんとはね返る'],
-  },
-  knight: {
-    name: 'ヨロイン', req: 18, exp: 6, col: ['#8a9ab8', '#d8e0f0', '#3a4660'], speed: 0.4, shield: true,
-    form: { walk: 1.3, run: 2.2, jump: 4.8 },
-    abilities: ['正面からの体当たりと弾を盾でふせぐ', '盾で押しかえした敵はたおせる'],
-  },
-  thunder: {
-    name: 'ピリリン', req: 20, exp: 6, col: ['#8a90a8', '#c8d0e0', '#4a5068'], fly: 'thunder', skill: 'thunder',
-    form: { walk: 1.6, run: 2.7, jump: 5.2 },
-    abilities: ['V で画面じゅうの敵にカミナリ', 'カミナリは変身ゲージをたくさん使う'],
-  },
 };
-// 図鑑はキャプチャー条件の LV 順
-const MON_ORDER = Object.keys(MON).sort((a, b) => MON[a].req - MON[b].req);
+const MON_ORDER = Object.keys(MON);
 
 // 敵としての注意書き（図鑑用）
 const MON_NOTE = {
@@ -1001,9 +915,6 @@ const MON_NOTE = {
   bird: 'まっすぐ飛んでいく。', cat: '近づくと急にダッシュしてくる。', bomb: '踏むとしばらくして爆発！はなれよう。',
   ice: '速く転がってくる。', fire: '火の玉をはいてくる。', spiky: 'トゲがあって踏めない！',
   rock: 'かたい。2回踏まないとたおせない。', ghost: '見ている間は止まる。背中を向けると近づいてくる。',
-  magnet: '近くにいると、少しずつ引きよせられる。', snail: 'ときどきカラにこもる。こもっている間は踏んでもはね返される。',
-  mole: '地中を進んで、近くで飛び出してくる。もぐっている間は手が出せない。', jelly: 'ふわふわ上下しながら近づいてくる。',
-  knight: '正面からのキャプチャー玉や火の玉を盾ではじく。後ろか上からねらおう。', thunder: '真上に来るとカミナリを落としてくる。',
 };
 
 function newEnemy(s) {
@@ -1012,8 +923,7 @@ function newEnemy(s) {
     type: s.type, x: s.x * T + 1, y: s.y * T + 2, w: 14, h: 14, vx: 0, vy: 0, dir: -1,
     onGround: false, active: false, state: 'walk', t: 0,
     hopT: 40 + (s.x % 5) * 10, hp: m.hp || 1, cool: 60 + (s.x * 37) % 90, dash: 0, ph: 0, base: s.y * T + 2,
-    tame: !!s.tame, gate: s.gate ?? -1,   // tame: 岩の壁の番人（LVに関係なく捕まえられる）
-    shell: false, under: false,          // デンデンのカラ・モグランの地中
+    tame: !!s.tame, gate: s.gate ?? -1,   // tame: レンガの壁の番人（LVに関係なく捕まえられる）
   };
 }
 
@@ -1115,61 +1025,6 @@ const SPRITES = {
     else { r(5, 6, 2, 3, '#202040'); r(9, 6, 2, 3, '#202040'); r(7, 10, 2, 2, '#c03050'); }
     r(0, 8, 2, 2, B); r(14, 8, 2, 2, B);
   },
-  magnet(r, B, L, D, a) {          // U字の磁石の体
-    r(2, 3, 4, 9, B); r(10, 3, 4, 9, B); r(2, 10, 12, 5, B);
-    r(2, 3, 4, 3, '#e0e0ea'); r(10, 3, 4, 3, '#e0e0ea'); r(2, 3, 1, 3, '#ffffff'); r(10, 3, 1, 3, '#ffffff');
-    r(3, 10, 10, 1, L);
-    r(4, 11, 3, 3, '#fff'); r(9, 11, 3, 3, '#fff'); r(5, 12, 2, 2, '#111'); r(10, 12, 2, 2, '#111');
-    r(3, 15, 3, 1, D); r(10, 15, 3, 1, D);
-    if (a) { r(7, 1, 2, 1, '#ffe060'); r(6, 2, 1, 1, '#ffe060'); r(9, 0, 1, 1, '#ffe060'); }
-  },
-  snail(r, B, L, D, a, o) {        // カタツムリ（o.shell のときはカラだけ）
-    if (!o.shell) {
-      const G = '#9ac860', GD = '#5a8a30';
-      r(1, 11, 14, 4, G); r(0, 12, 2, 3, G); r(12, 7, 3, 5, G);
-      r(12, 3, 1, 4, G); r(14, 3, 1, 4, G); r(12, 2, 1, 1, '#111'); r(14, 2, 1, 1, '#111');
-      r(13, 9, 1, 1, '#111'); r(2, 15, 12, 1, GD);
-    }
-    const sy = o.shell ? 3 : 0;
-    r(4, 3 + sy, 8, 9, B); r(3, 5 + sy, 10, 6, B);
-    r(6, 5 + sy, 4, 1, D); r(9, 6 + sy, 1, 3, D); r(6, 8 + sy, 3, 1, D); r(6, 6 + sy, 1, 2, D);
-    r(5, 4 + sy, 3, 1, L);
-  },
-  mole(r, B, L, D, a, o) {         // モグラ（o.under のときは土の山だけ）
-    if (o.under) {
-      r(3, 12, 10, 4, '#6a4a2a'); r(5, 11, 6, 1, '#6a4a2a'); r(6, 12, 2, 1, '#a07a50'); r(10, 13, 1, 1, '#a07a50');
-      if (a) r(9, 9, 3, 2, '#ff8aa0');
-      return;
-    }
-    r(5, 5, 6, 1, B); r(3, 6, 10, 9, B); r(2, 8, 12, 6, B);
-    r(5, 10, 6, 4, L);
-    r(12, 8, 3, 2, '#ff8aa0');
-    r(9, 7, 1, 1, '#111'); r(11, 7, 1, 1, '#111');
-    r(13, 11, 2, 2, '#f0e0c0'); r(1, 11, 2, 2, '#f0e0c0');
-    r(4, 15, 3, 1, D); r(9, 15, 3, 1, D);
-  },
-  jelly(r, B, L, D, a) {           // クラゲ
-    r(4, 2, 8, 2, B); r(2, 4, 12, 6, B); r(3, 10, 10, 1, B);
-    r(4, 4, 3, 2, L);
-    r(5, 6, 2, 2, '#1a3a4a'); r(9, 6, 2, 2, '#1a3a4a'); r(7, 8, 2, 1, '#1a3a4a');
-    const k = a ? 1 : 0;
-    r(3, 11, 1, 4 - k, D); r(6, 11, 1, 4 + k, D); r(9, 11, 1, 4 - k, D); r(12, 11, 1, 4 + k, D);
-  },
-  knight(r, B, L, D, a, o) {       // よろいの騎士（右手に盾）
-    r(6, 0, 4, 1, '#e84a4a');
-    r(4, 1, 8, 6, B); r(3, 3, 10, 4, B); r(4, 1, 2, 4, L);
-    r(5, 4, 7, 1, '#1a1a2a'); r(9, 4, 1, 1, o.hat ? '#7dffb0' : '#ff5050');
-    r(4, 7, 8, 6, B); r(5, 7, 2, 4, L);
-    r(11, 6, 4, 8, '#a07a20'); r(12, 7, 2, 6, '#f0d070'); r(12, 9, 2, 2, '#c84a4a');
-    if (a) { r(4, 13, 3, 3, D); r(8, 13, 3, 2, D); } else { r(4, 13, 3, 2, D); r(8, 13, 3, 3, D); }
-  },
-  thunder(r, B, L, D, a, o) {      // カミナリぐも
-    r(5, 2, 5, 2, B); r(10, 3, 3, 2, B); r(3, 4, 10, 6, B); r(2, 6, 12, 4, B);
-    r(4, 5, 3, 2, L);
-    r(5, 6, 2, 2, '#2a2a3a'); r(9, 6, 2, 2, '#2a2a3a');
-    if (!o.hat) { r(4, 5, 3, 1, D); r(9, 5, 3, 1, D); }
-    if (a) { r(7, 10, 2, 2, '#fff070'); r(6, 12, 2, 2, '#fff070'); r(7, 14, 2, 2, '#fff070'); }
-  },
 };
 
 // 共通の描画関数
@@ -1201,57 +1056,30 @@ function drawMonster(x, y, type, dir, o = {}) {
 // gates : レンガ（ひびわれ岩）の壁と番人   rooms : 謎解き部屋
 const STAGES = [
   { name: 'はじまりの丘', theme: 'field', build: buildStage1 },
-  { name: 'ひかりゴケの洞くつ', theme: 'cave', seed: 102, len: 170, diff: 0.1, pool: { slime: 3, hopper: 2, bat: 2 },
-    feats: ['spring', 'crumble'], gates: ['bomb'], rooms: ['portal'] },
-  { name: 'みどりのジャングル', theme: 'jungle', seed: 111, len: 180, diff: 0.13, pool: { slime: 2, magnet: 3, hopper: 2, bat: 1 },
-    feats: ['lift', 'spring'], rooms: ['onoff'] },
-  { name: 'くもの上の小道', theme: 'sky', seed: 103, len: 180, diff: 0.17, pool: { hopper: 2, bat: 2, bird: 3, magnet: 1 },
-    feats: ['lift', 'fan', 'spring'] },
-  { name: 'すなかぜの遺跡', theme: 'desert', seed: 201, len: 190, diff: 0.2, pool: { slime: 2, cat: 3, bird: 1, bomb: 2, magnet: 1 },
+  { name: 'ひかりゴケの洞くつ', theme: 'cave', seed: 102, len: 190, diff: 0.15, pool: { slime: 3, hopper: 2, bat: 2 },
+    feats: ['spring', 'crumble', 'lift'], gates: ['bomb'], rooms: ['portal'] },
+  { name: 'くもの上の小道', theme: 'sky', seed: 103, len: 180, diff: 0.2, pool: { hopper: 2, bat: 2, bird: 3 },
+    feats: ['lift', 'fan', 'spring'], rooms: ['onoff'] },
+  { name: 'すなかぜの遺跡', theme: 'desert', seed: 201, len: 200, diff: 0.3, pool: { slime: 2, cat: 3, bird: 1, bomb: 2 },
     feats: ['conveyor', 'spikes', 'spring'], gates: ['rock'], rooms: ['crate'] },
-  { name: 'きのこの森', theme: 'night', seed: 121, len: 190, diff: 0.23, pool: { slime: 2, bat: 2, cat: 2, hopper: 2, bomb: 1 },
-    feats: ['spring', 'crumble', 'lift'], rooms: ['rune'] },
-  { name: 'すいしょうの鉱山', theme: 'cave', seed: 202, len: 200, diff: 0.27, pool: { bat: 2, cat: 2, spiky: 3, slime: 1 },
-    feats: ['lift', 'crumble', 'conveyor'], gates: ['bomb'], rooms: ['key'] },
-  { name: 'ほのおのとりで', theme: 'castle', seed: 203, len: 190, diff: 0.3, pool: { fire: 3, spiky: 2, bomb: 2, bat: 1 },
-    feats: ['spikes', 'conveyor', 'lift'], gates: ['rock'], rooms: ['onoff'] },
-  { name: 'けむりの火山', theme: 'volcano', seed: 131, len: 200, diff: 0.33, pool: { fire: 3, bomb: 2, bat: 2, cat: 1 },
-    feats: ['spikes', 'lift', 'fan'], rooms: ['portal'] },
-  { name: 'こおりの谷', theme: 'snow', seed: 301, len: 200, diff: 0.37, pool: { ice: 3, slime: 1, cat: 2, bird: 2 },
-    feats: ['crumble', 'spring', 'fan'], gates: ['rock'], rooms: ['crate'] },
-  { name: 'かぜの浮島', theme: 'sky', seed: 302, len: 200, diff: 0.4, pool: { bird: 2, bat: 2, rock: 2, ice: 1, hopper: 1 },
-    feats: ['fan', 'lift', 'crumble'], rooms: ['key'] },
-  { name: 'ほしふる森', theme: 'night', seed: 303, len: 210, diff: 0.43, pool: { ghost: 3, bat: 2, cat: 2, bomb: 1 },
+  { name: 'すいしょうの鉱山', theme: 'cave', seed: 202, len: 200, diff: 0.35, pool: { bat: 2, cat: 2, spiky: 3, slime: 1 },
+    feats: ['lift', 'crumble', 'conveyor'], gates: ['bomb', 'rock'], rooms: ['key'] },
+  { name: 'ほのおのとりで', theme: 'castle', seed: 203, len: 190, diff: 0.4, pool: { fire: 3, spiky: 2, bomb: 2, bat: 1 },
+    feats: ['spikes', 'conveyor', 'lift'], gates: ['bomb'], rooms: ['rune', 'onoff'] },
+  { name: 'こおりの谷', theme: 'snow', seed: 301, len: 210, diff: 0.45, pool: { ice: 3, slime: 1, cat: 2, bird: 2 },
+    feats: ['crumble', 'spring', 'fan'], gates: ['rock'], rooms: ['crate', 'portal'] },
+  { name: 'かぜの浮島', theme: 'sky', seed: 302, len: 200, diff: 0.5, pool: { bird: 2, bat: 2, rock: 2, ice: 1, hopper: 1 },
+    feats: ['fan', 'lift', 'crumble'], rooms: ['key', 'onoff'] },
+  { name: 'ほしふる森', theme: 'night', seed: 303, len: 210, diff: 0.55, pool: { ghost: 3, bat: 2, cat: 2, bomb: 1 },
     feats: ['spring', 'spikes', 'lift'], gates: ['bomb'], rooms: ['rune', 'portal'] },
-  { name: 'つる草の大木', theme: 'jungle', seed: 141, len: 210, diff: 0.46, pool: { snail: 3, magnet: 2, hopper: 2, spiky: 1, rock: 1 },
-    feats: ['spring', 'conveyor', 'crumble'], gates: ['rock'], rooms: ['onoff'] },
-  { name: 'ゆうぐれ平原', theme: 'field', seed: 401, len: 210, diff: 0.5, pool: { rock: 2, spiky: 2, hopper: 2, cat: 2, fire: 1, snail: 1 },
+  { name: 'ゆうぐれ平原', theme: 'field', seed: 401, len: 220, diff: 0.6, pool: { rock: 2, spiky: 2, hopper: 2, cat: 2, fire: 1 },
     feats: ['conveyor', 'fan', 'spikes'], gates: ['rock'], rooms: ['crate', 'key'] },
-  { name: 'しずかな地底湖', theme: 'cave', seed: 402, len: 210, diff: 0.53, pool: { mole: 3, ghost: 2, rock: 2, spiky: 1, bat: 2 },
-    feats: ['lift', 'crumble', 'spikes'], gates: ['bomb'], rooms: ['onoff', 'rune'] },
-  { name: 'さばくのピラミッド', theme: 'desert', seed: 211, len: 220, diff: 0.56, pool: { mole: 2, snail: 2, cat: 2, bomb: 2, fire: 1 },
-    feats: ['conveyor', 'spikes', 'lift'], gates: ['rock', 'bomb'], rooms: ['rune', 'key'] },
-  { name: 'ふぶきの山', theme: 'snow', seed: 403, len: 220, diff: 0.6, pool: { ice: 2, ghost: 2, bird: 2, rock: 2, cat: 2 },
-    feats: ['spring', 'crumble', 'fan'], gates: ['bomb'], rooms: ['portal', 'crate'] },
-  { name: 'マグマの川', theme: 'volcano', seed: 151, len: 220, diff: 0.63, pool: { jelly: 3, fire: 2, spiky: 2, bomb: 2 },
-    feats: ['lift', 'crumble', 'spikes'], gates: ['rock'], rooms: ['onoff', 'key'] },
-  { name: 'にじの雲海', theme: 'sky', seed: 312, len: 220, diff: 0.66, pool: { jelly: 2, bird: 2, bat: 2, ghost: 1, thunder: 1 },
-    feats: ['fan', 'lift', 'spring'], rooms: ['crate', 'rune'] },
-  { name: 'ねむりの古城', theme: 'castle', seed: 213, len: 220, diff: 0.7, pool: { knight: 3, ghost: 2, fire: 2, spiky: 1 },
-    feats: ['spikes', 'conveyor', 'lift'], gates: ['bomb'], rooms: ['portal', 'key'] },
-  { name: 'こだまの谷', theme: 'field', seed: 411, len: 230, diff: 0.73, pool: { knight: 2, mole: 2, snail: 2, hopper: 2, thunder: 1 },
-    feats: ['spring', 'fan', 'crumble'], gates: ['rock'], rooms: ['onoff', 'crate'] },
-  { name: '月あかりの墓地', theme: 'night', seed: 313, len: 230, diff: 0.77, pool: { ghost: 3, thunder: 2, knight: 2, bat: 2 },
-    feats: ['spikes', 'lift', 'crumble'], gates: ['bomb'], rooms: ['rune', 'portal'] },
-  { name: 'ジャングルの神殿', theme: 'jungle', seed: 161, len: 230, diff: 0.8, pool: { snail: 2, mole: 2, knight: 2, thunder: 2, magnet: 1, spiky: 1 },
-    feats: ['conveyor', 'spring', 'lift'], gates: ['rock', 'bomb'], rooms: ['key', 'onoff'] },
-  { name: 'ほのおの山頂', theme: 'volcano', seed: 171, len: 240, diff: 0.85, pool: { jelly: 2, fire: 2, thunder: 2, knight: 2, rock: 2 },
-    feats: ['fan', 'spikes', 'crumble'], gates: ['rock'], rooms: ['crate', 'rune'] },
-  { name: '星のかけら鉱山', theme: 'cave', seed: 412, len: 240, diff: 0.9, pool: { mole: 2, knight: 2, ghost: 2, spiky: 2, thunder: 2, rock: 1 },
-    feats: ['lift', 'conveyor', 'crumble', 'spikes'], gates: ['bomb', 'rock'], rooms: ['portal', 'key', 'onoff'] },
-  { name: 'やみの城', theme: 'castle', seed: 501, len: 250, diff: 1.0,
-    pool: { slime: 1, hopper: 1, bat: 1, bird: 1, cat: 1, bomb: 1, ice: 1, fire: 2, spiky: 2, rock: 1, ghost: 2,
-            magnet: 1, snail: 1, mole: 1, jelly: 1, knight: 2, thunder: 2 },
+  { name: 'しずかな地底湖', theme: 'cave', seed: 402, len: 220, diff: 0.7, pool: { ghost: 2, rock: 2, spiky: 2, bomb: 2, bat: 2 },
+    feats: ['lift', 'crumble', 'spikes'], gates: ['bomb', 'rock'], rooms: ['onoff', 'rune'] },
+  { name: 'ふぶきの山', theme: 'snow', seed: 403, len: 220, diff: 0.8, pool: { ice: 2, ghost: 2, bird: 2, rock: 2, cat: 2 },
+    feats: ['spring', 'crumble', 'fan'], gates: ['bomb'], rooms: ['portal', 'crate', 'key'] },
+  { name: 'やみの城', theme: 'castle', seed: 501, len: 240, diff: 0.9,
+    pool: { slime: 1, hopper: 1, bat: 1, bird: 1, cat: 1, bomb: 1, ice: 1, fire: 2, spiky: 2, rock: 1, ghost: 2 },
     feats: ['spring', 'lift', 'crumble', 'spikes', 'conveyor', 'fan'], gates: ['rock', 'bomb'], rooms: ['rune', 'onoff', 'key', 'crate', 'portal'] },
 ];
 
@@ -1502,9 +1330,9 @@ function genStage(st) {
         land(x, x + 1, gl);
         for (let i = 0; i < gw; i++) setT(x + 2 + i, 14, 27);
         const t = clampTop(gl + R(-2, 0));
-        land(x + 2 + gw, x + 5 + gw, t);   // 着地しやすいように4マス
+        land(x + 2 + gw, x + 3 + gw, t);
         shardsRow(x + 3, x + gw, Math.min(gl, t) - 4);
-        gl = t; return gw + 6;
+        gl = t; return gw + 4;
       }
     }
   }
@@ -1580,12 +1408,6 @@ function genStage(st) {
       cpDone = true; gl = t; w = 5;
     } else {
       w = skyMode ? skyChunk(x) : fieldChunk(x);
-      // 敵を多めに：パーツごとにもう1体（飛ぶ敵なら空中、それ以外は足場の上）
-      if (P(0.45 + 0.35 * d)) {
-        const t = pick();
-        if (MON[t].fly) spawns.push({ x: x + R(1, Math.max(1, w - 2)), y: R(3, 8), type: t });
-        else enemyAt(x + Math.max(1, w - 2));
-      }
     }
     x += w;
   }
@@ -1997,7 +1819,7 @@ function onLand(p) {
     return;
   }
   if (ft[0].v === 23) {   // トゲ床（足の真ん中がトゲの上の時だけ。かかとが少しかかっただけならセーフ）
-    if (p.form === 'jelly' || p.form === 'ghost' || debugMode) return;   // プルルン・オバケンはトゲ床も平気
+    if (p.form === 'slime' || p.form === 'ghost' || debugMode) return;
     hurt();
     if (state === 'play') { p.vy = -4.5; p.onGround = false; }
   }
@@ -2160,7 +1982,7 @@ let lv = 1, exp = 0, party = [null, null], box = [];
 let gauge = 0, hp = 3;
 let player = null, enemies = [], items = [], pops = [], particles = [], scorePops = [], bumps = [];
 let shots = [], pshots = [], eshots = [], melts = [];
-const cam = { x: 0, shake: 0, flash: 0 };
+const cam = { x: 0, shake: 0 };
 let hiScore = 0;
 try { hiScore = +localStorage.getItem('pico_hi') || 0; } catch (e) {}
 
@@ -2215,7 +2037,7 @@ function newPlayer() {
   return { x: 3 * T + 2, y: 12 * T, w: 12, h: 16, vx: 0, vy: 0, py: 0, face: 1, onGround: false,
            big: false, inv: 0, anim: 0, coyote: 0, buf: 0, growT: 0, growTo: false, skid: false,
            combo: 0, hidden: false, dead: false, form: null, slot: -1, wasBig: false, airJumps: 0,
-           wallDir: 0, pound: false, armor: 0, hasKey: false, pushT: 0, lift: null, springing: false, spin: 0, burrow: false };
+           wallDir: 0, pound: false, armor: 0, hasKey: false, pushT: 0, lift: null, springing: false };
 }
 function setState(s) { state = s; stateT = 0; paused = false; }
 
@@ -2367,13 +2189,7 @@ function flipEnemy(e) {
 }
 function stompEnemy(e, m) {
   const p = player;
-  if (p.form === 'slime') { p.vy = -7.5; p.springing = true; }   // スライム：踏むと大きくはねる
-  else p.vy = keys.jump ? -6 : -3.5;
-  if (e.shell) {    // カラにこもったデンデンは踏んでもはね返される
-    SFX.bump(); p.inv = Math.max(p.inv, 10);
-    scorePops.push({ x: e.x, y: e.y - 8, text: 'KON', t: 30, col: '#ddd' });
-    return;
-  }
+  p.vy = keys.jump ? -6 : -3.5;
   if (e.hp > 1) {   // ゴロンは2回踏む
     e.hp--; SFX.bump(); e.dir *= -1; p.inv = Math.max(p.inv, 10);
     scorePops.push({ x: e.x, y: e.y - 8, text: 'CRACK', t: 30, col: '#ccc' });
@@ -2449,11 +2265,7 @@ function updateShots() {
     }
     const hit = { x: s.x - 8, y: s.y - 8, w: s.w + 16, h: s.h + 16 };
     for (const e of enemies) {
-      if (e.active && e.state === 'walk' && !e.under && overlap(hit, e)) {
-        s.dead = true;
-        if (shieldBlocks(e, s.vx)) guardPop(e.x, e.y); else tryCapture(e);
-        break;
-      }
+      if (e.active && e.state === 'walk' && overlap(hit, e)) { s.dead = true; tryCapture(e); break; }
     }
   }
   shots = shots.filter(s => !s.dead);
@@ -2527,7 +2339,7 @@ function revert(force = false) {
     else return false;   // 天井が低いので戻れない（広い所で戻る）
     p.wasBig = false;
   }
-  p.form = null; p.slot = -1; p.pound = false; p.armor = 0; p.spin = 0; p.burrow = false;
+  p.form = null; p.slot = -1; p.pound = false; p.armor = 0;
   puff(p.x + 6, p.y + p.h / 2); SFX.morph();
   hideInfo();
   return true;
@@ -2548,29 +2360,16 @@ function useSkill(sk) {
     if (pshots.some(s => s.kind === 'bomb')) return;
     pshots.push({ kind: 'bomb', x: p.x + 2, y: p.y - 4, w: 8, h: 8, vx: p.face * 2.2 + p.vx * 0.5, vy: -3.5, t: 70 });
     SFX.toss();
-  } else if (sk === 'spin') {      // デンデン：カラにこもってスピン
-    if (p.spin > 0) return;
-    p.spin = 100; SFX.toss();
-  } else if (sk === 'thunder') {   // ピリリン：画面じゅうの敵にカミナリ
-    if (gauge < 150) { SFX.nope(); scorePops.push({ x: p.x - 16, y: p.y - 12, text: 'GAUGE', t: 40, col: '#aaa' }); return; }
-    gauge -= 150; cam.flash = 12; cam.shake = 8; SFX.boom();
-    for (const e of enemies) {
-      if (!e.active || e.tame || e.under || (e.state !== 'walk' && e.state !== 'lit')) continue;
-      if (e.x > cam.x - 16 && e.x < cam.x + W + 16) flipEnemy(e);
-    }
   }
 }
-// ヨロインの盾：正面から来たもの（vx の向きが盾と逆）ははじく
-const shieldBlocks = (e, vx) => e.type === 'knight' && vx !== 0 && Math.sign(vx) === -e.dir;
-function guardPop(x, y) { SFX.guard(); scorePops.push({ x: x - 8, y: y - 10, text: 'GUARD', t: 40, col: '#cde' }); }
 function updatePShots() {
   for (const s of pshots) {
     s.t--;
     if (s.kind === 'ice') {
       s.x += s.vx;
       if (s.t <= 0 || collideX(s)) { s.dead = true; puff(s.x + 4, s.y + 3, '#bfefff'); continue; }
-      const e = enemies.find(e => e.active && e.state === 'walk' && !e.under && overlap(s, e));
-      if (e) { s.dead = true; if (shieldBlocks(e, s.vx)) guardPop(e.x, e.y); else freezeEnemy(e); }
+      const e = enemies.find(e => e.active && e.state === 'walk' && overlap(s, e));
+      if (e) { s.dead = true; freezeEnemy(e); }
       continue;
     }
     s.vy = Math.min(s.vy + (s.kind === 'fire' ? 0.35 : 0.3), 5);
@@ -2586,11 +2385,10 @@ function updatePShots() {
       else { s.vx *= 0.6; s.vy = -1.2; }
     }
     if (s.y > ROWS * T + 16) { s.dead = true; continue; }
-    const e = enemies.find(e => e.active && (e.state === 'walk' || e.state === 'lit') && !e.under && overlap(s, e) &&
+    const e = enemies.find(e => e.active && (e.state === 'walk' || e.state === 'lit') && overlap(s, e) &&
                                !(s.kind === 'bomb' && e.tame));   // 自分の爆弾は壁の番人には反応しない
     if (s.kind === 'fire') {
       if (s.t <= 0) s.dead = true;
-      else if (e && shieldBlocks(e, s.vx)) { s.dead = true; guardPop(e.x, e.y); }
       else if (e) { s.dead = true; flipEnemy(e); puff(s.x + 4, s.y + 4, '#ffb030'); }
     } else if (s.kind === 'bomb' && (e || s.t <= 0)) {
       s.dead = true; explode(s.x + 4, s.y + 4, true);
@@ -2601,11 +2399,10 @@ function updatePShots() {
 function updateEShots() {
   const p = player;
   for (const s of eshots) {
-    s.x += s.vx; s.y += s.vy || 0;
-    if (--s.t <= 0 || isSolid(getT(Math.floor((s.x + s.w / 2) / T), Math.floor((s.y + s.h - 2) / T)))) { s.dead = true; continue; }
+    s.x += s.vx;
+    if (--s.t <= 0 || isSolid(getT(Math.floor((s.x + 3) / T), Math.floor((s.y + 3) / T)))) { s.dead = true; continue; }
     if (state === 'play' && overlap(s, p)) {
-      if (p.form === 'ghost' || p.spin > 0 || p.burrow) continue;
-      if (p.form === 'knight' && s.vx && Math.sign(s.vx) === -p.face) { s.dead = true; guardPop(p.x, p.y); continue; }   // 盾でふせぐ
+      if (p.form === 'slime' || p.form === 'ghost') continue;
       if (p.inv <= 0) { s.dead = true; hurt(); }
     }
   }
@@ -2624,7 +2421,7 @@ function grow() {
 function hurt() {
   const p = player;
   if (debugMode) return;
-  if (p.form === 'ghost' || p.spin > 0 || p.burrow) return;   // オバケン・スピン中・地中は無敵
+  if (p.form === 'slime' || p.form === 'ghost') return;
   if (p.form === 'rock' && p.armor > 0) {
     p.armor = 0; p.inv = 90; SFX.guard();
     scorePops.push({ x: p.x - 8, y: p.y - 10, text: 'GUARD', t: 50, col: '#cfc' });
@@ -2703,13 +2500,8 @@ function updatePlayer() {
   if (p.form) { gauge = Math.max(0, gauge - 1); if (gauge <= 0) revert(); }
   else gauge = Math.min(gaugeMax(), gauge + 0.5);
   const F = p.form ? MON[p.form].form : PICO_FORM;
-  // モグラン：地面で ↓ を押している間は地中（無敵・ゆっくり）
-  p.burrow = p.form === 'mole' && p.onGround && keys.down && !p.lift;
-  // デンデン：スピン中は向いている方へ一直線、壁ではね返る
-  if (p.spin > 0) { p.spin--; if (p.wallDir) p.face = -p.wallDir; }
-  if (p.form !== 'snail') p.spin = 0;
-  const dir = p.pound || p.spin > 0 ? 0 : (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  const max = p.burrow ? 0.8 : keys.run ? F.run : F.walk;
+  const dir = p.pound ? 0 : (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  const max = keys.run ? F.run : F.walk;
   const acc = p.onGround ? 0.1 : 0.07;
   p.skid = false;
   if (dir !== 0) {
@@ -2722,11 +2514,8 @@ function updatePlayer() {
     const f = 0.08;
     p.vx = Math.abs(p.vx) <= f ? 0 : p.vx - Math.sign(p.vx) * f;
   }
-  if (p.burrow && Math.abs(p.vx) > max) p.vx = Math.sign(p.vx) * max;
-  if (p.spin > 0) p.vx = p.face * 3.2;
 
   // ジャンプ（先行入力・足場から落ちた直後の猶予・各変身の空中アクション）
-  if (p.burrow) { p.buf = 0; input.jump = false; }   // 地中ではジャンプしない
   if (input.jump) p.buf = 6; else if (p.buf > 0) p.buf--;
   if (p.onGround) { p.coyote = 6; p.airJumps = p.form === 'hopper' ? 1 : p.form === 'bat' ? 5 : 0; }
   else if (p.coyote > 0) p.coyote--;
@@ -2778,30 +2567,6 @@ function updatePlayer() {
   for (let c = l; c <= r; c++) for (let rr = tp; rr <= bt; rr++)
     if (getT(c, rr) === 11) { setT(c, rr, 0); addCoin(); addScore(200); }
 
-  // ジシャクン：近くのほしのかけらを吸いよせ、ハートの実を引きよせる
-  if (p.form === 'magnet') {
-    const pc = Math.floor((p.x + 6) / T), pr = Math.floor((p.y + 8) / T);
-    for (let c = pc - 4; c <= pc + 4; c++) for (let rr = pr - 4; rr <= pr + 4; rr++) {
-      if (getT(c, rr) !== 11) continue;
-      setT(c, rr, 0); addCoin(); addScore(200);
-      particles.push({ x: c * T + 8, y: rr * T + 8, vx: (p.x + 6 - c * T - 8) / 10, vy: (p.y + 8 - rr * T - 8) / 10, t: 10, puff: true, col: '#ffe680' });
-    }
-    for (const it of items) {
-      if (it.emerge > 0) continue;
-      const dx = p.x - it.x, dy = p.y - it.y;
-      if (Math.abs(dx) < 96 && Math.abs(dy) < 64) { it.x += Math.sign(dx) * 1.2; if (it.y > p.y) it.vy = Math.min(it.vy, -0.5); }
-    }
-  }
-
-  // プルルン：マグマに落ちても、ぽよんとはね返る
-  if (p.form === 'jelly' && THEMES[curTheme].lava && p.vy > 0 && p.y + p.h > 13 * T + 2) {
-    const c = Math.floor((p.x + p.w / 2) / T);
-    if (!getT(c, 13) && !getT(c, 14)) {
-      p.y = 13 * T + 2 - p.h; p.vy = -7.2; p.springing = true; SFX.spring();
-      puff(p.x + 6, 13 * T, '#ffb030');
-    }
-  }
-
   if (p.y > ROWS * T + 8) die(true);
 }
 
@@ -2839,23 +2604,6 @@ function updateWalker(e, m) {
     e.cool = 150 + Math.floor(Math.random() * 60);
   }
   if (e.type === 'rock' && e.hp < 2) spd = 0.7;
-  e.ph++;
-  if (m.snail) {        // デンデン：ときどきカラにこもって止まる
-    e.shell = e.ph % 200 > 130;
-    if (e.shell) spd = 0;
-  }
-  if (m.mole) {         // モグラン：地中を進んで、ときどき飛び出す
-    const cyc = e.ph % 220;
-    e.under = cyc < 110;
-    if (e.under) { e.dir = Math.sign(player.x - e.x) || e.dir; spd = 0.7; }
-    if (cyc === 110) { e.vy = -3.5; puff(e.x + 7, e.y + 12, '#a07a50'); }
-  }
-  if (m.magnet && state === 'play' && player.form !== 'magnet') {   // ジシャクン：近くのプレイヤーを引きよせる
-    const dx = e.x - player.x;
-    if (Math.abs(dx) < 90 && Math.abs(e.y - player.y) < 40 && !player.burrow) {
-      const vx0 = player.vx; player.vx = Math.sign(dx) * 0.35; player.x += player.vx; collideX(player); player.vx = vx0;
-    }
-  }
   e.vx = e.dir * spd;
   e.vy = Math.min(e.vy + 0.3, 5);
   e.x += e.vx;
@@ -2873,18 +2621,6 @@ function updateFlyer(e, m) {
   } else if (m.fly === 'bird') {
     e.x += e.dir * 0.9; e.y = e.base + Math.sin(e.ph * 0.05) * 6;
     if (e.x < -32 || e.x > mapW * T + 32) e.dead = true;
-  } else if (m.fly === 'jelly') {     // プルルン：上下にふわふわしながら近づく
-    e.dir = Math.sign(player.x - e.x) || e.dir;
-    e.x += e.dir * 0.3; e.y = e.base + Math.sin(e.ph * 0.04) * 16;
-  } else if (m.fly === 'thunder') {   // ピリリン：真上に来るとカミナリを落とす
-    e.dir = Math.sign(player.x - e.x) || e.dir;
-    if (Math.abs(player.x - e.x) > 6) e.x += e.dir * 0.6;
-    e.y = e.base + Math.sin(e.ph * 0.05) * 6;
-    if (e.cool > 0) e.cool--;
-    if (e.cool <= 0 && Math.abs(player.x - e.x) < 14 && player.y > e.y) {
-      eshots.push({ x: e.x + 4, y: e.y + 14, w: 6, h: 10, vx: 0, vy: 3.2, t: 90, bolt: true });
-      e.cool = 130; SFX.fire();
-    }
   } else if (m.fly === 'ghost') {
     const dx = player.x - e.x, dy = player.y + player.h - 14 - e.y;
     e.shy = Math.sign(e.x - player.x) === player.face && Math.abs(dx) < 200;   // 見られていると止まる
@@ -2927,11 +2663,9 @@ function updateEnemies() {
     }
     if (state === 'play' && p.growT <= 0 && overlap(p, e)) {
       const stomp = p.vy > 0 && p.py + p.h <= e.y + 8;
-      if (e.under || p.burrow) { /* 地中どうしはぶつからない */ }
-      else if (p.pound || p.spin > 0) flipEnemy(e);
+      if (p.form === 'slime' || p.pound) flipEnemy(e);
       else if (stomp && (!m.spiky || p.form === 'spiky' || p.form === 'rock')) stompEnemy(e, m);
       else if (p.form === 'ghost') { /* すり抜ける */ }
-      else if (p.form === 'knight' && Math.sign(e.x + 7 - (p.x + 6)) === p.face) { flipEnemy(e); SFX.guard(); }   // 盾で押しかえす
       else if (p.inv <= 0) hurt();
     }
   }
@@ -2974,7 +2708,6 @@ function updateEffects() {
   }
   melts = melts.filter(m => !m.dead);
   if (cam.shake > 0) cam.shake--;
-  if (cam.flash > 0) cam.flash--;
 }
 
 function updateCam() {
@@ -3159,14 +2892,8 @@ function drawPlayer(cx) {
   if (p.inv > 0 && p.growT <= 0 && (frame >> 2) % 2) return;
   if (p.form) {
     const a = p.onGround ? (Math.abs(p.vx) > 0.1 && Math.floor(p.anim) % 2) : (frame >> 2) % 2;
-    const px = Math.round(p.x - 2 - cx), py = Math.round(p.y + p.h - 16);
-    if (p.spin > 0) {   // スピン中はカラがくるくる回る
-      ctx.save(); ctx.translate(px + 8, py + 10); ctx.rotate(frame * 0.5 * p.face);
-      drawMonster(-8, -10, 'snail', p.face, { shell: true }); ctx.restore();
-      return;
-    }
-    drawMonster(px, py, p.form, p.face,
-      { a, hat: !p.burrow, under: p.burrow, alpha: p.form === 'ghost' ? 0.65 : null });
+    drawMonster(Math.round(p.x - 2 - cx), Math.round(p.y + p.h - 16), p.form, p.face,
+      { a, hat: true, alpha: p.form === 'ghost' ? 0.65 : null });
     if (p.armor > 0) {   // ゴロンのガード
       ctx.strokeStyle = 'rgba(200,255,200,.6)'; ctx.lineWidth = 1;
       ctx.strokeRect(Math.round(p.x - 3 - cx) + 0.5, Math.round(p.y - 2) + 0.5, p.w + 5, p.h + 3);
@@ -3204,7 +2931,6 @@ function drawEnemy(e, cx) {
   const a = m.fly ? (frame >> 2) % 2 : ((frame >> 3) % 2 && e.onGround) || (e.dash > 0 && (frame >> 1) % 2);
   drawMonster(x, y, e.type, e.dir, {
     a, flip: e.state === 'flip', lit: e.state === 'lit', cracked: e.hp < (m.hp || 1), shy: e.shy,
-    shell: e.shell, under: e.under,
     alpha: e.type === 'ghost' ? (e.shy ? 0.5 : 0.85) : null,
   });
   if (e.tame && e.state === 'walk') {   // LVに関係なく捕まえられる印
@@ -3240,11 +2966,6 @@ function drawPShot(s, cx) {
 }
 function drawEShot(s, cx) {
   const x = Math.round(s.x - cx), y = Math.round(s.y);
-  if (s.bolt) {   // カミナリ（ジグザグ）
-    ctx.fillStyle = (frame >> 1) % 2 ? '#fff070' : '#ffffff';
-    ctx.fillRect(x + 2, y, 2, 4); ctx.fillRect(x, y + 3, 4, 2); ctx.fillRect(x + 2, y + 5, 2, 5); ctx.fillRect(x + 3, y + 8, 3, 2);
-    return;
-  }
   ctx.fillStyle = '#ff3a1a'; ctx.fillRect(x, y + 1, 6, 4); ctx.fillRect(x + 1, y, 4, 6);
   ctx.fillStyle = (frame >> 1) % 2 ? '#ffd23a' : '#ff9a3a'; ctx.fillRect(x + 2, y + 2, 2, 2);
 }
@@ -3339,7 +3060,6 @@ function render() {
   }
   for (const s of scorePops) text(s.text, Math.round(s.x - cx), Math.round(s.y), s.col || '#fff', 8);
   ctx.restore();
-  if (cam.flash > 0) { ctx.fillStyle = `rgba(255,255,210,${cam.flash / 12 * 0.75})`; ctx.fillRect(0, 0, W, H); }   // カミナリの光
   drawHUD();
 
   if (state === 'title') {
