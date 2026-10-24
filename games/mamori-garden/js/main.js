@@ -65,7 +65,7 @@ wakeOn();
 function perfSet(lite, auto) {
   PERF.lite = lite; if (!auto) { PERF.auto = false; try { localStorage.setItem('mamori-q', lite ? 'lite' : 'full'); } catch (e) { } }
   if (lite) fxSetOn(false);
-  FRAMES = lite ? 6 : 16; ART.bgKey = ''; for (const k in SPR_CACHE) delete SPR_CACHE[k]; try { fitCanvas(); } catch (e) { }
+  FRAMES = lite ? 6 : 16; ART.bgKey = ''; sprClearAll(); try { fitCanvas(); } catch (e) { }
   toast(lite ? 'かんたん表示（かるい）' : 'きれい表示');
 }
 let perfEma = 16;
@@ -86,6 +86,7 @@ function frameError(err) {
   if (d && typeof DEBUG !== 'undefined' && DEBUG.on) { d.style.display = 'block'; d.textContent = txt; }
   const now = performance.now(); if (now - ERRS.t0 > 2000) { ERRS.t0 = now; ERRS.n = 0; } ERRS.n++;
   if (ERRS.n === 1) { try { toast('ちょっと調子がわるいみたい…'); } catch (e) { } }
+  if (ERRS.n === 3) { try { sprClearAll(); ART.bgKey = ''; } catch (e) { } }   // 絵のメモリがあふれていたときの自己修復
   if (ERRS.n > 20) {   // ずっと失敗するときは、軽い設定にしてタイトルへもどす
     ERRS.n = 0;
     try { if (!PERF.lite) perfSet(true, true); bgmIntensity(0); go('title'); } catch (e) { }

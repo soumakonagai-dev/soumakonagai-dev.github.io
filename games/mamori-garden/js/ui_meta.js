@@ -135,7 +135,7 @@ function drawGacha(c, dt) {
     Gc.t += dt; const T0 = Gc.T0;
     if (Gc.t < T0) {
       const k = Gc.t / T0; c.fillStyle = `rgba(10,6,40,${.35 * k})`; c.fillRect(0, 0, L.W, L.H); if (k > .85) { c.fillStyle = `rgba(255,255,255,${(k - .85) / .15 * .9})`; c.fillRect(0, 0, L.W, L.H); }
-      const lv = Gc.lvl, hue = lv === 3 ? 'hsl(' + Math.floor(t * 300 % 360) + ',100%,70%)' : null, col = hue || ['#ffffff', '#d08aff', '#ffd24a', '#ff7ae8'][lv];
+      const lv = Gc.lvl, hue = lv === 3 ? hslToHex(Math.floor(t * 300 % 360 / 20) * 20, 1, .7) : null, col = hue || ['#ffffff', '#d08aff', '#ffd24a', '#ff7ae8'][lv];
       if (lv > 0 && k > .32) {
         const q = Math.min(1, (k - .32) / .2);
         if (!Gc.fx) { Gc.fx = 1; SFX.play(lv >= 2 ? 'merge2' : 'merge'); }

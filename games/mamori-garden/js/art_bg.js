@@ -42,6 +42,7 @@ function blob(c, x, y, rx, ry, fill) { c.beginPath(); c.ellipse(x, y, rx, ry, 0,
 const GLOW_CACHE = {};
 function glowImg(col) {   // 光の玉はテクスチャを使い回す（グラデーション生成を避ける）
   let im = GLOW_CACHE[col]; if (im) return im;
+  if (typeof col !== 'string' || col[0] !== '#' || col.length !== 7) { col = '#ffffff'; if (GLOW_CACHE[col]) return GLOW_CACHE[col]; }
   im = document.createElement('canvas'); im.width = im.height = 64; const g = im.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   gr.addColorStop(0, rgba(col, 1)); gr.addColorStop(1, rgba(col, 0)); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return GLOW_CACHE[col] = im;
 }

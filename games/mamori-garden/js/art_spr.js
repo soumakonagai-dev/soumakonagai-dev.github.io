@@ -119,22 +119,38 @@ const BSPR = {
 
 // ---------- スプライトを画像にして使い回す（高密度な絵でも軽く動かすため） ----------
 let FRAMES = PERF.lite ? 6 : 16; const LOOP = 1.5;   // かんたん表示は、ゆらゆらのコマ数を減らす
-const SPR_CACHE = {};
+const SPR_CACHE = {}; let SPR_PX = 0;
+// 絵の画像を取っておく量に上限をつける（スマホでメモリがあふれて、描画が失敗し続けるのを防ぐ）
+function sprBudget() { return PERF.lite ? 9e6 : 20e6; }   // 画素数（×4バイト）
+function sprEvict(force) {
+  const ks = Object.keys(SPR_CACHE).sort((a, b) => SPR_CACHE[a].t - SPR_CACHE[b].t); let i = 0;
+  const goal = force ? 0 : sprBudget() * 0.6;
+  while (SPR_PX > goal && i < ks.length) { const o = SPR_CACHE[ks[i]]; if (!force && o.t > ART.t - 0.5) break; SPR_PX -= o.px; delete SPR_CACHE[ks[i]]; i++; }
+  if (force) SPR_PX = 0;
+}
+function sprClearAll() { for (const k in SPR_CACHE) delete SPR_CACHE[k]; SPR_PX = 0; for (const k in GLOW_CACHE) delete GLOW_CACHE[k]; for (const k in RING_CACHE) delete RING_CACHE[k]; for (const k in STAR_CACHE) delete STAR_CACHE[k]; }
 function sprVariant(t, anim) { if (PERF.lite && anim <= 0.02) return Math.floor(((t / LOOP) % 1 + 1) % 1 * FRAMES) % FRAMES; return anim > 0.02 ? 100 + Math.max(1, Math.min(4, Math.ceil(anim * 4))) : Math.floor((((t / LOOP) % 1) + 1) % 1 * FRAMES) % FRAMES; }
 function getSprite(kind, key, size, variant, u) {
   const eg = kind === 'u' && key === 'egg' && u ? eggPhase(u) * 10 + (eggPhase(u) === 0 ? Math.min(2, u.hatch) : 0) : 0;
   const k = kind + '|' + key + '|' + Math.round(size) + '|' + variant + '|' + eg;
-  let o = SPR_CACHE[k]; if (o) return o;
-  const lw = Math.ceil(size * 2.3), lh = Math.ceil(size * 1.65), sc = Math.max(1, ART.sc), oy = Math.ceil(size * 0.22);
-  const im = document.createElement('canvas'); im.width = Math.ceil(lw * sc); im.height = Math.ceil(lh * sc);
-  const g = im.getContext('2d'); g.scale(sc, sc); g.translate(lw / 2, lh - oy); const s = size / 56; g.scale(s, s); g.lineJoin = 'round'; g.lineCap = 'round';
+  let o = SPR_CACHE[k]; if (o) { o.t = ART.t; return o; }
+  const lw = Math.max(2, Math.ceil(size * 2.3)), lh = Math.max(2, Math.ceil(size * 1.65)), sc = Math.max(1, ART.sc), oy = Math.ceil(size * 0.22);
+  if (SPR_PX > sprBudget()) sprEvict(false);
+  let im = document.createElement('canvas'); im.width = Math.ceil(lw * sc); im.height = Math.ceil(lh * sc);
+  let g = im.getContext('2d');
+  if (!g) {   // メモリ不足でキャンバスが作れないとき：取っておいた絵を全部すてて、もう一度つくる
+    sprEvict(true); im = document.createElement('canvas'); im.width = Math.ceil(lw * sc); im.height = Math.ceil(lh * sc); g = im.getContext('2d');
+    if (!g) { im = document.createElement('canvas'); im.width = im.height = 2; return { im, lw, lh, oy, t: ART.t, px: 4 }; }
+  }
+  g.scale(sc, sc); g.translate(lw / 2, lh - oy); const s = size / 56; g.scale(s, s); g.lineJoin = 'round'; g.lineCap = 'round';
   const ph = variant >= 100 ? 0 : variant / FRAMES, a = variant >= 100 ? (variant - 100) / 4 : 0;
   try {
     if (kind === 'u') SPRITES[key](g, ph, a, u ? { hatch: u.hatch, __ph: eggPhase(u) } : { hatch: 0, __ph: 0 });
     else if (kind === 'e') ESPR[key](g, ph, { invuln: 0, healFx: 0 });
     else BSPR[key](g, ph, { invuln: 0 });
   } catch (err) { console.error('sprite', kind, key, err); }
-  return SPR_CACHE[k] = { im, lw, lh, oy };
+  const px = im.width * im.height; SPR_PX += px;
+  return SPR_CACHE[k] = { im, lw, lh, oy, t: ART.t, px };
 }
 function drawSprFrame(c, kind, key, x, y, size, flip, t, anim, u) {
   const o = getSprite(kind, key, size, sprVariant(t, anim), u);
