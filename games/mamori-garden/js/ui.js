@@ -90,7 +90,7 @@ function setLayout(portrait) {
 function fitCanvas() {
   const L = APP.L, cv = APP.cv, dpr = Math.min(window.devicePixelRatio || 1, 2);
   const css = Math.min(window.innerWidth / L.W, window.innerHeight / L.H);
-  APP.css = css; ART.sc = Math.max(1, Math.min(PERF.lite ? 1.25 : 2, dpr * css));
+  APP.css = css; ART.sc = Math.max(1, (PERF.lite ? 1 : Math.min(2, dpr * css)));
   const w = Math.round(L.W * ART.sc), h = Math.round(L.H * ART.sc);
   if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; ART.bgKey = ''; }
   cv.style.width = Math.floor(L.W * css) + 'px'; cv.style.height = Math.floor(L.H * css) + 'px';
@@ -132,6 +132,7 @@ function drawTitle(c, dt) {
   button('t_coll', bx + bw / 2 + 6, by2 + 78, bw / 2 - 6, 54, 'なかま強化', { style: 'good', size: 17 }, () => { APP.cfocus = APP.save.form[0]; go('collection'); });
   button('t_snd', L.W - 130, 12, 116, 34, AUD.muted ? 'おと：OFF' : 'おと：ON', { style: 'ghost', size: 14 }, () => { audioMute(!AUD.muted); });
   button('t_q', L.W - 130, 92, 116, 34, PERF.lite ? 'がぞう：かんたん' : 'がぞう：きれい', { style: 'ghost', size: 12 }, () => perfSet(!PERF.lite));
+  button('t_dn', L.W - 130, 132, 116, 34, FXCFG.num ? 'ダメージ表示：ON' : 'ダメージ表示：OFF', { style: 'ghost', size: 12 }, () => dnSetOn(!FXCFG.num));
   button('t_fx', L.W - 130, 52, 116, 34, FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF', { style: 'ghost', size: 12 }, () => { fxSetOn(!FXCFG.on); });
   gemChip(c, 12, 12, 130);
   txt(c, 'ドラッグで好きな場所に置いて、重ねて合成！', cx, ty + (L.portrait ? 72 : 76), 15, '#fff8e8', 'center', { outline: false });
@@ -312,6 +313,7 @@ function drawHud(c, B, dt) {
   button('h_pause', rx - bs, (hh - bs) / 2, bs, bs, '', { style: 'ghost', draw: (c2, x, y, w, h) => { c2.fillStyle = '#fff'; c2.fillRect(x + w * .3, y + h * .26, w * .13, h * .48); c2.fillRect(x + w * .57, y + h * .26, w * .13, h * .48); } }, () => { B.paused = true; });
   button('h_speed', rx - bs * 2 - 6, (hh - bs) / 2, bs + 6, bs, 'x' + B.speed, { style: B.speed > 1 ? 'good' : 'ghost', size: 15 }, () => { B.speed = B.speed % 3 + 1; });
   button('h_snd', rx - bs * 3 - 18, (hh - bs) / 2, bs, bs, '', { style: 'ghost', draw: (c2, x, y, w, h) => { c2.fillStyle = AUD.muted ? '#8a84a8' : '#fff'; c2.beginPath(); c2.moveTo(x + w * .26, y + h * .4); c2.lineTo(x + w * .4, y + h * .4); c2.lineTo(x + w * .56, y + h * .26); c2.lineTo(x + w * .56, y + h * .74); c2.lineTo(x + w * .4, y + h * .6); c2.lineTo(x + w * .26, y + h * .6); c2.fill(); if (!AUD.muted) { c2.strokeStyle = '#fff'; c2.lineWidth = 2; c2.beginPath(); c2.arc(x + w * .58, y + h * .5, w * .16, -1, 1); c2.stroke(); } else { c2.strokeStyle = '#ff8a8a'; c2.lineWidth = 2.4; c2.beginPath(); c2.moveTo(x + w * .66, y + h * .36); c2.lineTo(x + w * .86, y + h * .64); c2.moveTo(x + w * .86, y + h * .36); c2.lineTo(x + w * .66, y + h * .64); c2.stroke(); } } }, () => audioMute(!AUD.muted));
+  if (!p) button('h_dn', rx - bs * 5 - 42, (hh - bs) / 2, bs, bs, '数', { style: FXCFG.num ? 'good' : 'ghost', size: 15 }, () => dnSetOn(!FXCFG.num));
   button('h_fx', rx - bs * 4 - 30, (hh - bs) / 2, bs, bs, 'FX', { style: FXCFG.on ? 'good' : 'ghost', size: 13 }, () => { fxSetOn(!FXCFG.on); });
   { const dn = DIFFS[G.diff], w = 96; panelBox(c, L.W / 2 - w / 2, L.fy + 6, w, 22, { r: 11, fill: 'rgba(24,18,64,.7)', stroke: dn.col, lw: 1.2, shine: false }); txt(c, dn.name, L.W / 2, L.fy + 22, 12, dn.col, 'center', { outline: false }); }
   // 仲間の数
@@ -437,6 +439,7 @@ function drawBattle(c, dt) {
     const bw = 240, x = L.W / 2 - bw / 2, y = L.H / 2 - 70;
     button('p_resume', x, y, bw, 52, '再開', { style: 'primary', size: 20 }, () => { B.paused = false; });
     button('p_q', x, y + 222, bw, 40, PERF.lite ? 'がぞう：かんたん（かるい）' : 'がぞう：きれい', { style: 'ghost', size: 14 }, () => perfSet(!PERF.lite));
+    button('p_dn', x, y + 268, bw, 40, FXCFG.num ? 'ダメージ表示：ON' : 'ダメージ表示：OFF', { style: 'ghost', size: 14 }, () => dnSetOn(!FXCFG.num));
     button('p_fx', x, y + 176, bw, 40, FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF（かるくなる）', { style: 'ghost', size: 14 }, () => { fxSetOn(!FXCFG.on); });
     button('p_retry', x, y + 64, bw, 46, 'はじめからやり直す', { style: 'ghost', size: 16 }, () => startBattle());
     button('p_quit', x, y + 120, bw, 46, 'マップへもどる', { style: 'ghost', size: 16 }, () => { bgmIntensity(0); go('map'); });

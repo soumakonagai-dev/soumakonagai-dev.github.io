@@ -194,6 +194,7 @@ function newParticle(L, th, init) {
   return p;
 }
 function drawSceneryAnim(c, L, dt) {
+  if (PERF.lite) return;   // かんたん表示：雲・粒・背景アニメは出さない
   const t = ART.t, th = ART.theme;
   if (!ART.particles) initScenery(L);
   // 雲
@@ -234,6 +235,7 @@ function drawSceneryAnim(c, L, dt) {
   }
 }
 function todOverlay(c, L, frac) {
+  if (PERF.lite) return;
   const k = ART.th.tod; let a = k[0], b = k[k.length - 1];
   for (let i = 0; i < k.length - 1; i++) if (frac >= k[i][0] && frac <= k[i + 1][0]) { a = k[i]; b = k[i + 1]; break; }
   const t = (frac - a[0]) / ((b[0] - a[0]) || 1), l = (i) => a[i] + (b[i] - a[i]) * t;

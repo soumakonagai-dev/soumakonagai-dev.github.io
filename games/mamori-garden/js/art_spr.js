@@ -118,9 +118,9 @@ const BSPR = {
 };
 
 // ---------- スプライトを画像にして使い回す（高密度な絵でも軽く動かすため） ----------
-const FRAMES = 16, LOOP = 1.5;
+let FRAMES = PERF.lite ? 6 : 16; const LOOP = 1.5;   // かんたん表示は、ゆらゆらのコマ数を減らす
 const SPR_CACHE = {};
-function sprVariant(t, anim) { return anim > 0.02 ? 100 + Math.max(1, Math.min(4, Math.ceil(anim * 4))) : Math.floor((((t / LOOP) % 1) + 1) % 1 * FRAMES) % FRAMES; }
+function sprVariant(t, anim) { if (PERF.lite && anim <= 0.02) return Math.floor(((t / LOOP) % 1 + 1) % 1 * FRAMES) % FRAMES; return anim > 0.02 ? 100 + Math.max(1, Math.min(4, Math.ceil(anim * 4))) : Math.floor((((t / LOOP) % 1) + 1) % 1 * FRAMES) % FRAMES; }
 function getSprite(kind, key, size, variant, u) {
   const eg = kind === 'u' && key === 'egg' && u ? eggPhase(u) * 10 + (eggPhase(u) === 0 ? Math.min(2, u.hatch) : 0) : 0;
   const k = kind + '|' + key + '|' + Math.round(size) + '|' + variant + '|' + eg;
@@ -176,11 +176,11 @@ function drawUnit(c, u, S, t, sel) {
   const stars = u.key === 'egg' ? 1 + eggPhase(u) : u.star;
   c.save(); c.translate(u.x, u.y + S * 0.28); c.scale(1, 0.5);
   const rr0 = S * (0.62 + (stars - 1) * 0.03), al = 0.28 + stars * 0.06;
-  glowDot(c, 0, 0, rr0, ec, al + .15);
-  c.rotate(t * (0.4 + stars * 0.1)); const ri = ringImg(ec, stars, rr0); c.drawImage(ri, -ri.lr, -ri.lr, ri.lr * 2, ri.lr * 2);
+  if (!PERF.lite) glowDot(c, 0, 0, rr0, ec, al + .15);
+  if (!PERF.lite) c.rotate(t * (0.4 + stars * 0.1)); const ri = ringImg(ec, stars, rr0); c.drawImage(ri, -ri.lr, -ri.lr, ri.lr * 2, ri.lr * 2);
   c.restore();
-  if (stars >= 5) { c.save(); c.globalCompositeOperation = 'lighter'; glowDot(c, u.x, u.y - S * .5, S * (1 + (stars - 5) * .25), ec, .25 + (stars - 5) * .08); c.restore(); }
-  if (stars >= 7) {
+  if (stars >= 5 && !PERF.lite) { c.save(); c.globalCompositeOperation = 'lighter'; glowDot(c, u.x, u.y - S * .5, S * (1 + (stars - 5) * .25), ec, .25 + (stars - 5) * .08); c.restore(); }
+  if (stars >= 7 && !PERF.lite) {
     c.save(); c.translate(u.x, u.y - S * .55); c.globalAlpha = .55; const fl = Math.sin(t * 3) * .1;
     for (const sg of [-1, 1]) { c.save(); c.scale(sg, 1); c.rotate(fl); PL(c, [[4, 0], [S * .95, -S * .55], [S * .8, -S * .05], [S * .95, S * .3], [S * .45, S * .2]], 'rgba(255,245,170,.8)', false); c.restore(); }
     c.restore();

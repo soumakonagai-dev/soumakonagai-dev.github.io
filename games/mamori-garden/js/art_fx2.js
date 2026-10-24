@@ -4,6 +4,10 @@ const FXCFG = { on: true };
 try { const sv = localStorage.getItem('mamori-fx'); FXCFG.on = sv == null ? !PERF.lite : sv !== '0'; } catch (e) { }
 function fxSetOn(v) { FXCFG.on = v; try { localStorage.setItem('mamori-fx', v ? '1' : '0'); } catch (e) { } if (!v && typeof FXS !== 'undefined') { FXS.tornados.length = 0; FXS.waters.length = 0; FXS.goos.length = 0; FXS.misc.length = 0; } }
 FXS.misc = [];
+// ダメージ数字の表示（オンオフ）
+FXCFG.num = true; try { FXCFG.num = localStorage.getItem('mamori-dn') !== '0'; } catch (e) { }
+function dnSetOn(v) { FXCFG.num = v; try { localStorage.setItem('mamori-dn', v ? '1' : '0'); } catch (e) { } if (!v) FXS.dnums.length = 0; }
+{ const baseNum = FX.num; FX.num = function () { if (FXCFG.num) baseNum.apply(FX, arguments); }; }
 
 // 属性のほかに「雷」「氷」の味付けをするキャラ
 const K_ELEC = new Set(['thunder', 'stormcaller', 'tesla', 'stormcloud', 'stormtower', 'lightningrod', 'thunderwolf', 'thunderbird', 'raijin', 'raijuu']);

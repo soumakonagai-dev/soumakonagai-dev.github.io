@@ -34,7 +34,7 @@ function frame(now) {
     if (APP.screen !== 'battle' && APP.toast) { const tt = APP.toast; tt.t += dt; if (tt.t > 1.8) APP.toast = null; else { const L = APP.L, w = 360; panelBox(c, (L.W - w) / 2, L.H - 90, w, 38, { r: 19, fill: 'rgba(60,20,70,.92)', shine: false }); txt(c, tt.s, L.W / 2, L.H - 65, 14, '#fff', 'center', { outline: false }); } }
     if (typeof drawDebug === 'function') drawDebug(c, dt);
     APP.fadeT += dt; if (APP.fadeT < 0.35) { c.fillStyle = `rgba(10,6,40,${1 - APP.fadeT / 0.35})`; c.fillRect(0, 0, APP.L.W, APP.L.H); }
-  } catch (err) { console.error(err); const d = document.getElementById('err'); if (d) { d.style.display = 'block'; d.textContent = String(err && err.stack || err); } }
+  } catch (err) { frameError(err); }
   requestAnimationFrame(frame);
 }
 window.addEventListener('load', () => {
@@ -61,7 +61,7 @@ wakeOn();
 function perfSet(lite, auto) {
   PERF.lite = lite; if (!auto) { PERF.auto = false; try { localStorage.setItem('mamori-q', lite ? 'lite' : 'full'); } catch (e) { } }
   if (lite) fxSetOn(false);
-  ART.bgKey = ''; for (const k in SPR_CACHE) delete SPR_CACHE[k]; try { fitCanvas(); } catch (e) { }
+  FRAMES = lite ? 6 : 16; ART.bgKey = ''; for (const k in SPR_CACHE) delete SPR_CACHE[k]; try { fitCanvas(); } catch (e) { }
   toast(lite ? 'かんたん表示（かるい）' : 'きれい表示');
 }
 let perfEma = 16;
@@ -71,3 +71,20 @@ function perfWatch(dt) {
   if (perfEma > 26) PERF.slow += dt; else PERF.slow = Math.max(0, PERF.slow - dt);
   if (PERF.slow > 4) { PERF.slow = 0; perfSet(true, true); toast('おもいので、かんたん表示にしました'); }
 }
+
+// ===== エラーが起きても、コードを画面に出さない（?debug=1 のときだけ表示）。続けて起きたら自動で立て直す =====
+const ERRS = { n: 0, t0: 0, last: '' };
+function frameError(err) {
+  const txt = String(err && err.stack || err); ERRS.last = txt; console.error(err);
+  try { localStorage.setItem('mamori-lasterr', txt.slice(0, 600)); } catch (e) { }
+  const d = document.getElementById('err');
+  if (d && typeof DEBUG !== 'undefined' && DEBUG.on) { d.style.display = 'block'; d.textContent = txt; }
+  const now = performance.now(); if (now - ERRS.t0 > 2000) { ERRS.t0 = now; ERRS.n = 0; } ERRS.n++;
+  if (ERRS.n === 1) { try { toast('ちょっと調子がわるいみたい…'); } catch (e) { } }
+  if (ERRS.n > 20) {   // ずっと失敗するときは、軽い設定にしてタイトルへもどす
+    ERRS.n = 0;
+    try { if (!PERF.lite) perfSet(true, true); bgmIntensity(0); go('title'); } catch (e) { }
+  }
+}
+window.addEventListener('error', e => { try { localStorage.setItem('mamori-lasterr', String(e.message || e).slice(0, 600)); } catch (x) { } });
+window.addEventListener('unhandledrejection', e => { try { localStorage.setItem('mamori-lasterr', String(e.reason && e.reason.stack || e.reason).slice(0, 600)); } catch (x) { } });

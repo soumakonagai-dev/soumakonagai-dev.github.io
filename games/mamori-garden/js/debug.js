@@ -19,6 +19,7 @@ function dbgItems() {
   add('次のガチャ：ミシック確定', () => { GACHA_FORCE = { tier: 'U', direct: false }; toast('次の1回は ミシック'); });
   add('次のガチャ：キャラそのもの確定', () => { GACHA_FORCE = { tier: null, direct: true }; toast('次の1回は キャラそのもの'); });
   add('次のガチャ確定を解除（いま：' + fc + '）', () => { GACHA_FORCE = null; toast('確定を解除'); });
+  add('直近のエラーを見る', () => { let s = ERRS.last; try { s = s || localStorage.getItem('mamori-lasterr'); } catch (e) { } const d = document.getElementById('err'); d.style.display = 'block'; d.textContent = s || '（エラーなし）'; });
   add('セーブを初期化', () => { APP.save = normalizeSave({}); saveSave(); toast('セーブを初期化した'); }, 'danger');
   add('FPS表示：' + (DEBUG.fps ? 'ON' : 'OFF'), () => { DEBUG.fps = !DEBUG.fps; });
   if (inBattle) {

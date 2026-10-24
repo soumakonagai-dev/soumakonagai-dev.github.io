@@ -23,7 +23,7 @@ Object.assign(FX, {
   },
   // ダメージ数字：与えた割合が大きいほど、色が熱く・大きく・長く。会心は金色でバーンと出る
   num(x, y, a, crit, maxhp) {
-    if (FXS.dnums.length > (PERF.lite ? 24 : 80)) return; const v = Math.round(a); if (v < 1) return;
+    if (FXS.dnums.length > (PERF.lite ? 10 : 80)) return; const v = Math.round(a); if (v < 1) return;
     const r = maxhp ? a / maxhp : 0, tier = crit ? 5 : r < 0.0015 ? 0 : r < 0.01 ? 1 : r < 0.04 ? 2 : r < 0.15 ? 3 : 4;
     const cols = [['#ffffff', '#a8bce0'], ['#fff6b0', '#ffc94a'], ['#ffdc8a', '#ff8a2a'], ['#ffc0a0', '#ff4a3a'], ['#ffb0f0', '#b04aff'], ['#fffbc0', '#ffaa1a']][tier];
     const size = clamp(12 + Math.log10(Math.max(1, a)) * 2.4 + tier * 2.4 + (crit ? 5 : 0), 12, 44);
@@ -275,7 +275,7 @@ function drawWorld(c, G, dt, ui) {
   const key = G.stage + (L.portrait ? 'p' : 'l');
   if (ART.bgKey !== key) makeBackground(G.stage, L, G.path, G.zones);
   c.save();
-  if (FXS.shake > 0) c.translate((Math.random() - .5) * FXS.shake, (Math.random() - .5) * FXS.shake);
+  if (FXS.shake > 0 && !PERF.lite) c.translate((Math.random() - .5) * FXS.shake, (Math.random() - .5) * FXS.shake);
   c.drawImage(ART.bg, 0, 0, L.W, L.H);
   drawSceneryAnim(c, L, dt);
   c.save(); c.beginPath(); c.rect(0, L.fy - 20, L.W, L.fh + 40); c.clip();
