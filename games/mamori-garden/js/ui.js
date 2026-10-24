@@ -159,7 +159,7 @@ function unitCard(c, key, x, y, w, h, o) {
   panelBox(c, x, y, w, h, { r: 10, fill: locked ? 'rgba(30,26,60,.9)' : 'rgba(40,32,100,.9)', stroke: o.sel ? '#ffe27a' : o.focus ? '#ff9ad0' : 'rgba(180,170,230,.55)', lw: o.sel ? 3 : 1.6, shine: !locked });
   const g = c.createRadialGradient(x + w / 2, y + h * .5, 0, x + w / 2, y + h * .5, w * .6); g.addColorStop(0, rgba(ec, locked ? .08 : .3)); g.addColorStop(1, rgba(ec, 0)); c.fillStyle = g; rr(c, x, y, w, h, 10); c.fill();
   c.save(); if (locked) c.globalAlpha = .35;
-  drawSpriteAt(c, key, x + w / 2, y + h * (o.small ? .7 : .7), Math.min(w * .74, h * .55), o.small ? APP.t + d.no : Math.floor((APP.t + d.no) / 0.25) * 0.25, 0, { hatch: 0, key }, 1);   // 一覧は6コマだけ（絵の保存量をへらす） c.restore();
+  drawSpriteAt(c, key, x + w / 2, y + h * (o.small ? .7 : .7), Math.min(w * .74, h * .55), o.small ? APP.t + d.no : Math.floor((APP.t + d.no) / 0.25) * 0.25, 0, { hatch: 0, key }, 1); c.restore();
   if (locked) { txt(c, '🔒', x + w / 2, y + h * .42, 22, '#fff', 'center', { outline: false }); txt(c, o.hint || '', x + w / 2, y + h - 8, 10, '#bdb6e0', 'center', { outline: false }); }
   else {
     txt(c, d.name, x + w / 2, y + 15, Math.min(12, w / 8.2), '#fff', 'center', { lw: 3, maxW: w - 8 });
@@ -424,10 +424,10 @@ function drawBattle(c, dt) {
   // 待ち時間の自動スキップ：準備が始まって少し（置く・合成する余裕）たったら、自動で次のウェーブへ
   if (G.phase === 'prep' && !G.over && !B.paused && APP.autoSkip && !G.holdPrep) { B.autoT = (B.autoT || 0) + dt; if (B.autoT > 1.6) { B.autoT = 0; skipPrep(); } } else if (G.phase !== 'prep') B.autoT = 0;
   const hooks = { sel: B.sel, dragUnit: B.dragU && B.dragU.moved ? B.dragU.u : null, guide: battleGuide, over: battleOver };
-  drawWorld(c, G, dt, hooks);
-  drawOverlayFx(c, L);
-  drawHud(c, B, dt);
-  drawPanel(c, B);
+  safe(c, 'world', () => drawWorld(c, G, dt, hooks));
+  safe(c, 'overlay', () => drawOverlayFx(c, L));
+  safe(c, 'hud', () => drawHud(c, B, dt));
+  safe(c, 'panel', () => drawPanel(c, B));
   // ヒント
   if (B.hint && G.wave < 3 && G.phase === 'prep' && !B.paused) {
     const w = L.portrait ? 500 : 560, x = (L.W - w) / 2, y = L.fy + L.fh * (L.portrait ? .46 : .4);

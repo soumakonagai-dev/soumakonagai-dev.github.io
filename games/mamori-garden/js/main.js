@@ -7,9 +7,9 @@ function updateBattle(dt) {
   const B = APP.b;
   if (!B.paused && !G.over) {
     B.acc += dt * B.speed; let n = 0;
-    while (B.acc >= 1 / 60 && n < 14) { step(1 / 60); B.acc -= 1 / 60; n++; }
+    while (B.acc >= 1 / 60 && n < 14) { try { step(1 / 60); } catch (e) { simError(e); B.acc = 0; break; } B.acc -= 1 / 60; n++; }
     if (n >= 14) B.acc = 0;
-    fxUpdate(dt * Math.min(B.speed, 2));
+    try { fxUpdate(dt * Math.min(B.speed, 2)); } catch (e) { simError(e); try { fxClear(); } catch (x) { } }
     bgmIntensity(G.phase === 'run' ? 1 : 0);
   } else if (!B.paused) fxUpdate(dt);
   if (G.over && !B.overFx) {
@@ -32,7 +32,7 @@ function frame(now) {
       case 'formation': drawFormation(c, dt); break;
       case 'gacha': drawGacha(c, dt); break;
       case 'collection': drawCollection(c, dt); break;
-      case 'battle': updateBattle(dt); drawBattle(c, dt); break;
+      case 'battle': try { updateBattle(dt); } catch (e) { simError(e); } drawBattle(c, dt); break;
     }
     if (APP.screen !== 'battle' && APP.toast) { const tt = APP.toast; tt.t += dt; if (tt.t > 1.8) APP.toast = null; else { const L = APP.L, w = 360; panelBox(c, (L.W - w) / 2, L.H - 90, w, 38, { r: 19, fill: 'rgba(60,20,70,.92)', shine: false }); txt(c, tt.s, L.W / 2, L.H - 65, 14, '#fff', 'center', { outline: false }); } }
     if (typeof drawDebug === 'function') drawDebug(c, dt);
@@ -87,9 +87,9 @@ function frameError(err) {
   const now = performance.now(); if (now - ERRS.t0 > 2000) { ERRS.t0 = now; ERRS.n = 0; } ERRS.n++;
   if (ERRS.n === 1) { try { toast('ちょっと調子がわるいみたい…'); } catch (e) { } }
   if (ERRS.n === 3) { try { sprClearAll(); ART.bgKey = ''; } catch (e) { } }   // 絵のメモリがあふれていたときの自己修復
-  if (ERRS.n > 20) {   // ずっと失敗するときは、軽い設定にしてタイトルへもどす
+  if (ERRS.n > 20) {   // ずっと失敗するときは、軽い設定にする（タイトルにはもどさない）
     ERRS.n = 0;
-    try { if (!PERF.lite) perfSet(true, true); bgmIntensity(0); go('title'); } catch (e) { }
+    try { if (!PERF.lite) perfSet(true, true); } catch (e) { }
   }
 }
 window.addEventListener('error', e => { try { localStorage.setItem('mamori-lasterr', String(e.message || e).slice(0, 600)); } catch (x) { } });
@@ -109,3 +109,18 @@ async function checkVersion() {
 setTimeout(checkVersion, 4000); setInterval(checkVersion, 120000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
 setInterval(() => { if (needReload && APP.screen !== 'battle') location.reload(); }, 3000);
+
+// ===== ゲームの計算でエラーが出ても止めない：おかしなデータ（座標がNaNなど）をそうじして、続ける =====
+let simErrN = 0;
+function simError(e) {
+  simErrN++; const msg = String(e && e.message || e); ERRS.last = 'sim: ' + String(e && e.stack || e);
+  try { localStorage.setItem('mamori-lasterr', 'sim: ' + msg + ' | ' + String(e && e.stack || '').split('\n').slice(1, 3).join(' ').slice(0, 300)); } catch (x) { }
+  if (simErrN === 1) { console.error(e); try { toast('ちょっと調子がわるいみたい（計算）'); } catch (x) { } }
+  try {
+    const ok = o => o && Number.isFinite(o.x) && Number.isFinite(o.y);
+    G.enemies = G.enemies.filter(o => ok(o) && Number.isFinite(o.hp) && Number.isFinite(o.d));
+    G.units = G.units.filter(o => ok(o)); G.projs = G.projs.filter(o => ok(o) && (!o.tgt || ok(o.tgt)));
+    if (G.grounds) G.grounds = G.grounds.filter(o => ok(o)); if (G.timers) G.timers = G.timers.filter(o => o && typeof o.fn === 'function');
+    if (APP.b) { APP.b.sel = G.units.includes(APP.b.sel) ? APP.b.sel : null; APP.b.dragU = null; }
+  } catch (x) { }
+}

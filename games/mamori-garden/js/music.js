@@ -87,6 +87,19 @@ const BGMS = {
   snow: { bpm: 84, root: 64, prog: [[0, 'M7'], [9, 'm7'], [5, 'M7'], [7, 'M']], scale: [0, 2, 4, 7, 11], lead: 'sine' },
   temple: { bpm: 88, root: 65, prog: [[0, 'm'], [5, 'm'], [8, 'M'], [7, 'M']], scale: [0, 3, 5, 7, 8], lead: 'triangle' },
 };
+Object.assign(BGMS, {
+  desert: { bpm: 96, root: 62, prog: [[0, 'm'], [5, 'm'], [7, 'M'], [3, 'M']], scale: [0, 2, 3, 7, 8], lead: 'triangle' },
+  volcano: { bpm: 108, root: 57, prog: [[0, 'm'], [3, 'M'], [8, 'M'], [7, 'M']], scale: [0, 3, 5, 7, 10], lead: 'triangle' },
+  sky: { bpm: 100, root: 65, prog: [[0, 'M7'], [7, 'M'], [9, 'm7'], [5, 'M7']], scale: [0, 2, 4, 7, 9], lead: 'sine' },
+  abyss: { bpm: 70, root: 55, prog: [[0, 'm7'], [8, 'M7'], [5, 'm7'], [10, 'M']], scale: [0, 3, 5, 7, 10], lead: 'sine' },
+  moon: { bpm: 80, root: 60, prog: [[0, 'm'], [8, 'M'], [5, 'm'], [7, 'M']], scale: [0, 3, 5, 7, 8], lead: 'sine' },
+  sakura: { bpm: 84, root: 62, prog: [[0, 'M'], [9, 'm'], [5, 'M'], [7, 'M']], scale: [0, 2, 4, 7, 9], lead: 'sine' },
+  storm: { bpm: 118, root: 57, prog: [[0, 'm'], [10, 'M'], [8, 'M'], [7, 'M']], scale: [0, 3, 5, 7, 10], lead: 'triangle' },
+  crystal: { bpm: 76, root: 67, prog: [[0, 'M7'], [4, 'm7'], [9, 'm7'], [7, 'M']], scale: [0, 2, 4, 7, 11], lead: 'sine' },
+  clock: { bpm: 104, root: 60, prog: [[0, 'M'], [5, 'M'], [9, 'm'], [7, 'M']], scale: [0, 2, 4, 7, 9], lead: 'triangle' },
+  worldtree: { bpm: 90, root: 64, prog: [[0, 'M7'], [5, 'M7'], [7, 'M'], [4, 'm7']], scale: [0, 2, 4, 7, 11], lead: 'sine' },
+});
+if (typeof STAGE_EX !== 'undefined') for (const ex of STAGE_EX) BGMS[ex.theme] = BGMS[ex.base];
 const CHORDS = { M: [0, 4, 7], m: [0, 3, 7], M7: [0, 4, 7, 11], m7: [0, 3, 7, 10] };
 function bgmStart(theme) {
   if (!AUD.ctx) return; if (AUD.theme === theme && AUD.timer) return;
@@ -97,7 +110,7 @@ function bgmStop() { if (AUD.timer) clearInterval(AUD.timer); AUD.timer = null; 
 function bgmIntensity(v) { AUD.intensity = v; }
 function bgmTick() {
   const c = AUD.ctx; if (!c || !AUD.theme) return;
-  const T = BGMS[AUD.theme], sp = 60 / T.bpm / 2;   // 8分音符
+  const T = BGMS[AUD.theme] || BGMS.meadow, sp = 60 / T.bpm / 2;   // 8分音符
   while (AUD.next < c.currentTime + 0.25) {
     const s = AUD.step, bar = Math.floor(s / 8) % 4, beat = s % 8, [off, q] = T.prog[bar], ch = CHORDS[q], t = AUD.next - c.currentTime;
     if (!AUD.muted) {

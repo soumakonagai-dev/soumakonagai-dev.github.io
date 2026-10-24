@@ -270,6 +270,19 @@ function drawGates(c, L, t) {
   c.restore();
 }
 
+// 1つの描画がエラーになっても、画面全体を巻きこまない（その部分だけ飛ばして、続きを描く）
+const SAFE = { err: {}, last: '' };
+function safe(c, name, fn) {
+  const d0 = c.__d || 0;
+  try { fn(); } catch (e) {
+    while ((c.__d || 0) > d0) c.restore();
+    SAFE.last = name + ': ' + String(e && e.message || e); const n = SAFE.err[name] = (SAFE.err[name] || 0) + 1;
+    try { localStorage.setItem('mamori-lasterr', SAFE.last + ' | ' + String(e && e.stack || '').split('\n').slice(1, 3).join(' ').slice(0, 300)); } catch (x) { }
+    if (n === 1) console.error(name, e);
+    if (n === 3) { try { if (/^(fx|proj|goo|misc)/.test(name) && typeof fxSetOn === 'function' && FXCFG.on) { fxSetOn(false); toast('エフェクトでふぐあいが出たので、オフにしました'); } else if (/^(unit|enemy)/.test(name)) { sprClearAll(); } } catch (x) { } }
+    if (n === 1) { try { toast('ちょっと調子がわるいみたい（' + name + '）'); } catch (x) { } }
+  }
+}
 function drawWorld(c, G, dt, ui) {
   const L = G.L, S = L.S, t = ART.t;
   const key = G.stage + (L.portrait ? 'p' : 'l');
@@ -277,26 +290,26 @@ function drawWorld(c, G, dt, ui) {
   c.save();
   if (FXS.shake > 0 && !PERF.lite) c.translate((Math.random() - .5) * FXS.shake, (Math.random() - .5) * FXS.shake);
   c.drawImage(ART.bg, 0, 0, L.W, L.H);
-  drawSceneryAnim(c, L, dt);
+  safe(c, 'scenery', () => drawSceneryAnim(c, L, dt));
   c.save(); c.beginPath(); c.rect(0, L.fy - 20, L.W, L.fh + 40); c.clip();
-  drawGates(c, L, t);
-  drawZones(c, G, t);
+  safe(c, 'gates', () => drawGates(c, L, t));
+  safe(c, 'zones', () => drawZones(c, G, t));
   // 配置ガイド（ドラッグ中）
-  if (ui && ui.guide) ui.guide(c);
+  if (ui && ui.guide) safe(c, 'guide', () => ui.guide(c));
   // ユニット＋敵（y順）
   const list = [];
-  drawGooLayer(c, S, t);
+  safe(c, 'goo', () => drawGooLayer(c, S, t));
   for (const u of G.units) if (!(ui && ui.dragUnit === u)) list.push([u.y, 0, u]);
   for (const e of G.enemies) list.push([e.y + (e.fly ? 30 : 0), 1, e]);
   list.sort((a, b) => a[0] - b[0]);
-  for (const [, k, o] of list) { if (k === 0) drawUnit(c, o, S, t, ui && ui.sel === o); else drawEnemy(c, o, S, t); }
-  for (const p of G.projs) drawProj(c, p, S, t);
-  drawFx(c, S, t);
-  if (ui && ui.over) ui.over(c);
+  for (const [, k, o] of list) { if (k === 0) safe(c, 'unit', () => drawUnit(c, o, S, t, ui && ui.sel === o)); else safe(c, 'enemy', () => drawEnemy(c, o, S, t)); }
+  for (const p of G.projs) safe(c, 'proj', () => drawProj(c, p, S, t));
+  safe(c, 'fx', () => drawFx(c, S, t));
+  if (ui && ui.over) safe(c, 'over', () => ui.over(c));
   c.restore();
-  drawFxTop(c, L, t);
+  safe(c, 'fxtop', () => drawFxTop(c, L, t));
   // 時間帯
   const frac = clamp(((G.wave || 1) - 1 + (G.phase === 'prep' ? 1 : 0.5)) / MAX_WAVE, 0, 1);
-  todOverlay(c, L, G.endless ? (G.wave % 20) / 20 : frac);
+  safe(c, 'tod', () => todOverlay(c, L, G.endless ? (G.wave % 20) / 20 : frac));
   c.restore();
 }
