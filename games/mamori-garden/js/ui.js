@@ -149,6 +149,7 @@ function unitCard(c, key, x, y, w, h, o) {
   if (locked) { txt(c, '🔒', x + w / 2, y + h * .42, 22, '#fff', 'center', { outline: false }); txt(c, o.hint || '', x + w / 2, y + h - 8, 10, '#bdb6e0', 'center', { outline: false }); }
   else {
     txt(c, d.name, x + w / 2, y + 15, Math.min(12, w / 8.2), '#fff', 'center', { lw: 3 });
+    if (!o.small) tierBadge(c, key, x + 11, y + 28);
     if (!o.noCost) { coinIcon(c, x + 14, y + h - 12, 6.5); txt(c, '' + (o.cost != null ? o.cost : d.cost), x + 24, y + h - 7, 13, '#ffe27a', 'left'); }
     E(c, x + w - 13, y + h - 12, 6, 6, ec); txt(c, ELEM[d.elem].n, x + w - 13, y + h - 8, 9, '#3a2050', 'center', { outline: false });
   }
@@ -160,6 +161,12 @@ function unitCard(c, key, x, y, w, h, o) {
   }
   if (o.order) { E(c, x + w - 13, y + h * .46, 9, 9, '#ffe27a'); txt(c, '' + o.order, x + w - 13, y + h * .46 + 4.5, 12, '#6a3a10', 'center', { outline: false }); }
 }
+// レア度の小さな札（C/R/E/L/M）
+const TIER_SHORT = { C: 'C', R: 'R', E: 'E', L: 'L', U: 'M' };
+function tierBadge(c, key, x, y) {
+  const t = tierOf(key), col = TIER_COL[t]; c.save(); c.fillStyle = 'rgba(20,10,50,.85)'; rr(c, x - 8, y - 8, 16, 16, 5); c.fill(); c.strokeStyle = col; c.lineWidth = 1.6; c.stroke();
+  txt(c, TIER_SHORT[t], x, y + 4.4, 11, col, 'center', { outline: false }); c.restore();
+}
 function unitDetail(c, key, x, y, w, h, lv) {
   const d = UNITS[key], ec = ELEM[d.elem].c, L = APP.L;
   panelBox(c, x, y, w, h, { r: 14 });
@@ -168,6 +175,7 @@ function unitDetail(c, key, x, y, w, h, lv) {
   const g = c.createRadialGradient(x + 70, y + 80, 0, x + 70, y + 80, 90); g.addColorStop(0, rgba(ec, .4)); g.addColorStop(1, rgba(ec, 0)); c.fillStyle = g; c.fillRect(x, y, 160, 170);
   drawSpriteAt(c, key, x + 70, y + 118, 112, APP.t, 0, { hatch: 0, key }, 1);
   txt(c, d.name, x + 140, y + 34, 22, '#fff8e8');
+  { const t = tierOf(key), col = TIER_COL[t], tw = 12 + TIER_NAME[t].length * 11; rr(c, x + w - 14 - tw, y + 12, tw, 18, 9); c.fillStyle = 'rgba(20,10,50,.85)'; c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); txt(c, TIER_NAME[t], x + w - 14 - tw / 2, y + 25, 11, col, 'center', { outline: false }); }
   E(c, x + 150, y + 54, 9, 9, ec); txt(c, ELEM[d.elem].n, x + 150, y + 58, 11, '#3a2050', 'center', { outline: false });
   txt(c, `${d.role}型`, x + 168, y + 59, 13, COL.dim, 'left', { outline: false });
   const stat = (lab, val, px, py) => { txt(c, lab, px, py, 11, COL.dim, 'left', { outline: false }); txt(c, val, px, py + 17, 15, '#fff', 'left', { lw: 3 }); };

@@ -13,6 +13,12 @@ function dbgItems() {
   add('全キャラ Lv1に戻す', () => { sv.lvl = {}; dbgSave(); toast('Lv1に戻した'); });
   add('全ステージ解放（★3）', () => { sv.stars = STAGES.map(() => 3); dbgSave(); toast('全ステージ★3'); });
   add('全難易度を解放', () => { sv.diffClear = STAGES.map(() => DIFFS.length - 1); dbgSave(); toast('全難易度を解放'); });
+  const fc = GACHA_FORCE ? (GACHA_FORCE.tier ? TIER_NAME[GACHA_FORCE.tier] : '') + (GACHA_FORCE.direct ? 'キャラ' : '') : 'なし';
+  add('次のガチャ：エピック確定', () => { GACHA_FORCE = { tier: 'E', direct: false }; toast('次の1回は エピック'); });
+  add('次のガチャ：レジェンド確定', () => { GACHA_FORCE = { tier: 'L', direct: false }; toast('次の1回は レジェンド'); });
+  add('次のガチャ：ミシック確定', () => { GACHA_FORCE = { tier: 'U', direct: false }; toast('次の1回は ミシック'); });
+  add('次のガチャ：キャラそのもの確定', () => { GACHA_FORCE = { tier: null, direct: true }; toast('次の1回は キャラそのもの'); });
+  add('次のガチャ確定を解除（いま：' + fc + '）', () => { GACHA_FORCE = null; toast('確定を解除'); });
   add('セーブを初期化', () => { APP.save = normalizeSave({}); saveSave(); toast('セーブを初期化した'); }, 'danger');
   add('FPS表示：' + (DEBUG.fps ? 'ON' : 'OFF'), () => { DEBUG.fps = !DEBUG.fps; });
   if (inBattle) {

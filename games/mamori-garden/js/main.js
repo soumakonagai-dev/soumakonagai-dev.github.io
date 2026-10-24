@@ -46,3 +46,12 @@ window.addEventListener('load', () => {
   if (q.get('stage') != null) { APP.stage = +q.get('stage') || 0; if (q.get('form')) APP.save.form = q.get('form').split(','); startBattle(); }
   requestAnimationFrame(frame);
 });
+
+// ===== 画面をつけたままにする（放置しても暗くならない・消えない） =====
+let wakeLock = null;
+async function wakeOn() {
+  try { if (!('wakeLock' in navigator) || wakeLock || document.visibilityState !== 'visible') return; wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch (e) { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wakeOn(); });
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, wakeOn, { passive: true });
+wakeOn();

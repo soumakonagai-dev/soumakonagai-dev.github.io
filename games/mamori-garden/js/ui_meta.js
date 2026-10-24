@@ -36,6 +36,27 @@ function progressLine(key) {
   if (!isOwned(sv, key)) return 'かけら ' + p + ' / ' + PIECES_UNLOCK;
   const need = lvNeed(sv, key); return need == null ? 'Lv' + MAX_LV + '（最大）' : 'Lv' + lvOf(sv, key) + '   かけら ' + p + ' / ' + need;
 }
+// かけら：割れたガラスのようなギザギザの破片に、キャラの一部が映っている
+function shardPoly(c, cx, cy, s, seed) {
+  c.beginPath(); const n = 7;
+  for (let i = 0; i < n; i++) { const a = i / n * TAU + seed, rr = s * (i % 2 ? .62 : 1) * (.82 + .3 * Math.abs(Math.sin(seed * 5 + i * 2.3))); const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr * 1.1; i ? c.lineTo(px, py) : c.moveTo(px, py); }
+  c.closePath();
+}
+function shardArt(c, key, cx, cy, size, n, col, t) {
+  const m = Math.min(5, Math.max(1, n)), s0 = m === 1 ? size * .36 : size * .24, sprH = size * 1.25;
+  for (let i = 0; i < m; i++) {
+    const a = m === 1 ? 0 : -Math.PI / 2 + i / m * TAU, rad = m === 1 ? 0 : size * .3;
+    const px = cx + Math.cos(a) * rad, py = cy + Math.sin(a) * rad * .8 + Math.sin(t * 2.4 + i * 1.7) * 3, seed = i * 1.3 + .4, s = s0 * (1 + (i % 2) * .12);
+    c.save(); c.globalCompositeOperation = 'lighter'; glowDot(c, px, py, s * 2.2, col, .55); c.restore();
+    c.save(); shardPoly(c, px, py, s, seed); c.fillStyle = 'rgba(20,14,60,.9)'; c.fill(); c.clip();
+    const ox = (i % 3 - 1) * s * .6, oy = ((i + 1) % 3 - 1) * s * .5;
+    drawSpriteAt(c, key, px - ox, py + sprH * .38 - oy, sprH, t, 0, { hatch: 0 }, 1);
+    const g = c.createLinearGradient(px - s, py - s, px + s, py + s); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(.35, 'rgba(255,255,255,0)'); g.addColorStop(1, rgba(col, .35)); c.fillStyle = g; c.fillRect(px - s * 1.3, py - s * 1.3, s * 2.6, s * 2.6);
+    c.restore();
+    shardPoly(c, px, py, s, seed); c.strokeStyle = col; c.lineWidth = 2.4; c.lineJoin = 'round'; c.stroke(); c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = .9; c.stroke();
+    const sp = (t * 1.6 + i * .37) % 1; if (sp < .5) star5(c, px - s * .5, py - s * .6, 3.4 * Math.sin(sp * Math.PI * 2), '#ffffff');
+  }
+}
 function resultCard(c, r, x, y, w, h, compact, k) {
   const s = easeBack(clamp(k, 0, 1)), cx = x + w / 2, cy = y + h / 2, col = TIER_COL[r.tier], big = r.kind !== 'piece' || r.tier === 'L' || r.tier === 'U';
   c.save(); c.translate(cx, cy); c.scale(s, s); c.translate(-cx, -cy);
@@ -43,13 +64,13 @@ function resultCard(c, r, x, y, w, h, compact, k) {
   panelBox(c, x, y, w, h, { r: 14, fill: 'rgba(30,22,88,.95)', stroke: col, lw: big ? 3.4 : 2 });
   const [ln, lc] = resultLine(r), d = UNITS[r.key];
   if (!compact) {
-    drawSpriteAt(c, r.key, cx, y + h * .62, Math.min(w * .7, h * .5), APP.t, 0, { hatch: 0 }, 1);
+    if (r.kind === 'piece') shardArt(c, r.key, cx, y + h * .42, Math.min(w * .7, h * .5), r.n, col, APP.t); else drawSpriteAt(c, r.key, cx, y + h * .62, Math.min(w * .7, h * .5), APP.t, 0, { hatch: 0 }, 1);
     tierTag(c, r.tier, cx, y + 20);
     txt(c, d.name, cx, y + h - 50, Math.min(18, w / 9), '#fff', 'center');
     txt(c, ln, cx, y + h - 30, Math.min(14, w / 11), lc, 'center');
     txt(c, progressLine(r.key), cx, y + h - 12, Math.min(12, w / 13), COL.dim, 'center', { outline: false });
   } else {
-    drawSpriteAt(c, r.key, x + 46, y + h - 14, 80, APP.t, 0, { hatch: 0 }, 1);
+    if (r.kind === 'piece') shardArt(c, r.key, x + 46, y + h * .5, 70, r.n, col, APP.t); else drawSpriteAt(c, r.key, x + 46, y + h - 14, 80, APP.t, 0, { hatch: 0 }, 1);
     tierTag(c, r.tier, x + 46, y + 14);
     txt(c, d.name, x + 96, y + 32, 15, '#fff', 'left'); txt(c, ln, x + 96, y + 54, 13, lc, 'left'); txt(c, progressLine(r.key), x + 96, y + 76, 11, COL.dim, 'left', { outline: false });
   }
@@ -58,7 +79,11 @@ function resultCard(c, r, x, y, w, h, compact, k) {
 function startGacha(n, type, ticket) {
   type = type || APP.gtype || 'normal'; const sv = APP.save, res = rollGacha(sv, n, Math.random, type, ticket);
   if (!res) { toast(ticket ? 'チケットがありません' : 'ジェムが足りません（戦ってためよう）'); return; }
-  saveSave(); APP.gacha = { results: res, n, type, ticket: !!ticket, t: 0, seen: 0 }; SFX.play('summon');
+  saveSave();
+  // いちばん良い結果で演出の長さと色が決まる（0:ふつう 1:エピック 2:レジェンド／キャラそのもの 3:ミシック）
+  let lvl = 0; for (const r of res) lvl = Math.max(lvl, r.tier === 'U' ? 3 : r.tier === 'L' ? 2 : r.kind !== 'piece' ? 2 : r.tier === 'E' ? 1 : 0);
+  const direct = res.some(r => r.kind !== 'piece');
+  APP.gacha = { results: res, n, type, ticket: !!ticket, t: 0, seen: 0, lvl, direct, T0: [1.3, 2.1, 2.9, 3.5][lvl], fx: 0 }; SFX.play('summon');
 }
 function ticketIcon(c, x, y, s, col) {
   c.save(); c.translate(x, y); c.rotate(-.2); c.fillStyle = col; c.strokeStyle = 'rgba(40,20,70,.85)'; c.lineWidth = 1.4; rr(c, -s, -s * .6, s * 2, s * 1.2, 3); c.fill(); c.stroke();
@@ -70,7 +95,7 @@ function drawGacha(c, dt) {
   if (!APP.gtype) APP.gtype = 'normal'; const gt = APP.gtype, GC = GACHAS[gt];
   drawMenuBg(c, dt, 0, .55);
   txt(c, 'ガチャ', L.W / 2, 52, 34, '#fff8e8', 'center'); gemChip(c, L.W - 142, 12, 130);
-  const cx = P ? L.W / 2 : 610, cy = P ? 250 : 270, R = P ? 118 : 150, summoning = Gc && Gc.t < 1.3;
+  const cx = P ? L.W / 2 : 610, cy = P ? 250 : 270, R = P ? 118 : 150, summoning = Gc && Gc.t < Gc.T0;
   magicCircle(c, cx, cy, R, t, summoning ? 4 : .35, summoning ? 1 : 0);
   const orbit = ['mage', 'archer', 'siren', 'priest', 'ninja', 'miko'];
   c.save(); c.globalAlpha = summoning ? .2 : .6; orbit.forEach((k, i) => { const a = t * .35 + i / orbit.length * TAU; drawSpriteAt(c, k, cx + Math.cos(a) * R * 1.12, cy + Math.sin(a) * R * .5 + R * .5, P ? 44 : 52, t + i, 0, { hatch: 0 }, 1); }); c.restore();
@@ -107,10 +132,25 @@ function drawGacha(c, dt) {
   button('g_coll', P ? L.W - 18 - 160 : 160, P ? 770 : 560, 160, 52, 'なかま強化', { style: 'good', size: 16 }, () => { APP.cfocus = APP.save.form[0]; go('collection'); });
   // 結果
   if (Gc) {
-    Gc.t += dt; const T0 = 1.3;
+    Gc.t += dt; const T0 = Gc.T0;
     if (Gc.t < T0) {
       const k = Gc.t / T0; c.fillStyle = `rgba(10,6,40,${.35 * k})`; c.fillRect(0, 0, L.W, L.H); if (k > .85) { c.fillStyle = `rgba(255,255,255,${(k - .85) / .15 * .9})`; c.fillRect(0, 0, L.W, L.H); }
-      txt(c, '召喚中' + '.'.repeat(1 + Math.floor(t * 3) % 3), cx, cy + R + 44, 22, '#fff8e8', 'center');
+      const lv = Gc.lvl, hue = lv === 3 ? 'hsl(' + Math.floor(t * 300 % 360) + ',100%,70%)' : null, col = hue || ['#ffffff', '#d08aff', '#ffd24a', '#ff7ae8'][lv];
+      if (lv > 0 && k > .32) {
+        const q = Math.min(1, (k - .32) / .2);
+        if (!Gc.fx) { Gc.fx = 1; SFX.play(lv >= 2 ? 'merge2' : 'merge'); }
+        c.save(); c.globalCompositeOperation = 'lighter'; glowDot(c, cx, cy, R * (1.5 + q * .9), col, .55 + .2 * Math.sin(t * 12));
+        c.translate(cx, cy); c.rotate(t * (1 + lv)); c.fillStyle = col; c.globalAlpha = .55 * q; const rays = 8 + lv * 4;
+        for (let i = 0; i < rays; i++) { c.rotate(TAU / rays); c.beginPath(); c.moveTo(0, -3); c.lineTo(R * (1.3 + (i % 2) * .5) * q, 0); c.lineTo(0, 3); c.fill(); }
+        c.restore();
+        if (k < .5) { c.fillStyle = 'rgba(255,255,255,' + (.5 - k) * 1.4 + ')'; c.fillRect(0, 0, L.W, L.H); }
+      }
+      if (lv > 0 && k > .58) {
+        const q = Math.min(1, (k - .58) / .14), lab = ['', 'エピック確定！', 'レジェンド確定！！', 'ミシック確定！！！'][lv], big = Gc.direct && lv === 2 && !Gc.results.some(r => r.tier === 'L') ? 'キャラ確定！！' : lab;
+        c.save(); c.translate(L.W / 2, cy + R + 52); const sc = easeBack(q) * (1 + .04 * Math.sin(t * 14)); c.scale(sc, sc);
+        rr(c, -170, -30, 340, 60, 30); c.fillStyle = 'rgba(20,10,50,.78)'; c.fill(); c.strokeStyle = col; c.lineWidth = 4; c.stroke();
+        txt(c, big, 0, 12, 32, col, 'center'); c.restore();
+      } else txt(c, '召喚中' + '.'.repeat(1 + Math.floor(t * 3) % 3), cx, cy + R + 44, 22, '#fff8e8', 'center');
       button('g_skip', 0, 0, L.W, L.H, '', { style: 'ghost', transparent: true }, () => { Gc.t = T0; });
     } else {
       const n = Gc.n, k0 = Gc.t - T0, step = n === 1 ? 0 : .16;

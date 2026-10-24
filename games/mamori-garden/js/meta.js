@@ -57,11 +57,14 @@ function tierRates(type) { const r = { C: 0, R: 0, E: 0, L: 0, U: 0 }; let sum =
 function charRate(key, type) { let sum = 0, mine = 0; for (const [k, w] of charWeights(type)) { sum += w; if (k === key) mine = w; } return mine / sum; }
 function wpickR(items, rnd) { let sum = 0; for (const it of items) sum += it[1]; let r = rnd() * sum; for (const it of items) { r -= it[1]; if (r <= 0) return it[0]; } return items[items.length - 1][0]; }
 // ガチャを1回引く。{key, kind: 'piece'|'new'|'dup', n, unlocked}
+// デバッグ用：次の1回だけ、出るレア度やキャラそのものを決める（{ tier: 'E'|'L'|'U'|null, direct: true|false }）
+let GACHA_FORCE = null;
 function rollOne(sv, rnd, type) {
-  type = type || 'normal'; const g = GACHAS[type];
-  const key = wpickR(charWeights(type), rnd), tier = tierOf(key);
+  type = type || 'normal'; const g = GACHAS[type], F = GACHA_FORCE; GACHA_FORCE = null;
+  let list = charWeights(type); if (F && F.tier) { const l2 = UNIT_LIST.filter(u => tierOf(u.key) === F.tier).map(u => [u.key, 1]); if (l2.length) list = l2; }
+  const key = wpickR(list, rnd), tier = tierOf(key);
   sv.pulls = (sv.pulls || 0) + 1;
-  if (g.direct >= 1 || rnd() < g.direct) {
+  if (g.direct >= 1 || (F && F.direct) || rnd() < g.direct) {
     if (isOwned(sv, key)) { sv.pieces[key] = piecesOf(sv, key) + PIECES_UNLOCK; return { key, kind: 'dup', n: PIECES_UNLOCK, tier }; }
     sv.owned[key] = true; return { key, kind: 'new', n: 0, tier };
   }
