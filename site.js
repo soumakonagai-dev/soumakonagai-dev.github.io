@@ -7,10 +7,19 @@
     var game = box.closest('.game');
     var title = box.dataset.title || ((game && game.querySelector('.game-title').textContent) || '') + ' 解説動画';
     if (src) {
-      // サイト内の動画ファイル（videos/xxx.mp4）。data-poster で表紙画像も指定できる
-      var label = box.closest('.trailer') ? 'TRAILER' : '解説動画';
-      var p = box.dataset.poster ? ' poster="' + box.dataset.poster + '"' : '';
-      box.innerHTML = '<p class="video-label">' + label + '</p><div class="video-frame"><video src="' + src + '" controls playsinline preload="none"' + p + ' title="' + title + '"></video></div>';
+      // サイト内の動画ファイル（videos/xxx.mp4）。折りたたみ式で、開いたときにはじめて読み込む
+      var isTr = !!box.closest('.trailer'), p = box.dataset.poster ? ' poster="' + box.dataset.poster + '"' : '';
+      box.innerHTML = '<details class="vdetails"><summary>' + (isTr ? 'トレーラーを見る' : '解説動画を見る') + '</summary>' +
+        '<div class="video-frame"><video controls playsinline preload="none"' + p + ' title="' + title + '"></video></div>' +
+        '<p class="video-err" hidden>この端末では動画を再生できませんでした。<a href="' + src + '" target="_blank" rel="noopener">動画ファイルを直接開く</a></p></details>';
+      var d = box.querySelector('details'), v = box.querySelector('video'), er = box.querySelector('.video-err');
+      d.addEventListener('toggle', function () {
+        if (d.open) { if (!v.getAttribute('src')) v.src = src; }
+        else v.pause();
+      });
+      v.addEventListener('error', function () { er.hidden = false; });
+      v.addEventListener('play', function () { document.dispatchEvent(new CustomEvent('sgl-video', { detail: true })); });
+      v.addEventListener('pause', function () { document.dispatchEvent(new CustomEvent('sgl-video', { detail: false })); });
       return;
     }
     if (!id) {

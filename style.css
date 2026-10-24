@@ -175,3 +175,18 @@ a { color: inherit; }
 
 /* ---------- 学校の端末についての注意 ---------- */
 .school-note { background: #ffd34d; color: #3a1c00; font-weight: bold; font-size: 14px; line-height: 1.6; text-align: center; padding: 8px 16px; border-bottom: 2px solid #000; }
+
+/* ---------- 折りたたみ動画 ---------- */
+.vdetails { border: 1px solid var(--line); background: var(--bg-2); }
+.vdetails summary { cursor: pointer; list-style: none; padding: 8px 12px; font-family: var(--pixel); font-size: 14px; color: var(--accent, var(--brand)); }
+.vdetails summary::-webkit-details-marker { display: none; }
+.vdetails summary::before { content: "▸ "; }
+.vdetails[open] summary::before { content: "▾ "; }
+.vdetails .video-frame { border-width: 1px 0 0; }
+.video-err { margin: 0; padding: 8px 12px; font-size: 13px; color: var(--ink-2); }
+.video-err a { color: var(--brand); }
+
+/* ---------- BGM ボタン ---------- */
+.bgm-btn { position: fixed; right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 20; font-family: var(--pixel); font-size: 14px; color: var(--ink-2); background: rgba(21, 29, 58, .94); border: 2px solid var(--line); padding: 8px 14px; cursor: pointer; white-space: nowrap; box-shadow: 3px 3px 0 rgba(0, 0, 0, .45); }
+.bgm-btn:hover { color: var(--ink); border-color: var(--brand); }
+.bgm-btn[aria-pressed="true"] { color: var(--brand); border-color: var(--brand); }
