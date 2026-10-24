@@ -21,6 +21,15 @@ function fmtNum(n) {
   }
   return '' + n;
 }
+// ===== かんたん表示（スマホなど向け。画面を粗く・エフェクトを少なくして軽くする） =====
+const PERF = { lite: false, auto: true, slow: 0 };
+(function () {
+  let saved = null; try { saved = localStorage.getItem('mamori-q'); } catch (e) { }
+  const nav = typeof navigator !== 'undefined' ? navigator : {}, coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer:coarse)').matches;
+  const weak = (nav.deviceMemory && nav.deviceMemory <= 4) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4) || /Android|iPhone|iPad|Mobile/i.test(nav.userAgent || '') || coarse;
+  PERF.lite = saved ? saved === 'lite' : !!weak; PERF.auto = !saved;
+})();
+const PMAX = () => PERF.lite ? 240 : 800;
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function mix(c1, c2, t) { const a = hexToRgb(c1), b = hexToRgb(c2); return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`; }
 function rgba(h, al) { const a = hexToRgb(h); return `rgba(${a[0]},${a[1]},${a[2]},${al})`; }

@@ -5,7 +5,7 @@ const FXS = { dnums: [], rays: [], parts: [], rings: [], texts: [], coins: [], b
 
 Object.assign(FX, {
   burst(x, y, col, n, spd) {
-    if (FXS.parts.length > 800) return; n = Math.round((n || 8) * 1.7); spd = (spd || 80) * 1.15;
+    if (FXS.parts.length > PMAX()) return; n = Math.round((n || 8) * (PERF.lite ? .8 : 1.7)); spd = (spd || 80) * 1.15;
     for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = spd * (0.3 + Math.random() * 0.8), life = 0.5 + Math.random() * 0.6; FXS.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, life, max: life, col, r: 1.8 + Math.random() * 2.8, shape: Math.random() < .3 ? 'star' : 'dot', rot: Math.random() * TAU, vr: (Math.random() - .5) * 10, g: 120 }); }
   },
   ring(x, y, r, col) { FXS.rings.push({ x, y, r, col, t: 0, max: 0.45 }); },
@@ -17,13 +17,13 @@ Object.assign(FX, {
     if (amt >= 12) { FXS.rings.push({ x, y, r: 26, col: '#ffe27a', t: 0, max: 0.35 }); for (let i = 0; i < 5; i++) FXS.parts.push({ x, y, vx: (Math.random() - .5) * 120, vy: -60 - Math.random() * 90, life: .6, max: .6, col: '#ffe27a', r: 2.4, shape: 'star', rot: 0, vr: 6, g: 260 }); }
   },
   hit(x, y, col) {
-    if (FXS.parts.length > 700) return;
+    if (FXS.parts.length > PMAX() - 60) return;
     FXS.rings.push({ x, y, r: 16, col: col && col.length === 7 ? col : '#ffffff', t: 0, max: 0.2 });
     for (let i = 0; i < 5; i++) { const a = Math.random() * TAU, v = 60 + Math.random() * 90; FXS.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .28, max: .28, col: col && col.length === 7 ? col : '#ffffff', r: 1.6 + Math.random() * 1.6, shape: i % 2 ? 'star' : 'dot', rot: 0, vr: 8, g: 0 }); }
   },
   // ダメージ数字：与えた割合が大きいほど、色が熱く・大きく・長く。会心は金色でバーンと出る
   num(x, y, a, crit, maxhp) {
-    if (FXS.dnums.length > 80) return; const v = Math.round(a); if (v < 1) return;
+    if (FXS.dnums.length > (PERF.lite ? 24 : 80)) return; const v = Math.round(a); if (v < 1) return;
     const r = maxhp ? a / maxhp : 0, tier = crit ? 5 : r < 0.0015 ? 0 : r < 0.01 ? 1 : r < 0.04 ? 2 : r < 0.15 ? 3 : 4;
     const cols = [['#ffffff', '#a8bce0'], ['#fff6b0', '#ffc94a'], ['#ffdc8a', '#ff8a2a'], ['#ffc0a0', '#ff4a3a'], ['#ffb0f0', '#b04aff'], ['#fffbc0', '#ffaa1a']][tier];
     const size = clamp(12 + Math.log10(Math.max(1, a)) * 2.4 + tier * 2.4 + (crit ? 5 : 0), 12, 44);
@@ -31,7 +31,7 @@ Object.assign(FX, {
   },
   confetti(x, y, n) {
     const cols = ['#ff6a8a', '#ffd24a', '#6ad0ff', '#7affb0', '#c88aff', '#ffffff'];
-    for (let i = 0; i < n && FXS.parts.length < 800; i++) { const life = 1 + Math.random() * .8; FXS.parts.push({ x: x + (Math.random() - .5) * 20, y, vx: (Math.random() - .5) * 320, vy: -140 - Math.random() * 260, life, max: life, col: cols[i % cols.length], r: 2.6 + Math.random() * 2.4, shape: i % 3 ? 'rect' : 'star', rot: Math.random() * TAU, vr: (Math.random() - .5) * 14, g: 420 }); }
+    for (let i = 0; i < (PERF.lite ? Math.ceil(n / 3) : n) && FXS.parts.length < PMAX(); i++) { const life = 1 + Math.random() * .8; FXS.parts.push({ x: x + (Math.random() - .5) * 20, y, vx: (Math.random() - .5) * 320, vy: -140 - Math.random() * 260, life, max: life, col: cols[i % cols.length], r: 2.6 + Math.random() * 2.4, shape: i % 3 ? 'rect' : 'star', rot: Math.random() * TAU, vr: (Math.random() - .5) * 14, g: 420 }); }
   },
   rays(x, y, col, n) { FXS.rays.push({ x, y, col: col && col.length === 7 ? col : '#ffe27a', n: n || 3, t: 0, max: .8 }); },
   kill(e) {
@@ -50,7 +50,7 @@ Object.assign(FX, {
   tornado(x, y, R) { if (FXS.tornados.length < 10) FXS.tornados.push({ x, y, R, t: 0, max: 0.95 }); },
   splash(x, y, R, col) {
     if (FXS.waters.length < 12) FXS.waters.push({ x, y, R, col: col || '#7ad0ff', t: 0, max: 0.6 });
-    if (FXS.parts.length < 700) for (let i = 0; i < 12; i++) { const a = Math.random() * TAU, v = 50 + Math.random() * 90; FXS.parts.push({ x, y, vx: Math.cos(a) * v * .7, vy: -90 - Math.random() * 110, life: .6, max: .6, col: i % 3 ? '#7ad0ff' : '#e8fbff', r: 2 + Math.random() * 2, shape: 'dot', rot: 0, vr: 0, g: 520 }); }
+    if (FXS.parts.length < PMAX() - 60) for (let i = 0; i < (PERF.lite ? 5 : 12); i++) { const a = Math.random() * TAU, v = 50 + Math.random() * 90; FXS.parts.push({ x, y, vx: Math.cos(a) * v * .7, vy: -90 - Math.random() * 110, life: .6, max: .6, col: i % 3 ? '#7ad0ff' : '#e8fbff', r: 2 + Math.random() * 2, shape: 'dot', rot: 0, vr: 0, g: 520 }); }
   },
   goo(x, y, R, col) { if (FXS.goos.length < 14) FXS.goos.push({ x, y, R, col: col || '#9a8aff', t: 0, max: 1.4 }); },
   hitVfx(p) {
@@ -77,7 +77,7 @@ function fxUpdate(dt) {
   const tg = ART.coinTarget;
   for (const c of FXS.coins) {
     c.t += dt;
-    if (c.state === 1 && Math.random() < .6 && FXS.parts.length < 800) FXS.parts.push({ x: c.x, y: c.y, vx: 0, vy: 0, life: .25, max: .25, col: '#ffe27a', r: 2.2, shape: 'dot', g: 0 });
+    if (c.state === 1 && Math.random() < (PERF.lite ? .2 : .6) && FXS.parts.length < PMAX()) FXS.parts.push({ x: c.x, y: c.y, vx: 0, vy: 0, life: .25, max: .25, col: '#ffe27a', r: 2.2, shape: 'dot', g: 0 });
     if (c.state === 0) { c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 420 * dt; if (c.vy > 0 && c.y >= c.fy) { c.y = c.fy; c.vy = -c.vy * 0.4; c.vx *= .5; if (Math.abs(c.vy) < 30) c.state = 1; } if (c.t > c.wait + 0.3) c.state = 1; if (c.state === 1) c.t = 0; }
     else { const dx = tg.x - c.x, dy = tg.y - c.y, d = Math.hypot(dx, dy), sp = 520 + c.t * 900; if (d < sp * dt + 6) c.done = true; else { c.x += dx / d * sp * dt; c.y += dy / d * sp * dt; } }
   }

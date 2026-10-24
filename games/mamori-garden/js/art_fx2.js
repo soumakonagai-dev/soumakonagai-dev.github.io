@@ -1,7 +1,7 @@
 'use strict';
 // ===== キャラごとの攻撃エフェクト（弾の形・当たったときの演出・近接の斬撃・味方オーラ）。オンオフできる =====
 const FXCFG = { on: true };
-try { FXCFG.on = localStorage.getItem('mamori-fx') !== '0'; } catch (e) { }
+try { const sv = localStorage.getItem('mamori-fx'); FXCFG.on = sv == null ? !PERF.lite : sv !== '0'; } catch (e) { }
 function fxSetOn(v) { FXCFG.on = v; try { localStorage.setItem('mamori-fx', v ? '1' : '0'); } catch (e) { } if (!v && typeof FXS !== 'undefined') { FXS.tornados.length = 0; FXS.waters.length = 0; FXS.goos.length = 0; FXS.misc.length = 0; } }
 FXS.misc = [];
 

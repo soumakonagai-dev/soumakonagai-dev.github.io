@@ -24,8 +24,12 @@ function stageOpen(i) { return APP.debugAll || i === 0 || APP.save.stars[i - 1] 
 // ---------- 描画ヘルパー ----------
 function txt(c, s, x, y, size, col, align, o) {
   o = o || {}; c.font = `${o.weight || 'bold'} ${size}px ${FONT}`; c.textAlign = align || 'left'; c.textBaseline = 'alphabetic';
+  let sq = 1;   // maxW を超えるときは、まず小さく（最小7px）、それでも入らなければ横にちぢめる
+  if (o.maxW) { let w = c.measureText(s).width; if (w > o.maxW) { const ns = Math.max(7, size * o.maxW / w); size = ns; c.font = `${o.weight || 'bold'} ${size}px ${FONT}`; w = c.measureText(s).width; if (w > o.maxW) sq = o.maxW / w; } }
+  if (sq !== 1) { c.save(); c.translate(x, y); c.scale(sq, 1); x = 0; y = 0; }
   if (o.outline !== false) { c.lineJoin = 'round'; c.lineWidth = o.lw || Math.max(2.5, size / 5); c.strokeStyle = o.oc || 'rgba(40,20,70,.85)'; c.strokeText(s, x, y); }
   c.fillStyle = col || COL.text; c.fillText(s, x, y);
+  if (sq !== 1) c.restore();
 }
 function wrapText(c, s, x, y, w, lh, size, col, maxLines) {
   c.font = `bold ${size}px ${FONT}`; let line = '', n = 0;
@@ -59,11 +63,18 @@ function button(id, x, y, w, h, label, o, onClick, onDown) {
   const fs = o.size || Math.min(18, h * .42);
   if (label) {
     const lines = String(label).split('\n');
-    lines.forEach((ln, i) => txt(c, ln, x + w / 2, y + h / 2 + fs * .35 + (i - (lines.length - 1) / 2) * (fs + 2), fs, dis ? '#a09cb8' : (o.col || '#fff'), 'center', { oc: dis ? 'rgba(20,10,40,.6)' : 'rgba(70,20,60,.75)' }));
+    lines.forEach((ln, i) => txt(c, ln, x + w / 2, y + h / 2 + fs * .35 + (i - (lines.length - 1) / 2) * (fs + 2), fs, dis ? '#a09cb8' : (o.col || '#fff'), 'center', { oc: dis ? 'rgba(20,10,40,.6)' : 'rgba(70,20,60,.75)', maxW: w - 12 }));
   }
   if (o.draw) o.draw(c, x, y, w, h);
+  if (o.glow && !dis) glowRing(c, x, y, w, h, o.r || 10, o.glow === true ? '#fff2a0' : o.glow);
   c.restore();
   APP.btns.push({ id, x, y, w, h, onClick: dis ? null : onClick, onDown: dis ? null : onDown, dis });
+}
+// 「いま押せる」ことを知らせる、ゆっくり脈打つ光のふち
+function glowRing(c, x, y, w, h, r, col) {
+  const p = .5 + .5 * Math.sin(APP.t * 4.2); c.save();
+  if (!PERF.lite) { c.shadowColor = col; c.shadowBlur = 6 + p * 12; }
+  rr(c, x - 1, y - 1, w + 2, h + 2, r + 1); c.strokeStyle = rgba(col, .45 + p * .5); c.lineWidth = 2 + p * 1.6; c.stroke(); c.restore();
 }
 function hitBtn(x, y) { for (let i = APP.btns.length - 1; i >= 0; i--) if (inRect(APP.btns[i], x, y)) return APP.btns[i]; return null; }
 function toast(s) { APP.toast = { s, t: 0 }; }
@@ -79,7 +90,7 @@ function setLayout(portrait) {
 function fitCanvas() {
   const L = APP.L, cv = APP.cv, dpr = Math.min(window.devicePixelRatio || 1, 2);
   const css = Math.min(window.innerWidth / L.W, window.innerHeight / L.H);
-  APP.css = css; ART.sc = Math.max(1, Math.min(2, dpr * css));
+  APP.css = css; ART.sc = Math.max(1, Math.min(PERF.lite ? 1.25 : 2, dpr * css));
   const w = Math.round(L.W * ART.sc), h = Math.round(L.H * ART.sc);
   if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; ART.bgKey = ''; }
   cv.style.width = Math.floor(L.W * css) + 'px'; cv.style.height = Math.floor(L.H * css) + 'px';
@@ -120,6 +131,7 @@ function drawTitle(c, dt) {
   button('t_gacha', bx, by2 + 78, bw / 2 - 6, 54, 'ガチャ', { style: 'gold', size: 20, col: '#5a3000' }, () => { APP.gacha = null; go('gacha'); });
   button('t_coll', bx + bw / 2 + 6, by2 + 78, bw / 2 - 6, 54, 'なかま強化', { style: 'good', size: 17 }, () => { APP.cfocus = APP.save.form[0]; go('collection'); });
   button('t_snd', L.W - 130, 12, 116, 34, AUD.muted ? 'おと：OFF' : 'おと：ON', { style: 'ghost', size: 14 }, () => { audioMute(!AUD.muted); });
+  button('t_q', L.W - 130, 92, 116, 34, PERF.lite ? 'がぞう：かんたん' : 'がぞう：きれい', { style: 'ghost', size: 12 }, () => perfSet(!PERF.lite));
   button('t_fx', L.W - 130, 52, 116, 34, FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF', { style: 'ghost', size: 12 }, () => { fxSetOn(!FXCFG.on); });
   gemChip(c, 12, 12, 130);
   txt(c, 'ドラッグで好きな場所に置いて、重ねて合成！', cx, ty + (L.portrait ? 72 : 76), 15, '#fff8e8', 'center', { outline: false });
@@ -148,7 +160,7 @@ function unitCard(c, key, x, y, w, h, o) {
   drawSpriteAt(c, key, x + w / 2, y + h * (o.small ? .7 : .7), Math.min(w * .74, h * .55), APP.t + d.no, 0, { hatch: 0, key }, 1); c.restore();
   if (locked) { txt(c, '🔒', x + w / 2, y + h * .42, 22, '#fff', 'center', { outline: false }); txt(c, o.hint || '', x + w / 2, y + h - 8, 10, '#bdb6e0', 'center', { outline: false }); }
   else {
-    txt(c, d.name, x + w / 2, y + 15, Math.min(12, w / 8.2), '#fff', 'center', { lw: 3 });
+    txt(c, d.name, x + w / 2, y + 15, Math.min(12, w / 8.2), '#fff', 'center', { lw: 3, maxW: w - 8 });
     if (!o.small) tierBadge(c, key, x + 11, y + 28);
     if (!o.noCost) { coinIcon(c, x + 14, y + h - 12, 6.5); txt(c, '' + (o.cost != null ? o.cost : d.cost), x + 24, y + h - 7, 13, '#ffe27a', 'left'); }
     E(c, x + w - 13, y + h - 12, 6, 6, ec); txt(c, ELEM[d.elem].n, x + w - 13, y + h - 8, 9, '#3a2050', 'center', { outline: false });
@@ -333,10 +345,11 @@ function drawPanel(c, B) {
     unitCard(c, key, r.x, r.y, r.w, r.h, { cost: sc, sel: active, small: true, lv: (G.mlv[key] || 1) > 1 ? G.mlv[key] : 0 });
     c.restore();
     if (!afford) { rr(c, r.x, r.y, r.w, r.h, 10); c.fillStyle = 'rgba(10,6,30,.35)'; c.fill(); }
+    else if (!active && G.units.length < unitCap() && !G.over) glowRing(c, r.x, r.y, r.w, r.h, 10, ELEM[d.elem].c);
     txt(c, '' + (i + 1), r.x + r.w - 10, r.y + 16, 11, 'rgba(255,255,255,.5)', 'right', { outline: false });
     const cnt = G.units.filter(u => u.key === key).length; if (cnt) txt(c, '×' + cnt, r.x + r.w - 8, r.y + 31, 11, COL.dim, 'right', { outline: false });
     const lv = G.lv[key] || 0, uc = upgradeCost(key), ur = R.upg[i];
-    button('up' + i, ur.x, ur.y, ur.w, ur.h, uc == null ? `強化 MAX` : `Lv${lv}→${lv + 1}  ${uc}G`, { style: uc != null && G.gold >= uc ? 'gold' : 'ghost', size: 12, col: uc != null && G.gold >= uc ? '#5a3000' : '#d8d2f5', r: 8, disabled: uc == null }, () => { if (!upgrade(key)) toast('ゴールドが足りません'); });
+    button('up' + i, ur.x, ur.y, ur.w, ur.h, uc == null ? `強化 MAX` : `Lv${lv}→${lv + 1}  ${uc}G`, { glow: uc != null && G.gold >= uc, style: uc != null && G.gold >= uc ? 'gold' : 'ghost', size: 12, col: uc != null && G.gold >= uc ? '#5a3000' : '#d8d2f5', r: 8, disabled: uc == null }, () => { if (!upgrade(key)) toast('ゴールドが足りません'); });
     button('card' + i, r.x, r.y, r.w, r.h, '', { style: 'ghost', transparent: true }, null, () => { if (G.over || B.paused) return; if (B.placing && B.placing.sticky && B.placing.key === key) { B.placing = null; return; } if (G.gold < sc) { toast('ゴールドが足りません'); return; } if (G.units.length >= unitCap()) { toast('仲間がいっぱい！ 合成か売却で場所をあけよう'); return; } selectCard(i, false); });
   }
   // ライフと、★いくつで召喚するか（召喚欄の右上）
@@ -363,10 +376,10 @@ function drawPanel(c, B) {
     txt(c, `ウェーブ終了ボーナス 約${wb.base + wb.eco + wb.interest}G（利子+${wb.interest}）`, I.x + 10, I.y + 53, 12, '#ffe27a', 'left', { outline: false });
   }
   const mp = sel ? findMergePartner(sel) : null;
-  button('b_rand', R.rand.x, R.rand.y, R.rand.w, R.rand.h, `おまかせ ${randCost()}G`, { style: G.gold >= randCost() ? 'primary' : 'ghost', size: p ? 15 : 14 }, doRandom);
-  button('b_merge', R.merge.x, R.merge.y, R.merge.w, R.merge.h, '合成', { style: mp ? 'good' : 'off', disabled: !mp, size: 15 }, doMerge);
+  button('b_rand', R.rand.x, R.rand.y, R.rand.w, R.rand.h, `おまかせ ${randCost()}G`, { glow: G.gold >= randCost() && G.units.length < unitCap(), style: G.gold >= randCost() ? 'primary' : 'ghost', size: p ? 15 : 14 }, doRandom);
+  button('b_merge', R.merge.x, R.merge.y, R.merge.w, R.merge.h, '合成', { glow: !!mp, style: mp ? 'good' : 'off', disabled: !mp, size: 15 }, doMerge);
   button('b_sell', R.sell.x, R.sell.y, R.sell.w, R.sell.h, sel ? `売却\n+${sellValue(sel)}G` : '売却', { style: sel ? 'danger' : 'off', disabled: !sel, size: sel ? 12 : 15 }, doSell);
-  button('b_go', R.go.x, R.go.y, R.go.w, R.go.h, G.phase === 'prep' ? `開始\n+${Math.floor(G.prepT) * 2}G` : 'たたかい中', { style: G.phase === 'prep' ? 'good' : 'off', disabled: G.phase !== 'prep', size: 13 }, () => skipPrep());
+  button('b_go', R.go.x, R.go.y, R.go.w, R.go.h, G.phase === 'prep' ? `開始\n+${Math.floor(G.prepT) * 2}G` : 'たたかい中', { glow: G.phase === 'prep', style: G.phase === 'prep' ? 'good' : 'off', disabled: G.phase !== 'prep', size: 13 }, () => skipPrep());
 }
 
 function battleGuide(c) {   // フィールド下（範囲円・合成の目印）
@@ -423,6 +436,7 @@ function drawBattle(c, dt) {
     modal(c, L, 'ポーズ中');
     const bw = 240, x = L.W / 2 - bw / 2, y = L.H / 2 - 70;
     button('p_resume', x, y, bw, 52, '再開', { style: 'primary', size: 20 }, () => { B.paused = false; });
+    button('p_q', x, y + 222, bw, 40, PERF.lite ? 'がぞう：かんたん（かるい）' : 'がぞう：きれい', { style: 'ghost', size: 14 }, () => perfSet(!PERF.lite));
     button('p_fx', x, y + 176, bw, 40, FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF（かるくなる）', { style: 'ghost', size: 14 }, () => { fxSetOn(!FXCFG.on); });
     button('p_retry', x, y + 64, bw, 46, 'はじめからやり直す', { style: 'ghost', size: 16 }, () => startBattle());
     button('p_quit', x, y + 120, bw, 46, 'マップへもどる', { style: 'ghost', size: 16 }, () => { bgmIntensity(0); go('map'); });

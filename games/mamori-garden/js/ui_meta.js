@@ -66,13 +66,13 @@ function resultCard(c, r, x, y, w, h, compact, k) {
   if (!compact) {
     if (r.kind === 'piece') shardArt(c, r.key, cx, y + h * .42, Math.min(w * .7, h * .5), r.n, col, APP.t); else drawSpriteAt(c, r.key, cx, y + h * .62, Math.min(w * .7, h * .5), APP.t, 0, { hatch: 0 }, 1);
     tierTag(c, r.tier, cx, y + 20);
-    txt(c, d.name, cx, y + h - 50, Math.min(18, w / 9), '#fff', 'center');
-    txt(c, ln, cx, y + h - 30, Math.min(14, w / 11), lc, 'center');
-    txt(c, progressLine(r.key), cx, y + h - 12, Math.min(12, w / 13), COL.dim, 'center', { outline: false });
+    txt(c, d.name, cx, y + h - 50, Math.min(18, w / 9), '#fff', 'center', { maxW: w - 12 });
+    txt(c, ln, cx, y + h - 30, Math.min(14, w / 11), lc, 'center', { maxW: w - 12 });
+    txt(c, progressLine(r.key), cx, y + h - 12, Math.min(12, w / 13), COL.dim, 'center', { outline: false, maxW: w - 12 });
   } else {
     if (r.kind === 'piece') shardArt(c, r.key, x + 46, y + h * .5, 70, r.n, col, APP.t); else drawSpriteAt(c, r.key, x + 46, y + h - 14, 80, APP.t, 0, { hatch: 0 }, 1);
     tierTag(c, r.tier, x + 46, y + 14);
-    txt(c, d.name, x + 96, y + 32, 15, '#fff', 'left'); txt(c, ln, x + 96, y + 54, 13, lc, 'left'); txt(c, progressLine(r.key), x + 96, y + 76, 11, COL.dim, 'left', { outline: false });
+    txt(c, d.name, x + 96, y + 32, 15, '#fff', 'left', { maxW: w - 104 }); txt(c, ln, x + 96, y + 54, 13, lc, 'left', { maxW: w - 104 }); txt(c, progressLine(r.key), x + 96, y + 76, 11, COL.dim, 'left', { outline: false, maxW: w - 104 });
   }
   c.restore();
 }
@@ -121,10 +121,10 @@ function drawGacha(c, dt) {
   // ボタン
   const by = P ? 668 : 502, bw = 160, bh = 78, bx = P ? 22 : 430;
   const can1 = sv.gems >= GC.cost, can10 = sv.gems >= GC.cost10, nt = sv.tickets[gt] || 0;
-  const gemBtn = (id, x, label, cost, style, can, fn) => button(id, x, by, bw, bh, '', { style: can ? style : 'off', draw: (c2, x2, y2, w2, h2) => { txt(c2, label, x2 + w2 / 2, y2 + 32, 24, can ? '#fff' : '#a09cb8', 'center'); gemIcon(c2, x2 + w2 / 2 - 26, y2 + 56, 9); txt(c2, '' + cost, x2 + w2 / 2 - 12, y2 + 63, 20, can ? '#fff' : '#a09cb8', 'left'); } }, fn);
-  gemBtn('g_1', bx, '1回', GC.cost, 'primary', can1, () => startGacha(1, gt));
+  const gemBtn = (id, x, label, cost, style, can, fn, glow) => button(id, x, by, bw, bh, '', { glow: !!glow, style: can ? style : 'off', draw: (c2, x2, y2, w2, h2) => { txt(c2, label, x2 + w2 / 2, y2 + 32, 24, can ? '#fff' : '#a09cb8', 'center'); gemIcon(c2, x2 + w2 / 2 - 26, y2 + 56, 9); txt(c2, '' + cost, x2 + w2 / 2 - 12, y2 + 63, 20, can ? '#fff' : '#a09cb8', 'left'); } }, fn);
+  gemBtn('g_1', bx, '1回', GC.cost, 'primary', can1, () => startGacha(1, gt), can1);
   gemBtn('g_10', bx + bw + 8, '10回', GC.cost10, 'gold', can10, () => startGacha(10, gt));
-  if (GC.ticket) { const cant = nt < 1; button('g_tk', bx + (bw + 8) * 2, by, bw, bh, '', { style: cant ? 'off' : 'good', disabled: cant, draw: (c2, x2, y2, w2, h2) => { txt(c2, 'チケット', x2 + w2 / 2, y2 + 32, 22, cant ? '#a09cb8' : '#fff', 'center'); ticketIcon(c2, x2 + w2 / 2 - 28, y2 + 58, 11, GC.col); txt(c2, '×' + nt + '（無料）', x2 + w2 / 2 - 10, y2 + 64, 16, cant ? '#a09cb8' : '#fff', 'left'); } }, () => startGacha(1, gt, true)); }
+  if (GC.ticket) { const cant = nt < 1; button('g_tk', bx + (bw + 8) * 2, by, bw, bh, '', { glow: !cant, style: cant ? 'off' : 'good', disabled: cant, draw: (c2, x2, y2, w2, h2) => { txt(c2, 'チケット', x2 + w2 / 2, y2 + 32, 22, cant ? '#a09cb8' : '#fff', 'center'); ticketIcon(c2, x2 + w2 / 2 - 28, y2 + 58, 11, GC.col); txt(c2, '×' + nt + '（無料）', x2 + w2 / 2 - 10, y2 + 64, 16, cant ? '#a09cb8' : '#fff', 'left'); } }, () => startGacha(1, gt, true)); }
   else txt(c, 'チケットは出ません', bx + (bw + 8) * 2 + bw / 2, by + 44, 13, COL.dim, 'center', { outline: false });
   // 持っているチケット
   { const tx = P ? L.W - 18 : L.W - 24; let xx = tx; for (const k of ['rare', 'normal']) { txt(c, '×' + (sv.tickets[k] || 0), xx, 64, 14, '#fff', 'right'); xx -= 42; ticketIcon(c, xx + 6, 59, 9, GACHAS[k].col); xx -= 26; } }
@@ -166,7 +166,7 @@ function drawGacha(c, dt) {
       if (!ready) button('g_skip2', 0, 0, L.W, L.H, '', { style: 'ghost', transparent: true }, () => { Gc.t = T0 + doneAt + .6; });
       else {
         const gT = Gc.type || 'normal', bw2 = 200, bx2 = L.W / 2 - bw2 - 8, can = Gc.ticket ? (sv.tickets[gT] || 0) >= 1 : sv.gems >= gachaCost(gT, n);
-        button('g_again', bx2, ry, bw2, 56, '', { style: can ? 'primary' : 'off', disabled: !can, draw: (c2, x2, y2, w2, h2) => { txt(c2, 'もう一度 ' + n + '回', x2 + w2 / 2, y2 + 24, 18, can ? '#fff' : '#a09cb8', 'center'); if (Gc.ticket) txt(c2, 'チケット ×' + (sv.tickets[gT] || 0), x2 + w2 / 2, y2 + 46, 14, can ? '#fff' : '#a09cb8', 'center'); else { gemIcon(c2, x2 + w2 / 2 - 22, y2 + 43, 8); txt(c2, '' + gachaCost(gT, n), x2 + w2 / 2 - 10, y2 + 49, 16, can ? '#fff' : '#a09cb8', 'left'); } } }, () => startGacha(n, gT, Gc.ticket));
+        button('g_again', bx2, ry, bw2, 56, '', { glow: can, style: can ? 'primary' : 'off', disabled: !can, draw: (c2, x2, y2, w2, h2) => { txt(c2, 'もう一度 ' + n + '回', x2 + w2 / 2, y2 + 24, 18, can ? '#fff' : '#a09cb8', 'center'); if (Gc.ticket) txt(c2, 'チケット ×' + (sv.tickets[gT] || 0), x2 + w2 / 2, y2 + 46, 14, can ? '#fff' : '#a09cb8', 'center'); else { gemIcon(c2, x2 + w2 / 2 - 22, y2 + 43, 8); txt(c2, '' + gachaCost(gT, n), x2 + w2 / 2 - 10, y2 + 49, 16, can ? '#fff' : '#a09cb8', 'left'); } } }, () => startGacha(n, gT, Gc.ticket));
         button('g_ok', L.W / 2 + 8, ry, bw2, 56, 'とじる', { style: 'ghost', size: 18 }, () => { APP.gacha = null; });
         gemChip(c, L.W / 2 - 65, ry + 66, 130);
       }
@@ -189,7 +189,7 @@ function levelPanel(c, key, x, y, w, h) {
   txt(c, 'かけら ' + p + ' / ' + need, x + 14, y + 50, 14, p >= need ? '#ffe27a' : '#fff', 'left');
   const bw = w - 150; rr(c, x + 14, y + h - 18, bw, 9, 4.5); c.fillStyle = 'rgba(0,0,0,.45)'; c.fill(); const f = clamp(p / need, 0, 1); if (f > 0) { rr(c, x + 14, y + h - 18, Math.max(9, bw * f), 9, 4.5); c.fillStyle = f >= 1 ? '#ffe27a' : '#6ad0ff'; c.fill(); }
   const can = p >= need;
-  button('c_up', x + w - 120, y + h / 2 - 22, 108, 44, 'レベルUP', { style: can ? 'primary' : 'off', disabled: !can, size: 16 }, () => { if (levelUp(sv, key)) { saveSave(); APP.lvFx = { key, t: 0 }; SFX.play('upgrade'); toast(UNITS[key].name + ' が Lv' + lvOf(sv, key) + ' に！'); } });
+  button('c_up', x + w - 120, y + h / 2 - 22, 108, 44, 'レベルUP', { glow: can, style: can ? 'primary' : 'off', disabled: !can, size: 16 }, () => { if (levelUp(sv, key)) { saveSave(); APP.lvFx = { key, t: 0 }; SFX.play('upgrade'); toast(UNITS[key].name + ' が Lv' + lvOf(sv, key) + ' に！'); } });
 }
 function drawCollection(c, dt) {
   const L = APP.L, sv = APP.save, P = L.portrait; drawMenuBg(c, dt, 0, .55);

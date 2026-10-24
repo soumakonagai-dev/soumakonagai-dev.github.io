@@ -16,8 +16,9 @@ function updateBattle(dt) {
   }
 }
 function frame(now) {
+  if (PERF.lite && lastT && now - lastT < 28) { requestAnimationFrame(frame); return; }   // かんたん表示は30fpsまで（熱とカクつきをおさえる）
   const dt = Math.min(0.05, (now - lastT) / 1000 || 0.016); lastT = now;
-  APP.t += dt; ART.t = APP.t;
+  APP.t += dt; ART.t = APP.t; if (typeof perfWatch === 'function') perfWatch(dt);
   const c = APP.c; c.setTransform(ART.sc, 0, 0, ART.sc, 0, 0); c.clearRect(0, 0, APP.L.W, APP.L.H);
   APP.btns.length = 0;
   try {
@@ -55,3 +56,18 @@ async function wakeOn() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wakeOn(); });
 for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, wakeOn, { passive: true });
 wakeOn();
+
+// ===== かんたん表示の切りかえと、重いときの自動切りかえ =====
+function perfSet(lite, auto) {
+  PERF.lite = lite; if (!auto) { PERF.auto = false; try { localStorage.setItem('mamori-q', lite ? 'lite' : 'full'); } catch (e) { } }
+  if (lite) fxSetOn(false);
+  ART.bgKey = ''; for (const k in SPR_CACHE) delete SPR_CACHE[k]; try { fitCanvas(); } catch (e) { }
+  toast(lite ? 'かんたん表示（かるい）' : 'きれい表示');
+}
+let perfEma = 16;
+function perfWatch(dt) {
+  perfEma = perfEma * 0.95 + dt * 1000 * 0.05;
+  if (!PERF.auto || PERF.lite || APP.screen !== 'battle') { PERF.slow = 0; return; }
+  if (perfEma > 26) PERF.slow += dt; else PERF.slow = Math.max(0, PERF.slow - dt);
+  if (PERF.slow > 4) { PERF.slow = 0; perfSet(true, true); toast('おもいので、かんたん表示にしました'); }
+}

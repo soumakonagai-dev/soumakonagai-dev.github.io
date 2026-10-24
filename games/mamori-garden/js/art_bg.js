@@ -184,8 +184,8 @@ function rune(c, x, y, s) { c.strokeStyle = 'rgba(200,185,255,.5)'; c.lineWidth 
 
 // ---------- 動く景色（雲・粒子・オーロラ・水面） ----------
 function initScenery(L) {
-  const th = ART.theme, n = ({ meadow: 36, lake: 40, autumn: 40, snow: 90, temple: 50 })[th] || (EXTBG[th] && EXTBG[th].n) || 40;
-  ART.particles = []; for (let i = 0; i < n; i++) ART.particles.push(newParticle(L, th, true));
+  const th = ART.theme, n = ({ meadow: 36, lake: 40, autumn: 40, snow: 90, temple: 50 })[th] || (EXTBG[th] && EXTBG[th].n) || 40; const nPart = PERF.lite ? Math.ceil(n * .4) : n;
+  ART.particles = []; for (let i = 0; i < nPart; i++) ART.particles.push(newParticle(L, th, true));
   ART.clouds = []; for (let i = 0; i < 5; i++) ART.clouds.push({ x: Math.random() * L.W, y: 6 + Math.random() * (L.fy * 0.55), s: 0.7 + Math.random() * 0.8, v: 3 + Math.random() * 5 });
 }
 function newParticle(L, th, init) {
@@ -221,7 +221,7 @@ function drawSceneryAnim(c, L, dt) {
     for (let i = 0; i < 4; i++) { c.rotate(Math.PI / 2); c.fillRect(0, -2.5, 20, 5); c.strokeRect(0, -2.5, 20, 5); } c.restore();
   }
   if (th === 'temple') { for (let i = 0; i < 8; i++) { const a = (Math.sin(t * 0.7 + i * 1.7) * 0.5 + 0.5); glowDot(c, (i * 131 + 40) % L.W, 10 + (i * 37) % (L.fy * 0.8), 3 + a * 3, '#ffffff', 0.5 + a * 0.5); } }
-  if (EXTBG[th] && EXTBG[th].anim) EXTBG[th].anim(c, L, t);
+  if (EXTBG[th] && EXTBG[th].anim && !PERF.lite) EXTBG[th].anim(c, L, t);
   // 粒子（花びら／ホタル／落ち葉／雪／光の粒）
   for (const p of ART.particles) {
     if (EXTBG[th] && EXTBG[th].particle) EXTBG[th].particle(c, p, dt, t, L);

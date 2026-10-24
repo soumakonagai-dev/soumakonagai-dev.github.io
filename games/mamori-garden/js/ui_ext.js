@@ -24,17 +24,17 @@ function drawMap(c, dt) {
     const pad = 8, clr = sv.stars[i] > 0 ? 'クリア：' + DIFFS[Math.max(0, dc)].name : 'NEW!';
     if (!P) {
       drawStageThumb(c, i, r.x + pad, r.y + pad, r.w - pad * 2, 190, !open, APP.t + i);
-      txt(c, (i + 1) + '. ' + st.name, r.x + r.w / 2, r.y + 226, 20, open ? '#fff8e8' : '#9d97bd', 'center');
-      txt(c, st.sub, r.x + r.w / 2, r.y + 250, 12, COL.dim, 'center', { outline: false });
-      txt(c, open ? 'ボス：' + BOSSES[st.boss].name : '？？？', r.x + r.w / 2, r.y + 278, 12, '#ffd0a8', 'center', { outline: false });
+      txt(c, (i + 1) + '. ' + st.name, r.x + r.w / 2, r.y + 226, 20, open ? '#fff8e8' : '#9d97bd', 'center', { maxW: r.w - 14 });
+      txt(c, st.sub, r.x + r.w / 2, r.y + 250, 12, COL.dim, 'center', { outline: false, maxW: r.w - 14 });
+      txt(c, open ? 'ボス：' + BOSSES[st.boss].name : '？？？', r.x + r.w / 2, r.y + 278, 12, '#ffd0a8', 'center', { outline: false, maxW: r.w - 14 });
       for (let q = 0; q < 3; q++) star5(c, r.x + r.w / 2 + (q - 1) * 30, r.y + 312, 11, sv.stars[i] > q ? '#ffe27a' : 'rgba(255,255,255,.18)', 'rgba(60,30,80,.7)');
       if (!open) txt(c, APP.mapEndless ? 'クリアで解放' : '前のステージを\nクリア', r.x + r.w / 2, r.y + 352, 12, '#cfc8ee', 'center', { outline: false });
-      else txt(c, clr, r.x + r.w / 2, r.y + 352, 13, sv.stars[i] > 0 ? COL.teal : COL.pink, 'center');
+      else txt(c, clr, r.x + r.w / 2, r.y + 352, 13, sv.stars[i] > 0 ? COL.teal : COL.pink, 'center', { maxW: r.w - 14 });
     } else {
       drawStageThumb(c, i, r.x + pad, r.y + pad, 150, r.h - pad * 2, !open, APP.t + i);
-      txt(c, (i + 1) + '. ' + st.name, r.x + 174, r.y + 38, 24, open ? '#fff8e8' : '#9d97bd');
-      txt(c, st.sub, r.x + 174, r.y + 60, 13, COL.dim, 'left', { outline: false });
-      txt(c, open ? 'ボス：' + BOSSES[st.boss].name : '？？？', r.x + 174, r.y + 82, 13, '#ffd0a8', 'left', { outline: false });
+      txt(c, (i + 1) + '. ' + st.name, r.x + 174, r.y + 38, 24, open ? '#fff8e8' : '#9d97bd', 'left', { maxW: r.w - 186 });
+      txt(c, st.sub, r.x + 174, r.y + 60, 13, COL.dim, 'left', { outline: false, maxW: r.w - 186 });
+      txt(c, open ? 'ボス：' + BOSSES[st.boss].name : '？？？', r.x + 174, r.y + 82, 13, '#ffd0a8', 'left', { outline: false, maxW: r.w - 186 });
       for (let q = 0; q < 3; q++) star5(c, r.x + 184 + q * 28, r.y + 102, 10, sv.stars[i] > q ? '#ffe27a' : 'rgba(255,255,255,.18)', 'rgba(60,30,80,.7)');
       if (!open) txt(c, APP.mapEndless ? 'クリアで解放' : '前のステージをクリア', r.x + r.w - 12, r.y + 104, 12, '#cfc8ee', 'right', { outline: false });
       else txt(c, clr, r.x + r.w - 12, r.y + 104, 12, sv.stars[i] > 0 ? COL.teal : COL.pink, 'right', { outline: false });
