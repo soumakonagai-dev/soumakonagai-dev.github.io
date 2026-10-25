@@ -54,7 +54,7 @@ function newBattle(stageIdx, form, portrait, endless, mlv, diff) {
   G = {
     L, stage: stageIdx, st, endless: !!endless, form: form.slice(), path: P, samples, zones: genZones(st, L, P, stageIdx),
     units: [], enemies: [], projs: [], grounds: [], timers: [], auras: [],
-    gold: Math.round(START_GOLD * (1 + 0.25 * stageIdx)), life: START_LIFE, wave: 0, phase: 'prep', prepT: PREP_TIME, waveT: 0, spawnQ: [], spawnI: 0,
+    gold: Math.round(START_GOLD * (1 + 0.25 * Math.min(stageIdx, typeof NORMAL_STAGES !== 'undefined' && stageIdx >= NORMAL_STAGES ? 33 : 39))), life: START_LIFE, wave: 0, phase: 'prep', prepT: PREP_TIME, waveT: 0, spawnQ: [], spawnI: 0,
     diff: diff == null ? DEFAULT_DIFF : diff, lv: {}, mlv: mlv || {}, randCount: 0, t: 0, uid: 1, over: null, kills: 0, leaked: 0, deadLog: [], interestCap: 40, goldEarned: 0,
   };
   return G;

@@ -143,7 +143,7 @@ function diffHp(n, d) { const h = diffOf(d).hp, base = DIFFS[DEFAULT_DIFF].hp; r
 function diffCnt(n, d) { const k = diffOf(d).cnt; return k > 1 ? 1 + (k - 1) * diffRamp(n) : k; }
 function diffOf(d) { return DIFFS[d == null ? DEFAULT_DIFF : d]; }
 function hpMulOf(n, stIdx, diff) { return Math.pow(HP_GROWTH, n - 1) * STAGE_HP_MUL[Math.min(stIdx, STAGE_HP_MUL.length - 1)] * diffHp(n, diff); }
-function waveBudget(n, stIdx, diff) { return (7 + n * 1.3) * (1 + 0.04 * Math.min(stIdx, 29)) * diffCnt(n, diff); }
+function waveBudget(n, stIdx, diff) { return (7 + n * 1.3) * (1 + 0.04 * (typeof NORMAL_STAGES !== 'undefined' && stIdx >= NORMAL_STAGES ? 29 : Math.min(stIdx, 39))) * diffCnt(n, diff); }
 function makeWave(n, stIdx, diff) {
   const r = mulberry32(n * 977 + stIdx * 131 + 5);
   const avail = ENEMY_LIST.filter(e => e.key !== 'boss' && n >= e.min).map(e => e.key);

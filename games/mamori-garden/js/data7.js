@@ -26,7 +26,7 @@ ns('winter', 'ryuujin', '新春の龍神', 'fire', 250, 110, 0.7, 4.0, 'phys', '
 // ---- 月がわりのイベントステージ（インデックスは NORMAL_STAGES 以降） ----
 // 月, 名前, 説明, 道を借りるステージ, テーマ名, 元テーマ, 色相, 彩度, 明るさ, 全体の色, ボスkey, ボス名, ボスの元, 技の説明, ボスの色
 const EVENT_DEFS = [
-  [1, '初詣の神社', 'あけまして、おめでとう！', 2, 'ev01', 'sakura', 330, 1.1, 1.0, [255, 60, 40], 'ev_ryujin', '春を呼ぶ龍', 'magmadragon', '炎で味方を眠らせる', '#ffd24a'],
+[1, '初詣の神社', 'あけまして、おめでとう！', 2, 'ev01', 'sakura', 330, 1.1, 1.0, [255, 60, 40], 'ev_ryujin', '春を呼ぶ龍', 'magmadragon', '炎で味方を眠らせる', '#ffd24a'],
   [2, '雪まつりの広場', 'まっしろな雪と、ぬくもり', 4, 'ev02', 'crystal', -20, 0.5, 1.5, [200, 230, 255], 'ev_yukigiant', '雪だるま大王', 'giant', '近くの味方の動きをにぶらせる', '#e8f6ff'],
   [3, 'ひなまつりの庭', 'ももの花と、おだいりさま', 6, 'ev03', 'sakura', 10, 1.0, 1.15, [255, 170, 200], 'ev_hina', 'ひなの女王', 'queen', 'よみがえって立ちはだかる', '#ff9ac8'],
   [4, 'お花見の丘', '満開の桜の下で', 8, 'ev04', 'sakura', 20, 1.0, 1.1, [255, 200, 220], 'ev_hanami', '花見の妖狐', 'kyuubi', '妖しい狐火で眠らせる', '#ffd0e8'],
@@ -39,20 +39,39 @@ const EVENT_DEFS = [
   [11, '紅葉の山', '赤と金色の、秋の道', 7, 'ev11', 'desert', -15, 1.1, 0.95, [255, 110, 30], 'ev_momiji', '紅葉の天狗王', 'tengu', '味方を飛ばす', '#ff5a2a'],
   [12, 'クリスマスの雪原', 'きらきらの夜に', 9, 'ev12', 'crystal', 120, 1.1, 1.1, [255, 60, 70], 'ev_xmas', '聖夜の巨人', 'giant', '近くの味方をにぶらせる', '#ff4a4a'],
 ];
+// 後半（16日〜月末）のイベント：べつのステージ・べつのボス・べつのクエスト・べつのポイントになる
+const EVENT_DEFS2 = [
+  [1, '新年の雪あかり', 'しんしんと、ひかる雪', 11, 'ev13', 'crystal', 200, 0.8, 1.4, [200, 220, 255], 'ev_kagami', 'かがみもち大王', 'guardian', '無敵になり、バリアを張る', '#fff2c0'],
+  [2, '豆まきの鬼ヶ島', 'おには〜そと！', 13, 'ev14', 'volcano', 0, 1.1, 1.0, [255, 60, 40], 'ev_oni', '赤鬼', 'giant', '近くの味方の動きをにぶらせる', '#ff4a3a'],
+  [3, '春一番の花畑', 'ふわっと、風にのって', 15, 'ev15', 'sky', 90, 1.0, 1.05, [255, 220, 240], 'ev_haru', '春風の王', 'raijuu', '雷でしびれさせる', '#ffd0f0'],
+  [4, '新緑のたけのこ山', 'にょきにょき、竹の林', 17, 'ev16', 'worldtree', -20, 1.1, 0.95, [100, 255, 150], 'ev_take', '竹の大将', 'treant', '味方を眠らせる', '#7aff9a'],
+  [5, '梅雨入りの池', 'ぽちゃん、と雨の音', 19, 'ev17', 'abyss', 120, 1.1, 1.2, [100, 255, 130], 'ev_kaeru', 'かえる大王', 'kraken', '味方をつかんで飛ばす', '#7aff6a'],
+  [6, '七夕の天の川', 'ねがいごとを、星に', 21, 'ev18', 'moon', 220, 1.3, 1.1, [140, 150, 255], 'ev_tanabata', '織姫と彦星', 'queen', 'よみがえって立ちはだかる', '#aab4ff'],
+  [7, '夏の夜の花火大会', 'どーん、と大輪', 23, 'ev19', 'clock', 280, 1.2, 0.9, [200, 60, 255], 'ev_hanabi2', '打ち上げ大王', 'demonking', 'よみがえる。眠らせる', '#ff9ae0'],
+  [8, 'スイカ畑の夕焼け', 'あま〜い、赤い夕日', 25, 'ev20', 'desert', 330, 1.2, 1.0, [255, 100, 60], 'ev_suika', 'すいか大王', 'pharaoh', '砂嵐で味方をにぶらせる', '#ff5a6a'],
+  [9, '稲穂の黄金郷', 'ゆれる、金色の海', 27, 'ev21', 'desert', 10, 1.0, 1.2, [255, 210, 80], 'ev_ine', 'お稲荷の大狐', 'kyuubi', '妖しい狐火で眠らせる', '#ffd24a'],
+  [10, 'おばけ屋敷の夜', 'ひゅ〜どろどろ', 29, 'ev22', 'moon', 120, 1.1, 0.9, [100, 255, 150], 'ev_obake', 'おばけ大王', 'demonking', 'よみがえる。眠らせる', '#9aff9a'],
+  [11, '錦秋の渓谷', '燃えるような、山の色', 31, 'ev23', 'storm', 20, 1.2, 1.0, [255, 150, 50], 'ev_tengu2', '烏天狗の長', 'tengu', '味方を飛ばす', '#ff8a2a'],
+  [12, '年の瀬の大そうじ', 'ぴかぴかにして新年を', 33, 'ev24', 'clock', 30, 0.6, 1.2, [255, 230, 170], 'ev_oosouji', '大掃除ロボ', 'clockking', '時間を止めて動けなくする', '#c8d8ff'],
+];
 const EVENT_STAGE_BASE = STAGES.length;
-for (const d of EVENT_DEFS) {
-  const [m, name, sub, bs, th, base, hue, sat, lit, ov, bk, bn, bb, bsk, tint] = d, src = STAGES[bs];
-  STAGE_HP_MUL.push(38);
-  STAGE_EX.push({ theme: th, base, hue, sat, lit, ov, boss: bk, bossBase: bb, tint });
-  STAGES.push({ name: m + '月  ' + name, sub, theme: th, boss: bk, event: m, path: src.path.map(p => p.slice()), zones: src.zones.slice() });
-  BOSSES[bk] = { name: bn, skill: bsk }; BOSS_BASE[bk] = bb;
+for (let i = 0; i < 12; i++) {
+  for (const half of [0, 1]) {
+    const d = (half ? EVENT_DEFS2 : EVENT_DEFS)[i];
+    const [m, name, sub, bs, th, base, hue, sat, lit, ov, bk, bn, bb, bsk, tint] = d, src = STAGES[bs];
+    STAGE_HP_MUL.push(38);
+    STAGE_EX.push({ theme: th, base, hue, sat, lit, ov, boss: bk, bossBase: bb, tint });
+    STAGES.push({ name: m + '月' + (half ? '後半' : '前半') + '　' + name, sub, theme: th, boss: bk, event: m, half, path: src.path.map(p => p.slice()), zones: src.zones.slice() });
+    BOSSES[bk] = { name: bn, skill: bsk }; BOSS_BASE[bk] = bb;
+  }
 }
-// いま開いているイベント（?month=3 で月を指定してためせる）
-let EVENT_MONTH_DEBUG = 0;
+// いま開いているイベント（?month=3&half=2 で指定してためせる）。1か月に2つ：前半(1〜15日)・後半(16日〜)
+let EVENT_MONTH_DEBUG = 0, EVENT_HALF_DEBUG = 0;
 function eventMonth() { return EVENT_MONTH_DEBUG || (new Date().getMonth() + 1); }
-function eventStageIdx(m) { return EVENT_STAGE_BASE + ((m || eventMonth()) - 1); }
-function eventYM() { const d = new Date(); return (EVENT_MONTH_DEBUG ? d.getFullYear() + '-' + String(EVENT_MONTH_DEBUG).padStart(2, '0') : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
-function eventDaysLeft() { const d = new Date(), end = new Date(d.getFullYear(), d.getMonth() + 1, 1); return Math.max(0, Math.ceil((end - d) / 86400000)); }
+function eventHalf() { return EVENT_HALF_DEBUG ? EVENT_HALF_DEBUG - 1 : (new Date().getDate() <= 15 ? 0 : 1); }
+function eventStageIdx(m, h) { return EVENT_STAGE_BASE + ((m || eventMonth()) - 1) * 2 + (h == null ? eventHalf() : h); }
+function eventYM() { const d = new Date(); return d.getFullYear() + '-' + String(eventMonth()).padStart(2, '0') + (eventHalf() ? 'b' : 'a'); }
+function eventDaysLeft() { const d = new Date(), end = eventHalf() ? new Date(d.getFullYear(), d.getMonth() + 1, 1) : new Date(d.getFullYear(), d.getMonth(), 16); return Math.max(0, Math.ceil((end - d) / 86400000)); }
 // 交換所：季節キャラ3体のかけら（ポイント、月ごとの回数制限）
 const EVENT_SHOP = { E: { pts: 60, limit: 20 }, L: { pts: 250, limit: 10 }, U: { pts: 1500, limit: 3 } };
 function seasonChars(season) { return UNIT_LIST.filter(u => u.seasonal === season); }
@@ -106,7 +125,17 @@ ns('autumn', 'kuririsu', '栗ひろいリス', 'earth', 120, 22, 1.5, 3.0, 'phys
 ns('autumn', 'kitsunebi', '紅葉の狐火', 'fire', 175, 52, 0.9, 4.0, 'magic', 'bolt', '狐火の舞', 'atk', { burn: [0.8, 1.2, 1.8, 2.8], spreadBurn: [0, 1.5, 2, 3], multi: [0, 1, 2, 3] }, BE('#ff7a2a', 'fox', '#ffd24a', 'fan', '#ff4a1a', '#c8321e', { tc: '#ff9a3a', inner: '#fff0d8', hd: 'flower', hg: '#ff5a2a' }));
 ns('winter', 'kamakura', 'かまくらの雪うさぎ', 'water', 125, 0, 0, 4.2, 'none', 'none', '雪の結界', 'ability', { eSlow: [0.15, 0.2, 0.28, 0.4], eVuln: [0.04, 0.06, 0.1, 0.15] }, BE('#f4faff', 'rabbit', '#4ab0ff', 'none', '#bff4ff', '#e8505a', { inner: '#ffc0d0', hd: 'cap', hg: '#e8f6ff' }));
 ns('winter', 'mochitsuki', 'もちつきの兎', 'light', 175, 58, 0.8, 2.2, 'phys', 'melee', 'ぺったんこ', 'atk', { stun: [0.2, 0.3, 0.4, 0.55], knock: [0.4, 0.6, 0.9, 1.4], splash: [1, 1.2, 1.5, 2] }, BE('#fffbe8', 'rabbit', '#ff6a6a', 'hammer', '#c8a060', '#ffd24a', { inner: '#ffc0d0', hd: 'band', hg: '#e8404a' }));
-// 季節ごとに、イベントで交換できる「ふつうのキャラ」が入れかわる（ランクごとに4つに分けて、季節ごとに1つ）
+// 季節（と前半・後半）ごとに、イベントで交換できる「ふつうのキャラ」が入れかわる（ランクごとに8つに分けて、1つずつ）
 const SEASON_IDX = { spring: 0, summer: 1, autumn: 2, winter: 3 };
-function eventAnyList(tier, season) { return UNIT_LIST.filter(u => !u.seasonal && tierOf(u.key) === tier).filter((u, i) => i % 4 === SEASON_IDX[season || SEASON_OF(eventMonth())]); }
+function eventAnyList(tier, season, half) { const slot = SEASON_IDX[season || SEASON_OF(eventMonth())] * 2 + (half == null ? eventHalf() : half); return UNIT_LIST.filter(u => !u.seasonal && tierOf(u.key) === tier).filter((u, i) => i % 8 === slot); }
 function eventAnyAvail(key) { const u = UNITS[key]; return !!u && !u.seasonal && eventAnyList(tierOf(key)).some(x => x.key === key); }
+
+// ---- 季節限定キャラ（さらに追加：各季節 エピック1体・レジェンド1体 → 各季節7体） ----
+ns('spring', 'ichigohime', 'いちご摘みの娘', 'earth', 125, 30, 1.0, 3.2, 'phys', 'bolt', '甘い実り', 'ability', { gold: [2, 4, 6, 10], slow: [0.15, 0.2, 0.28, 0.4], heal: [0, 0, 1, 1] }, H('#ff6a8a', 5, '#c8203a', '#ffb0c8', '#ffffff', 2, 'cap', '#ffffff', 'pack', '#ff6a8a', 'bell', '#ff6a8a'));
+ns('spring', 'yozakura', '夜桜の剣舞', 'dark', 180, 58, 1.2, 2.2, 'phys', 'melee', '花ふぶき斬り', 'aspd', { crit: [0.15, 0.25, 0.35, 0.5], echo: [0.15, 0.25, 0.35, 0.5], splash: [0.8, 1, 1.4, 2] }, H('#2a1a3a', 3, '#ff6a9a', '#5a2a6a', '#ffb0d0', 4, 'ninja', '#3a1a4a', 'cape', '#ff9ac0', 'katana', '#ffd0e8'));
+ns('summer', 'fuurin', '風鈴の少女', 'wind', 125, 0, 0, 4.6, 'none', 'none', 'ちりん', 'ability', { aRange: [0.1, 0.15, 0.22, 0.32], aAspd: [0.1, 0.15, 0.22, 0.32] }, H('#bff4ff', 2, '#2a8aff', '#ffffff', '#6ad0ff', 3, 'band', '#6ad0ff', 'none', '#fff', 'bell', '#bff4ff'));
+ns('summer', 'kakigori', 'かき氷の雪女', 'water', 175, 50, 0.9, 3.8, 'magic', 'bolt', '氷のシロップ', 'ability', { slow: [0.3, 0.4, 0.5, 0.6], stun: [0.1, 0.15, 0.2, 0.3], splash: [1.2, 1.5, 1.9, 2.5], vsSlow: [0.3, 0.5, 0.8, 1.2] }, H('#e8faff', 7, '#4ab0ff', '#ff9ac8', '#ffffff', 3, 'tiara', '#bff4ff', 'scarf', '#ff9ac8', 'wand', '#ff9ac8'));
+ns('autumn', 'kinokokari', 'きのこ狩りの子', 'dark', 120, 20, 1.2, 3.2, 'phys', 'bolt', '毒きのこ', 'ability', { poison: [0.6, 0.9, 1.3, 2], detPoison: [0, 1, 1.6, 2.4] }, H('#c8803a', 0, '#6a3a1a', '#a0522a', '#ffe0a0', 2, 'straw', '#e8d49a', 'pack', '#8a5a2a', 'flask', '#c070ff'));
+ns('autumn', 'ichoumusha', '銀杏の武者', 'earth', 180, 64, 0.8, 2.2, 'phys', 'melee', '黄金の葉吹雪', 'atk', { splash: [1.2, 1.5, 2, 2.8], pierce: [1, 2, 3, 4], vsFull: [0.3, 0.5, 0.8, 1.3] }, H('#ffd24a', 5, '#8a5a1a', '#c8a030', '#fff0b0', 1, 'helm', '#e8b830', 'cape', '#ffc840', 'spear', '#fff0b0'));
+ns('winter', 'tonakai', 'トナカイの少年', 'wind', 125, 28, 1.2, 3.4, 'phys', 'bolt', 'そりすべり', 'aspd', { multi: [0, 1, 1, 2], knock: [0.3, 0.5, 0.7, 1.1], gold: [1, 2, 3, 5] }, H('#a07a4a', 4, '#3a2a1a', '#c8402a', '#ffffff', 2, 'horn', '#a07a4a', 'scarf', '#e8404a', 'bell', '#ffd24a'));
+ns('winter', 'osechi', 'おせちの福神', 'light', 175, 0, 0, 5.0, 'none', 'none', '福をよぶ', 'ability', { aAtk: [0.12, 0.18, 0.26, 0.4], aChance: [0.1, 0.15, 0.22, 0.32], gA: [2, 3, 5, 8] }, H('#fff0b0', 6, '#c8402a', '#e8404a', '#ffd24a', 5, 'top', '#e8404a', 'pack', '#ffd24a', 'fan', '#ffd24a'));

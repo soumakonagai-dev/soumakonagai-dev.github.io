@@ -5,6 +5,7 @@
 // ============================================================
 const W = 640, H = 352, CELL = 4, TILE = 16;
 const GW = W / CELL, GH = H / CELL, TW = W / TILE, TH = H / TILE;
+const LAVA = 20, STONE = 21, CRUMB = 22; // 溶岩・冷えた石・くずれる床
 const EMPTY = 0, WATER = 1, MUD = 2, DIRT = 3, WALL = 4, GATE = 5, FIRE = 6, SEED = 7, DRAIN = 8, SPIKE = 9, LOCK = 10, CRYSTAL = 11, TOGGLE = 12, FROST = 13, ICE = 14, GRATE = 15, TERM = 16, CRACK = 17, POWER = 18, WIRE = 19;
 const GRAB_R = 26;
 // ---- むずかしさ調整（ここの数字をいじるとゲーム全体の手ごたえが変わる） ----
@@ -45,7 +46,7 @@ function makeEN(lev) {
     turret: { hp: Math.round(DIFF.turret.hp * hp), interval: Math.round(DIFF.turret.interval * BASE_ENEMY.turret * d.turret / Math.sqrt(h)), shot: DIFF.turret.shot * Math.min(1.35, spd) },
     jelly: { dry: Math.round(DIFF.jelly.dry * hp) },
     sponge: { full: Math.round(DIFF.sponge.full * hp) },
-    ghostHp: Math.round(3 * hp), salaHp: Math.round(6 * hp),
+    ghostHp: Math.round(3 * hp), salaHp: Math.round(6 * hp), slimeHp: Math.round(6 * hp),
   };
 }
 makeEN(null);
@@ -103,7 +104,11 @@ try { stars = JSON.parse(localStorage.getItem(STAR_KEY) || '{}') || {}; } catch 
 for (const i of cleared) { const n = LEVELS[i].name; if (!stars[n]) stars[n] = 1; }
 const starBits = i => stars[LEVELS[i].name] || 0;
 const starCount = i => { const b = starBits(i); return (b & 1) + (b >> 1 & 1) + (b >> 2 & 1); };
-function addStar(i) { stars[LEVELS[i].name] = starBits(i) | (1 << diffLv); try { localStorage.setItem(STAR_KEY, JSON.stringify(stars)); } catch (e) { } }
+function addStar(i) {
+  stars[LEVELS[i].name] = starBits(i) | (1 << diffLv); try { localStorage.setItem(STAR_KEY, JSON.stringify(stars)); } catch (e) { }
+  let total = 0, hard = 0; for (const n in stars) { const b = stars[n]; total += (b & 1) + (b >> 1 & 1) + (b >> 2 & 1); if (b & 4) hard++; }
+  if (total >= 30) award('star30'); if (hard >= 10) award('hard10');
+}
 function saveProgress() { try { localStorage.setItem(SAVE_KEY, JSON.stringify([...cleared].map(i => LEVELS[i].name))); } catch (e) { } }
 
 // ---------------- バッジ ----------------
@@ -151,6 +156,22 @@ const BADGES = [
   { id: 'fboss', name: '炎を消しつくす者', desc: 'ほのお大魔王をたおす' },
   { id: 'faucet', name: '蛇口ひねり', desc: '空になった蛇口を自分でひねる' },
   { id: 'tutorial', name: 'はじめの一歩', desc: 'チュートリアルをさいごまでやる' },
+  { id: 'w11', name: '迷宮の水道屋', desc: 'W11 のステージを全部クリア' },
+  { id: 'w12', name: 'さいはての旅人', desc: 'W12 のステージを全部クリア' },
+  { id: 'w13', name: 'まとめ上手', desc: 'W13 のステージを全部クリア' },
+  { id: 'w14', name: 'まとめの達人', desc: 'W14 のステージを全部クリア' },
+  { id: 'w15', name: 'はねてワープ', desc: 'W15 のステージを全部クリア' },
+  { id: 'w16', name: '溶岩を歩く者', desc: 'W16 のステージを全部クリア' },
+  { id: 'w17', name: '時計じかけの名人', desc: 'W17 のステージを全部クリア' },
+  { id: 'bounce', name: 'びよーん', desc: 'ばね床で高くとぶ' },
+  { id: 'warp', name: 'どこでも穴', desc: 'ワープの穴をくぐる' },
+  { id: 'warpwater', name: '水のテレポート', desc: '水をワープさせる（合計100つぶ）' },
+  { id: 'lavastone', name: '溶岩しずめ', desc: '溶岩を石にする（合計80マス）' },
+  { id: 'slime', name: 'スライムの石像', desc: 'ようがんスライムを石にする' },
+  { id: 'timer', name: 'まにあった！', desc: 'タイマースイッチのゲートをくぐる' },
+  { id: 'crumble', name: 'あしもと注意', desc: 'くずれる床を合計15回くずす' },
+  { id: 'star30', name: '星あつめ', desc: '星を30こ集める' },
+  { id: 'hard10', name: 'むずかしい好き', desc: '「むずかしい」で10ステージクリア' },
 ];
 const BADGE_KEY = 'mizutsukai-badges';
 let badges = { got: [], stats: { deaths: 0, shield: 0, fires: 0, ice: 0, vines: 0, kills: 0, kinds: [] } };
@@ -396,6 +417,7 @@ function inZone(px, py) {
 }
 
 const ENEMY = {
+  a: (x, y) => ({ type: 'slime', x: x + 1, y: y + 4, w: 14, h: 12, vx: 0, vy: 0, kx: 0, hp: EN.slimeHp, cd: 50 + Math.random() * 40, t: Math.random() * 6 }),
   g: (x, y) => ({ type: 'ghost', x: x + 2, y: y + 1, w: 12, h: 14, hp: EN.ghostHp, t: Math.random() * 6 }),
   l: (x, y) => ({ type: 'sala', x, y: y + 4, w: 16, h: 12, vx: .6, vy: 0, kx: 0, hp: EN.salaHp, cd: 60 }),
   z: (x, y) => ({ type: 'bbug', x: x + 1, y: y + 6, w: 14, h: 10, vx: .5, vy: 0, kx: 0, hp: 1, fuse: 540, armed: true }),
@@ -414,7 +436,7 @@ function loadLevel(i, fresh = true) {
   if (fresh || i !== levelIndex) run = { deaths: 0, frames: 0, spiritKills: 0, ride: 0 };
   levelIndex = i; L = LEVELS[i]; makeEN(L);
   grid.fill(0); stamp.fill(0); elec.fill(0); elecOn = false;
-  fireHP = new Float32Array(TW * TH); seeds = []; seedAtTile = {}; sensors = []; gates = []; lightGates = []; lightGateOpen = false; geysers = []; orbs = []; bolts = []; strikes = []; skyFlash = 0; toasts = toasts.filter(t => !t.text.startsWith('⚡')); pipes = []; fans = []; const pipeIns = [], pipeOuts = []; faucets = []; groundFire = new Uint8Array(TW * TH); burnTiles = []; burnSet = new Set(); tutoStep = 0; tutoFaucet = false;
+  fireHP = new Float32Array(TW * TH); seeds = []; seedAtTile = {}; sensors = []; gates = []; lightGates = []; lightGateOpen = false; geysers = []; orbs = []; bolts = []; strikes = []; skyFlash = 0; toasts = toasts.filter(t => !t.text.startsWith('⚡')); pipes = []; fans = []; const pipeIns = [], pipeOuts = []; lavaTiles = []; pads = []; warpTiles = []; warps = []; tswitches = []; tgates = []; timerT = 0; crumbs = []; P_warpCd = 0; faucets = []; groundFire = new Uint8Array(TW * TH); burnTiles = []; burnSet = new Set(); tutoStep = 0; tutoFaucet = false;
   gateOpen = [false, false, false]; sensorCount = [0, 0, 0]; sensorNeed = [0, 0, 0];
   vines = new Uint8Array(TW * TH); oneway = new Uint8Array(TW * TH);
   enemies = []; shots = []; crates = []; held = []; free = []; fx = []; rainAcc = 0; mudStuck = 0; exitDoor = null;
@@ -455,6 +477,12 @@ function loadLevel(i, fresh = true) {
       else if (c === '(') pipeIns.push([tx, ty]);
       else if (c === ')') pipeOuts.push([tx, ty]);
       else if (c === '>' || c === '<') { fillTile(tx, ty, WALL); fans.push({ tx, ty, dir: c === '>' ? 1 : -1, len: 0 }); }
+      else if (c === 'r') { fillTile(tx, ty, LAVA); lavaTiles.push([tx, ty]); }
+      else if (c === 'p') { pads.push({ tx, ty, t: 0 }); for (let y = 2; y < 4; y++) for (let x = 0; x < 4; x++) grid[(ty * 4 + y) * GW + tx * 4 + x] = STONE; }
+      else if (c === 'n') warpTiles.push([tx, ty]);
+      else if (c === 'y') tswitches.push({ tx, ty, x: px + 2, y: py + 10, w: 12, h: 6, t: 0 });
+      else if (c === 'q') { fillTile(tx, ty, GATE); tgates.push([tx, ty]); }
+      else if (c === 'e') { fillTile(tx, ty, CRUMB); crumbs.push({ tx, ty, t: 0, gone: 0 }); }
       else if (c === 'J') faucets.push({ tx, ty, stock: L.faucetStock || 160, cap: L.faucetStock || 160, cd: 0, turn: 0 });
       else if (c === '+') { wires[ty * TW + tx] = 1; fillTile(tx, ty, WIRE); }
       else if (c === 'U') { wires[ty * TW + tx] = 2; fillTile(tx, ty, WIRE); bulbs.push({ tx, ty, power: 0 }); }
@@ -467,6 +495,7 @@ function loadLevel(i, fresh = true) {
     }
   });
   pipeIns.forEach((p, i) => { if (pipeOuts[i]) pipes.push({ i: p, o: pipeOuts[i], q: 0 }); });
+  for (let i = 0; i + 1 < warpTiles.length; i += 2) warps.push({ a: warpTiles[i], b: warpTiles[i + 1] });
   for (const [sx, sy] of fuseStarts) {
     const prev = new Map(), q = [[sx, sy]], key = (x, y) => y * TW + x; prev.set(key(sx, sy), null); let end = null;
     while (q.length && !end) {
@@ -572,6 +601,7 @@ function touchSpecial(x, y) {
   for (let d = 0; d < 4; d++) {
     const nx = x + (d === 0) - (d === 1), ny = y + (d === 2) - (d === 3), t = get(nx, ny);
     if (t === FIRE) { hitFire(nx, ny); return true; }
+    if (t === LAVA) { coolLava(nx, ny); return true; }
     if (t === SEED) { feedSeed(nx, ny); return true; }
     if (t === DRAIN && Math.random() < (L.drainRate || .05) * GD().hold) return true;
   }
@@ -681,6 +711,7 @@ function stepParticle(p, isHeld) {
       const nx = axis === 'x' ? p.x + v / steps : p.x, ny = axis === 'y' ? p.y + v / steps : p.y;
       const cx = Math.floor(nx / CELL), cy = Math.floor(ny / CELL), t = get(cx, cy);
       if (t === FIRE) { hitFire(cx, cy); return false; }
+      if (t === LAVA) { coolLava(cx, cy); return false; }
       if (t === SEED) { feedSeed(cx, cy); return false; }
       if (t === CRYSTAL && !p.rain && Math.hypot(p.vx, p.vy) > 2) hitCrystal();
       if (isHeld && t === WIRE) { p.x = nx; p.y = ny; continue; } // 持っている水は電線をすりぬける
@@ -787,7 +818,7 @@ function hitEnemies(p, isHeld) {
       if (e.flash > 0) continue;
       damage(e, 1); e.flash = 10; puff(p.x, p.y, 2, '#dde'); sfx('sizzle'); return false;
     }
-    if (t === 'fire' || t === 'bat' || t === 'turret') { waterHit(e, 1); e.flash = 4; puff(p.x, p.y, 1, '#dde'); sfx(t === 'fire' ? 'sizzle' : 'hit'); return false; }
+    if (t === 'fire' || t === 'bat' || t === 'turret' || t === 'slime') { waterHit(e, 1); e.flash = 4; puff(p.x, p.y, 1, '#dde'); sfx(t === 'fire' ? 'sizzle' : 'hit'); return false; }
     if (t === 'sponge') { feedSponge(e); return false; }
     if (t === 'crab' || t === 'turtle') {
       if (Math.hypot(p.vx, p.vy) > 2.2) {
@@ -803,6 +834,7 @@ function damage(e, n) {
   e.hp -= n;
   if (e.hp <= 0 && e.alive) {
     if (e.type === 'sala') crates.push({ x: e.x, y: e.y - 4, w: 16, h: 16, vx: 0, vy: 0, stone: true }); // ひえて石になる
+    if (e.type === 'slime') { crates.push({ x: e.x - 1, y: e.y - 4, w: 16, h: 16, vx: 0, vy: 0, stone: true }); award('slime'); } // スライムも石になる
     if (e.type === 'ghost') stat('ghosts', 1, 10, 'ghost');
     if (e.type === 'sala') award('stone');
     if (e.type === 'boss') award('boss');
@@ -930,7 +962,7 @@ function updatePlayer() {
   if (!P.ground && P.vy >= 0 && blocked(P, P.x, P.y + 1, P.drop <= 0)) P.ground = true;
 
   mudStuck = inM ? mudStuck + 1 : 0;
-  if (boxAny(P.x - 1, P.y - 1, P.w + 2, P.h + 2, t => t === FIRE)) killPlayer('fire');
+  if (boxAny(P.x - 1, P.y - 1, P.w + 2, P.h + 2, t => t === FIRE || t === LAVA)) killPlayer('fire');
   if (boxAny(P.x - 1, P.y - 1, P.w + 2, P.h + 2, t => t === SPIKE)) killPlayer('spike');
   if (mudStuck === 300) award('mud');
   if (elecOn) { // 電気の流れた水につかった（しぶき程度ならセーフ）
@@ -1077,7 +1109,24 @@ function updateEnemies() {
         e.x += mx; e.y += my + Math.sin(e.t) * .2;
         break;
       }
-      case 'sala': { // ほのおトカゲ: 近づくと火をはく
+      case 'slime': { // ようがんスライム: ぴょんぴょん近づいてくる。溶岩の上でも平気
+        e.t += .1;
+        e.vy = Math.min(e.vy + .3, 5);
+        const landed = moveY(e, e.vy, true); if (landed) { if (e.vy > 0) e.vx = 0; e.vy = 0; }
+        if (e.vx && blocked(e, e.x + e.vx, e.y, false)) e.vx = 0; else e.x += e.vx;
+        const onGround = blocked(e, e.x, e.y + 1, true);
+        if (onGround && --e.cd <= 0 && !P.dead && Math.abs(dx) < 240) { e.vy = -4.6; e.vx = Math.sign(dx || 1) * 1.6 * EN.spd; e.cd = Math.round(70 / EN.spd); sfx('pop'); }
+        break;
+      }
+      case 'slime': {
+      const sq = e.vy < 0 ? -2 : e.vy > 0 ? 1 : Math.sin(e.t) * .8, cw = 14 - sq, ch = 12 + sq;
+      ctx.fillStyle = white ? '#fff' : '#ff6a20'; ctx.beginPath(); ctx.ellipse(x + 7, y + 12 - ch / 2, cw / 2, ch / 2, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = white ? '#fff' : '#ffc040'; ctx.beginPath(); ctx.ellipse(x + 5, y + 12 - ch * .7, 2.5, 1.6, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#301008'; ctx.fillRect(x + 4, y + 12 - ch * .55, 2, 2.5); ctx.fillRect(x + 9, y + 12 - ch * .55, 2, 2.5);
+      if (frame % 9 === 0) fx.push({ x: x + 3 + Math.random() * 8, y: y + 12, vx: 0, vy: .5, life: 14, col: '#ff8a30' });
+      break;
+    }
+    case 'sala': { // ほのおトカゲ: 近づくと火をはく
         walker(e, .6 * EN.spd, 0);
         if (--e.cd <= 0 && Math.abs(dx) < 120 && Math.abs(dy) < 24 && Math.sign(dx) === Math.sign(e.vx) && !P.dead) {
           e.cd = 110; sfx('shoot');
@@ -1100,11 +1149,11 @@ function updateEnemies() {
         e.kx *= .9;
         const lost = Math.floor((e.maxHp - e.hp) * 3 / e.maxHp); // 弱るほどおこって強くなる（0〜2段階）
         // 雷雨: ときどき空があれて、大王に雷が落ちる
-        if (e.stormT === undefined) e.stormT = 420;
+        if (e.stormT === undefined) e.stormT = L.bossSoft ? 240 : 420;
         if (e.storm > 0) {
           e.storm--;
           if (e.storm === 300 || (e.storm === 150 && !(e.shock > 0))) bolts.push({ x: ex, t: 60 }); // 大王のいる所に雷の予告
-        } else if (--e.stormT <= 0) { e.storm = 360; e.stormT = 720; sfx('zap'); }
+        } else if (--e.stormT <= 0) { e.storm = 360; e.stormT = L.bossSoft ? 480 : 720; sfx('zap'); }
         if (e.shock > 0) { // しびれ中: 動けない
           if (--e.shock === 0) { e.hitM = 0; e.vx = Math.sign(dx || 1) * .4; }
           if (frame % 6 === 0) puff(ex + (Math.random() - .5) * 30, e.y + Math.random() * e.h, 1, '#fff6a0');
@@ -1125,7 +1174,7 @@ function updateEnemies() {
         if (--e.cd <= 0 && !P.dead) {
           const pats = ['aim', 'spread', 'aim']; if (lost >= 1) pats.push('rain', 'geyser'); if (lost >= 2) pats.push('spread', 'rain');
           const pat = pats[e.pat++ % pats.length], sp = 2.6 + lost * .25;
-          e.cd = Math.max(80, 150 - lost * 20); sfx('shoot');
+          e.cd = Math.round(Math.max(80, 150 - lost * 20) * (L.bossSoft ? 1.5 : 1)); sfx('shoot');
           const mud = (ang, v) => shots.push({ x: ex, y: e.y + 4, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 1.1, g: .05, mud: true });
           const a0 = Math.atan2(dy, dx);
           if (pat === 'aim') mud(a0, sp);
@@ -1336,6 +1385,109 @@ function drawPipes() {
     if (p.q > 0) { ctx.fillStyle = 'rgba(120,200,255,.85)'; ctx.fillRect(x + 6, y + 11, 4, 5); }
   }
 }
+// ---------------- 溶岩・ばね床・ワープ・タイマースイッチ・くずれる床 ----------------
+let lavaTiles = [], pads = [], warpTiles = [], warps = [], tswitches = [], tgates = [], timerT = 0, crumbs = [], P_warpCd = 0, lavaCooled = 0, warpWater = 0;
+const TIMER_LEN = () => Math.round((L.timer || 5) * 60);
+// 水が溶岩にふれると、そのマスは石になる
+function coolLava(cx, cy) {
+  if (get(cx, cy) !== LAVA) return;
+  grid[cy * GW + cx] = STONE; lavaCooled++;
+  if (Math.random() < .3) { puff(cx * CELL + 2, cy * CELL, 1, '#ddd'); sfx('sizzle'); }
+}
+const inTile = (x, y, tx, ty) => x >= tx * TILE && x < tx * TILE + TILE && y >= ty * TILE && y < ty * TILE + TILE;
+const standingOn = (o, tx, ty, topOff = 0) => o.y + o.h >= ty * TILE + topOff - 1 && o.y + o.h <= ty * TILE + topOff + 1.5 && o.x + o.w > tx * TILE + 1 && o.x < tx * TILE + TILE - 1;
+function updateNewGimmicks() {
+  if (lavaCooled && frame % 20 === 0) { stat('lava', lavaCooled, 80, 'lavastone'); lavaCooled = 0; }
+  if (warpWater && frame % 20 === 0) { stat('warpw', warpWater, 100, 'warpwater'); warpWater = 0; }
+  // ばね床: 上に乗ると高くはねる（木箱もはねる）
+  for (const pd of pads) {
+    if (pd.t > 0) pd.t--;
+    if (!P.dead && P.vy >= 0 && standingOn(P, pd.tx, pd.ty, 8)) { P.vy = -8.4; P.ground = false; pd.t = 12; sfx('jump'); puff(pd.tx * TILE + 8, pd.ty * TILE + 8, 4, '#ffe080'); award('bounce'); }
+    for (const c of crates) if (c.vy >= 0 && standingOn(c, pd.tx, pd.ty, 8)) { c.vy = -7; pd.t = 12; }
+  }
+  // ワープ: 人は両方向。水は「入口（青）」から「出口（オレンジ）」へだけ
+  if (P_warpCd > 0) P_warpCd--;
+  for (const w of warps) {
+    if (!P.dead && P_warpCd === 0) {
+      const cx = P.x + P.w / 2, cy = P.y + P.h / 2;
+      for (const [from, to] of [[w.a, w.b], [w.b, w.a]]) if (inTile(cx, cy, from[0], from[1])) {
+        puff(cx, cy, 8, '#c8a0ff'); P.x = to[0] * TILE + 8 - P.w / 2; P.y = to[1] * TILE + TILE - P.h - .5; P_warpCd = 40; sfx('crystal');
+        puff(P.x + P.w / 2, P.y + P.h / 2, 8, '#ffb070'); award('warp'); break;
+      }
+    }
+    for (const p of free) if (!p.rain && inTile(p.x, p.y, w.a[0], w.a[1])) { p.x = w.b[0] * TILE + 4 + Math.random() * 8; p.y = w.b[1] * TILE + 8; warpWater++; }
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+      const k = (w.a[1] * 4 + y) * GW + w.a[0] * 4 + x; if (grid[k] !== WATER) continue;
+      const k2 = (w.b[1] * 4 + (Math.random() * 3 | 0)) * GW + w.b[0] * 4 + (Math.random() * 4 | 0);
+      if (grid[k2] === EMPTY) { grid[k] = EMPTY; grid[k2] = WATER; warpWater++; }
+    }
+  }
+  // タイマースイッチ: 人がふむか、水を勢いよく当てると、むらさきのゲートがしばらく開く
+  for (const sw of tswitches) {
+    let hit = !P.dead && overlap(P, sw);
+    if (!hit) for (const p of free) if (!p.rain && Math.hypot(p.vx, p.vy) > 2 && p.x > sw.x && p.x < sw.x + sw.w && p.y > sw.y - 4 && p.y < sw.y + sw.h) { hit = true; break; }
+    if (hit) { if (timerT <= 0) { sfx('gate'); for (const [tx, ty] of tgates) { fillTile(tx, ty, EMPTY); puff(tx * TILE + 8, ty * TILE + 8, 4, '#c8a0ff'); } } timerT = TIMER_LEN(); sw.t = 10; }
+    if (sw.t > 0) sw.t--;
+  }
+  if (timerT > 0) {
+    if (!P.dead) for (const [tx, ty] of tgates) if (overlap(P, { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE })) award('timer');
+    if (--timerT === 0) {
+      const busy = tgates.some(([tx, ty]) => { const r = { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE }; return (!P.dead && overlap(P, r)) || crates.some(c => overlap(c, r)); });
+      if (busy) timerT = 1; else { sfx('gate'); for (const [tx, ty] of tgates) for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) grid[(ty * 4 + y) * GW + tx * 4 + x] = GATE; }
+    }
+  }
+  // くずれる床: 乗ってしばらくするとくずれて、4秒でもどる
+  for (const c of crumbs) {
+    if (c.gone > 0) {
+      if (--c.gone === 0) {
+        const r = { x: c.tx * TILE, y: c.ty * TILE, w: TILE, h: TILE };
+        if ((!P.dead && overlap(P, r)) || crates.some(k => overlap(k, r)) || enemies.some(e => e.alive && overlap(e, r))) c.gone = 20; else fillTile(c.tx, c.ty, CRUMB);
+      }
+      continue;
+    }
+    const on = (!P.dead && standingOn(P, c.tx, c.ty)) || crates.some(k => standingOn(k, c.tx, c.ty));
+    if (on || c.t > 0) c.t++;
+    if (c.t >= 32) { c.t = 0; c.gone = 240; fillTile(c.tx, c.ty, EMPTY); puff(c.tx * TILE + 8, c.ty * TILE + 8, 8, '#b08a5a'); sfx('pop'); stat('crumble', 1, 15, 'crumble'); }
+  }
+}
+function drawNewGimmicks() {
+  for (const pd of pads) {
+    const x = pd.tx * TILE, y = pd.ty * TILE, sq = pd.t > 0 ? 3 : 0;
+    ctx.fillStyle = '#5a6070'; ctx.fillRect(x + 1, y + 13, 14, 3);
+    ctx.strokeStyle = '#c8ccd8'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let i = 0; i <= 4; i++) ctx.lineTo(x + 4 + (i % 2) * 8, y + 13 - i * (4 - sq) / 4 * 1.2); ctx.stroke(); ctx.lineWidth = 1;
+    ctx.fillStyle = '#ff6a6a'; ctx.fillRect(x + 1, y + 7 + sq, 14, 3); ctx.fillStyle = '#ffb0b0'; ctx.fillRect(x + 1, y + 7 + sq, 14, 1);
+  }
+  warps.forEach(w => {
+    for (const [[tx, ty], col, col2] of [[w.a, '#6a8aff', '#c8d8ff'], [w.b, '#ff9a40', '#ffe0b0']]) {
+      const cx = tx * TILE + 8, cy = ty * TILE + 8;
+      ctx.fillStyle = 'rgba(20,10,40,.6)'; ctx.beginPath(); ctx.ellipse(cx, cy, 7, 8, 0, 0, 7); ctx.fill();
+      for (let i = 0; i < 3; i++) { ctx.strokeStyle = i ? col : col2; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(cx, cy, 7 - i * 2, 8 - i * 2.4, 0, frame * .12 * (i % 2 ? -1 : 1), frame * .12 * (i % 2 ? -1 : 1) + 4.5); ctx.stroke(); }
+      ctx.lineWidth = 1;
+    }
+  });
+  for (const sw of tswitches) {
+    const x = sw.tx * TILE, y = sw.ty * TILE, on = timerT > 0;
+    ctx.fillStyle = '#4a3a6a'; ctx.fillRect(x + 1, y + 13, 14, 3);
+    ctx.fillStyle = on ? '#e0b0ff' : '#a060e0'; ctx.fillRect(x + 3, y + (sw.t > 0 ? 12 : 10), 10, sw.t > 0 ? 1 : 3);
+    text('⏱', x + 8, y + 7, 8, '#d8b8ff', 'center');
+  }
+  if (tgates.length) {
+    const open = timerT > 0;
+    for (const [tx, ty] of tgates) {
+      const x = tx * TILE, y = ty * TILE;
+      if (!open) { ctx.fillStyle = '#5a2a8a'; ctx.fillRect(x, y, TILE, TILE); ctx.fillStyle = '#9a5ae0'; for (let i = 0; i < 3; i++) ctx.fillRect(x + 2 + i * 5, y, 2, TILE); }
+      else { ctx.strokeStyle = 'rgba(200,160,255,.35)'; ctx.setLineDash([2, 3]); ctx.strokeRect(x + .5, y + .5, TILE - 1, TILE - 1); ctx.setLineDash([]); }
+    }
+    if (open) { const [tx, ty] = tgates[0]; text((timerT / 60).toFixed(1), tx * TILE + 8, ty * TILE - 3, 9, timerT < 90 ? '#ff8080' : '#e0c8ff', 'center'); }
+  }
+  for (const c of crumbs) {
+    if (c.gone) { if (c.gone < 40 && (c.gone >> 2) & 1) { ctx.strokeStyle = 'rgba(200,160,110,.5)'; ctx.strokeRect(c.tx * TILE + .5, c.ty * TILE + .5, TILE - 1, TILE - 1); } continue; }
+    const sh = c.t > 0 ? (Math.random() - .5) * 1.5 : 0, x = c.tx * TILE + sh, y = c.ty * TILE;
+    ctx.fillStyle = '#8a6a44'; ctx.fillRect(x, y, TILE, TILE); ctx.fillStyle = '#b08a5a'; ctx.fillRect(x, y, TILE, 3);
+    ctx.fillStyle = '#5a442a'; ctx.fillRect(x + 4, y + 5, 1, 6); ctx.fillRect(x + 10, y + 7, 1, 7); ctx.fillRect(x + 4, y + 10, 4, 1);
+  }
+  if (timerT > 0 && tgates.length) text('⏱ ' + (timerT / 60).toFixed(1), W / 2, 30, 12, timerT < 90 ? '#ff8080' : '#e0c8ff', 'center');
+}
 // ---------------- 送風機（風の通り道の水・人・木箱を押す） ----------------
 let fans = [];
 function fanBand(f) { // 風がとどく長さ（かべで止まる）
@@ -1372,7 +1524,7 @@ function drawFans() {
 }
 // ---------------- 雷（どろガメ大王の雷雨） ----------------
 let bolts = [], strikes = [], skyFlash = 0;
-const BOSS_HITS = 15; const bossHits = () => Math.round(BOSS_HITS * EN.cost); // しびれ中に、これだけ水を当てると1ダメージ
+const BOSS_HITS = 15; const bossHits = () => Math.round(BOSS_HITS * EN.cost * (L.bossSoft ? .6 : 1)); // しびれ中に、これだけ水を当てると1ダメージ
 function shockedBossHit(p) {
   const e = enemies.find(e => e.alive && e.type === 'boss' && e.shock > 0);
   if (!e || Math.hypot(p.vx, p.vy) < 2 || p.x < e.x - 14 || p.x > e.x + e.w + 14 || p.y < e.y - 26 || p.y > e.y + e.h) return false;
@@ -1391,7 +1543,7 @@ function updateBolts() {
     skyFlash = 14; shake = 14; sfx('die'); sfx('zap');
     let gy = 4; while (gy < GH && get(Math.floor(bo.x / CELL), gy) === EMPTY) gy++;
     bo.y2 = gy * CELL; bo.show = 10; strikes.push(bo);
-    if (B && Math.abs(B.x + B.w / 2 - bo.x) < 28) { B.shock = 300; B.hitM = 0; B.stun = 0; puff(B.x + 20, B.y, 24, '#fff6a0'); toasts.push({ text: '⚡ 雷が大王に落ちた！ しびれている間に水をぶつけろ！', t: 150 }); }
+    if (B && Math.abs(B.x + B.w / 2 - bo.x) < 28) { B.shock = L.bossSoft ? 420 : 300; B.hitM = 0; B.stun = 0; puff(B.x + 20, B.y, 24, '#fff6a0'); toasts.push({ text: '⚡ 雷が大王に落ちた！ しびれている間に水をぶつけろ！', t: 150 }); }
     if (!P.dead && Math.abs(P.x + P.w / 2 - bo.x) < 9) killPlayer('zap');
     return false;
   });
@@ -1685,6 +1837,7 @@ function updateGimmicks() {
   updateFuses();
   updateGeysers();
   if (pipes.length) updatePipes();
+  updateNewGimmicks();
   if (fans.length) updateFans();
   updateBolts();
   if (orbs.length) updateOrbs();
@@ -1703,6 +1856,9 @@ function drawFluids() {
     const t = grid[k], top = (k >= GW ? grid[k - GW] : WALL) === EMPTY;
     if (t === WATER) fpx[k] = elec[k] && (zap ^ (k & 1)) && ((k * 7 + frame) % 11 < 3) ? ELEC_C : top ? WATER_TOP : WATER_C;
     else if (t === ICE) fpx[k] = top ? ICE_TOP : ICE_C;
+    else if (t === LAVA) { const w = Math.sin(frame * .08 + (k % GW) * .5 + (k / GW | 0) * .3); fpx[k] = top ? rgba(255, 200 + w * 30 | 0, 80, 255) : rgba(230 + w * 20 | 0, 90 + w * 30 | 0, 20, 255); }
+    else if (t === STONE) fpx[k] = top ? rgba(150, 150, 160, 255) : (k * 7 % 5 === 0 ? rgba(96, 96, 108, 255) : rgba(118, 118, 130, 255));
+    else if (t === CRUMB) fpx[k] = 0;
     else fpx[k] = t === MUD ? (top ? MUD_TOP : MUD_C) : t === DIRT ? (top ? DIRT_TOP : DIRT_C) : 0;
   }
   fctx.putImageData(fimg, 0, 0);
@@ -1832,7 +1988,7 @@ function drawEnemy(e) {
       ctx.restore();
       if (up) for (let i = 0; i < 3; i++) text('★', x + 8 + i * 12 + Math.sin(frame * .2 + i) * 3, y - 4, 8, '#ffe14a');
       const mh = e.maxHp || 3; for (let i = 0; i < mh; i++) { ctx.fillStyle = i < e.hp ? '#ff6060' : '#433'; ctx.fillRect(x + 20 - mh * 4.5 + i * 9, y - 14, 7, 3); }
-      if (e.shock > 0) { text('⚡ しびれた！ 水をぶつけろ！', x + 20, y - 22, 10, (frame >> 3) & 1 ? '#fff6a0' : '#9cf', 'center'); ctx.fillStyle = '#433'; ctx.fillRect(x, y - 9, 40, 2); ctx.fillStyle = '#9cf'; ctx.fillRect(x, y - 9, 40 * (e.hitM || 0) / bossHits(), 2); ctx.fillStyle = '#fff6a0'; ctx.fillRect(x, y - 6, 40 * e.shock / 300, 1); }
+      if (e.shock > 0) { text('⚡ しびれた！ 水をぶつけろ！', x + 20, y - 22, 10, (frame >> 3) & 1 ? '#fff6a0' : '#9cf', 'center'); ctx.fillStyle = '#433'; ctx.fillRect(x, y - 9, 40, 2); ctx.fillStyle = '#9cf'; ctx.fillRect(x, y - 9, 40 * (e.hitM || 0) / bossHits(), 2); ctx.fillStyle = '#fff6a0'; ctx.fillRect(x, y - 6, 40 * e.shock / (L.bossSoft ? 420 : 300), 1); }
       else if (e.roar > 0) text('どろまぜ！', x + 20, y - 20, 9, '#e8b070', 'center');
       else if (e.gulp > 0) text('ごくごく…', x + 20, y - 20, 9, '#9cf', 'center');
       if (!up && e.maxHp - e.hp >= 1 && (frame >> 3) & 1) { ctx.fillStyle = '#ff5040'; ctx.fillRect(x + 34, y - 4, 2, 1); ctx.fillRect(x + 35, y - 5, 1, 3); }
@@ -2109,6 +2265,7 @@ function lightSources() {
   for (let ti = 0; ti < TW * TH; ti++) if (fireHP[ti] > 0) out.push([(ti % TW) * TILE + 8, (ti / TW | 0) * TILE + 8, 30, .8]);
   for (const s of shots) if (!s.mud) out.push([s.x, s.y, 22, .9]);
   for (const o of orbs) out.push([o.x, o.y, 30, .9]);
+  for (const [tx, ty] of lavaTiles) if (get(tx * 4 + 1, ty * 4 + 1) === LAVA) out.push([tx * TILE + 8, ty * TILE + 8, 34, .7]);
   for (const st of strikes) out.push([st.x, st.y2 / 2, 400, 1]);
   for (const f of fuses) if (!f.out && !f.done) { const p = fusePoint(f); out.push([p[0], p[1], 26, .9]); }
   if (termPowered) for (const [tx, ty] of terminals) out.push([tx * TILE + 8, ty * TILE + 8, 26, .8]);
@@ -2174,6 +2331,7 @@ function draw() {
   }
   drawOrbs();
   drawPipes();
+  drawNewGimmicks();
   drawFans();
   drawBolts();
   for (const g of geysers) { // どろの柱の予告

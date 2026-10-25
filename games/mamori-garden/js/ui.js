@@ -129,7 +129,7 @@ function drawTitle(c, dt) {
   const bw = L.portrait ? 320 : 300, bx = cx - bw / 2, by2 = L.portrait ? 620 : 500;
   button('t_start', bx, by2, bw, 66, 'はじめる', { style: 'primary', size: 28 }, () => { go('map'); });
   button('t_gacha', bx, by2 + 78, bw / 2 - 6, 54, 'ガチャ', { style: 'gold', size: 20, col: '#5a3000' }, () => { APP.gacha = null; go('gacha'); });
-  button('t_event', L.portrait ? bx : 30, L.portrait ? by2 + 140 : by2 + 8, L.portrait ? bw : 200, L.portrait ? 50 : 58, eventMonth() + '月イベント！', { glow: true, style: 'good', size: 18 }, () => go('event'));
+  button('t_event', L.portrait ? bx : 30, L.portrait ? by2 + 140 : by2 + 8, L.portrait ? bw : 200, L.portrait ? 50 : 58, eventMonth() + '月' + (eventHalf() ? '後半' : '前半') + 'イベント！', { glow: true, style: 'good', size: 18 }, () => go('event'));
   button('t_coll', bx + bw / 2 + 6, by2 + 78, bw / 2 - 6, 54, 'なかま強化', { style: 'good', size: 17 }, () => { APP.cfocus = APP.save.form[0]; go('collection'); });
   button('t_snd', L.W - 130, 12, 116, 34, AUD.muted ? 'おと：OFF' : 'おと：ON', { style: 'ghost', size: 14 }, () => { audioMute(!AUD.muted); });
   button('t_q', L.W - 130, 92, 116, 34, PERF.lite ? 'がぞう：かんたん' : 'がぞう：きれい', { style: 'ghost', size: 12 }, () => perfSet(!PERF.lite));

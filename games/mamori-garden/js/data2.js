@@ -16,7 +16,7 @@ const DEFAULT_DIFF = 1;
 const PREP_TIME = 25;        // ウェーブが終わるたびにもらえる、仲間を置く時間（秒）。最初の準備時間も同じ
 const MIMIC_MAX_STAR = 3;    // ミミックで合成できるのは★3どうしまで
 // 後ろのステージほど、もらえるゴールドが増える（敵のHPが増えるぶん）
-function stageGold(i) { return 1 + 0.4 * Math.min(i, 9) + 0.2 * Math.max(0, Math.min(i, 14) - 9) + 0.15 * Math.max(0, Math.min(i, 29) - 14); }
+function stageGold(i) { return 1 + 0.4 * Math.min(i, 9) + 0.2 * Math.max(0, Math.min(i, 14) - 9) + 0.15 * Math.max(0, Math.min(typeof NORMAL_STAGES !== 'undefined' && i >= NORMAL_STAGES ? 29 : i, 39) - 14); }
 
 // ---------- 新ステージ（6〜10） ----------
 STAGE_HP_MUL.push(3.6, 4.7, 6.2, 8.0, 10.5);

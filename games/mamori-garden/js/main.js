@@ -48,7 +48,7 @@ window.addEventListener('load', () => {
   APP.diff = APP.save.lastDiff != null ? clamp(APP.save.lastDiff, 0, DIFFS.length - 1) : DEFAULT_DIFF; APP.mapPage = 0; APP.fpage = 0; APP.cpage = 0;
   setLayout(pickPortrait()); setupInput(); go('title');
   const q = new URLSearchParams(location.search);
-  if (q.get('month') != null) EVENT_MONTH_DEBUG = clamp(+q.get('month') || 0, 0, 12);
+  if (q.get('month') != null) EVENT_MONTH_DEBUG = clamp(+q.get('month') || 0, 0, 12); if (q.get('half') != null) EVENT_HALF_DEBUG = clamp(+q.get('half') || 0, 0, 2);
   if (q.get('diff') != null) APP.diff = clamp(+q.get('diff') || 0, 0, DIFFS.length - 1);
   if (q.get('stage') != null) { APP.stage = +q.get('stage') || 0; if (q.get('form')) APP.save.form = q.get('form').split(','); startBattle(); }
   requestAnimationFrame(frame);

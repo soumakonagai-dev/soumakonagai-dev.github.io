@@ -8,7 +8,7 @@ function drawEvent(c, dt) {
   const L = APP.L, sv = APP.save, P = L.portrait, m = eventMonth(), idx = eventStageIdx(m), st = STAGES[idx], season = SEASON_OF(m);
   APP.evTab = APP.evTab || 0;
   drawMenuBg(c, dt, idx, .5);
-  txt(c, m + '月のイベント', L.W / 2, 44, P ? 28 : 32, '#fff8e8', 'center'); txt(c, `${SEASON_NAME[season]}の季節イベント　あと${eventDaysLeft()}日　（ポイントは今月だけ使えます）`, L.W / 2, 68, P ? 12 : 14, COL.dim, 'center', { outline: false, maxW: L.W - 20 });
+  txt(c, m + '月' + (eventHalf() ? '後半' : '前半') + 'のイベント', L.W / 2, 44, P ? 28 : 32, '#fff8e8', 'center'); txt(c, `${SEASON_NAME[season]}の季節イベント　あと${eventDaysLeft()}日　（ポイントは今月だけ使えます）`, L.W / 2, 68, P ? 12 : 14, COL.dim, 'center', { outline: false, maxW: L.W - 20 });
   evPtsChip(c, L.W - 150, 10, 138);
   // タブ
   const tw = P ? (L.W - 36 - 16) / 3 : 190, tx = P ? 18 : 24, ty = 82;
