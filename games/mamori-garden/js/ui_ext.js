@@ -59,12 +59,12 @@ function drawMap(c, dt) {
     }
     if (open) button('stage' + i, r.x, r.y, r.w, r.h, '', { style: 'ghost', transparent: true, r: 12 }, () => { APP.stage = i; APP.endless = APP.mapEndless; APP.fpage = 0; go('formation'); });
   }
-  const by = P ? 850 : 520, bw = P ? 150 : 170;
+  const by = P ? 828 : 520, bw = P ? 150 : 170;
   button('m_back', 24, by, bw, 52, 'もどる', { style: 'ghost', size: 18 }, () => go('title'));
   button('m_mode', L.W / 2 - 110, by, 220, 52, APP.mapEndless ? 'モード：エンドレス' : 'モード：ふつう', { style: endlessOk ? 'good' : 'off', size: 17, disabled: !endlessOk }, () => { APP.mapEndless = !APP.mapEndless; });
-  if (endlessOk) txt(c, `エンドレス最高：WAVE ${sv.endlessBest}`, L.W / 2, by + 74, 13, COL.dim, 'center', { outline: false });
+  if (endlessOk) txt(c, `エンドレス最高：WAVE ${sv.endlessBest}`, L.W / 2, by + (P ? 70 : 74), 13, COL.dim, 'center', { outline: false });
   button('m_snd', L.W - 24 - bw, by, bw, 52, AUD.muted ? 'おと：OFF' : 'おと：ON', { style: 'ghost', size: 17 }, () => audioMute(!AUD.muted));
-  const by3 = by + (P ? 62 : 60);
+  const by3 = by + (P ? 84 : 60);
   button('m_gacha', L.W / 2 - 170, by3, 164, 46, 'ガチャ', { style: 'gold', size: 17, col: '#5a3000' }, () => { APP.gacha = null; go('gacha'); });
   button('m_coll', L.W / 2 + 6, by3, 164, 46, 'なかま強化', { style: 'good', size: 16 }, () => { APP.cfocus = APP.save.form[0]; APP.cpage = 0; go('collection'); });
   gemChip(c, 12, 10, 130);
@@ -74,10 +74,10 @@ function drawMap(c, dt) {
 function drawFormation(c, dt) {
   const L = APP.L, P = L.portrait, sv = APP.save, form = sv.form; drawMenuBg(c, dt, APP.stage, 0.5);
   const dn = DIFFS[APP.diff];
-  txt(c, '5体をえらんで出撃！', L.W / 2, 44, P ? 26 : 30, '#fff8e8', 'center');
+  txt(c, '5体をえらんで出撃！', L.W / 2, 44, P ? 22 : 30, '#fff8e8', 'center', { maxW: P ? 230 : 400 });
   txt(c, `${STAGES[APP.stage].name}${APP.endless ? '（エンドレス）' : ''}　難易度：${dn.name}（敵HP×${dn.hp} ・ジェム×${dn.gem}）`, L.W / 2, 68, P ? 12 : 14, dn.col, 'center', { outline: false });
   const SU = sortedUnits(), pages = Math.ceil(SU.length / PER_PAGE), pg = Math.min(APP.fpage || 0, pages - 1);
-  pager(c, 'fp', P ? 10 : 20, 12, pg, pages, v => { APP.fpage = v; }); sortButton('f_sort', P ? 160 : 174, 12);
+  pager(c, 'fp', P ? 10 : 20, 12, pg, pages, v => { APP.fpage = v; }); sortButton('f_sort', P ? L.W - 140 : 174, P ? 8 : 12);
   let cw, ch, gx, gy, cols, gap;
   if (!P) { cw = 96; ch = 100; gap = 6; cols = 6; gx = 24; gy = 82; } else { cw = 82; ch = 92; gap = 4; cols = 6; gx = (L.W - (6 * 82 + 20)) / 2; gy = 80; }
   SU.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {

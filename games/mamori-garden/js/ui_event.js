@@ -20,8 +20,8 @@ function drawEvent(c, dt) {
   const L = APP.L, sv = APP.save, P = L.portrait, m = eventMonth(), idx = eventStageIdx(m), st = STAGES[idx], season = SEASON_OF(m);
   APP.evTab = APP.evTab || 0;
   drawMenuBg(c, dt, idx, .5);
-  txt(c, m + '月' + (eventHalf() ? '後半' : '前半') + 'のイベント', L.W / 2, 44, P ? 28 : 32, '#fff8e8', 'center'); txt(c, `${SEASON_NAME[season]}の季節イベント　あと${eventDaysLeft()}日　（ポイントはこの期間だけ使えます）`, L.W / 2, 68, P ? 12 : 14, COL.dim, 'center', { outline: false, maxW: L.W - 20 });
-  evPtsChip(c, L.W - 150, 10, 138);
+  txt(c, m + '月' + (eventHalf() ? '後半' : '前半') + 'のイベント', P ? L.W / 2 - 40 : L.W / 2, 44, P ? 24 : 32, '#fff8e8', 'center', { maxW: P ? 330 : 500 }); txt(c, `${SEASON_NAME[season]}の季節イベント　あと${eventDaysLeft()}日　（ポイントはこの期間だけ使えます）`, L.W / 2, 68, P ? 12 : 14, COL.dim, 'center', { outline: false, maxW: L.W - 20 });
+  evPtsChip(c, P ? L.W - 120 : L.W - 150, 10, P ? 110 : 138);
   // タブ
   const tw = P ? (L.W - 36 - 16) / 3 : 190, tx = P ? 18 : 24, ty = 82;
   const claimable = EVENT_QUESTS.filter(q => evqDone(sv, q) && !evqClaimed(sv, q)).length;
@@ -33,12 +33,12 @@ function drawEvent(c, dt) {
   else if (APP.evTab === 2) drawEventOthers(c, L, sv, P, top);
   else {
     // ステージ
-    const sx = P ? 18 : 24, sy = top, sw = P ? L.W - 36 : 300, sh = P ? 240 : 380;
+    const sx = P ? 18 : 24, sy = top, sw = P ? L.W - 36 : 300, sh = P ? 268 : 380;
     panelBox(c, sx, sy, sw, sh, { fill: 'rgba(24,18,64,.88)', stroke: 'rgba(255,233,168,.9)' });
     drawStageThumb(c, idx, sx + 8, sy + 8, sw - 16, P ? 140 : 190, false, APP.t);
-    txt(c, st.name, sx + sw / 2, sy + (P ? 176 : 226), 18, '#fff8e8', 'center', { maxW: sw - 16 });
-    txt(c, st.sub + '　ボス：' + BOSSES[st.boss].name, sx + sw / 2, sy + (P ? 198 : 250), 12, '#ffd0a8', 'center', { outline: false, maxW: sw - 16 });
-    button('ev_go', sx + 20, sy + sh - (P ? 40 : 62), sw - 40, P ? 32 : 46, 'チャレンジ！（クリアで +' + eventPointsFor(3, APP.diff) + 'pt まで）', { glow: true, style: 'primary', size: P ? 13 : 15 }, () => { APP.stage = idx; APP.endless = false; APP.fpage = 0; go('formation'); });
+    txt(c, st.name, sx + sw / 2, sy + (P ? 174 : 226), 18, '#fff8e8', 'center', { maxW: sw - 16 });
+    txt(c, st.sub + '　ボス：' + BOSSES[st.boss].name, sx + sw / 2, sy + (P ? 196 : 250), 12, '#ffd0a8', 'center', { outline: false, maxW: sw - 16 });
+    button('ev_go', sx + 20, sy + sh - (P ? 46 : 62), sw - 40, P ? 34 : 46, 'チャレンジ！（クリアで +' + eventPointsFor(3, APP.diff) + 'pt まで）', { glow: true, style: 'primary', size: P ? 13 : 15 }, () => { APP.stage = idx; APP.endless = false; APP.fpage = 0; go('formation'); });
     // 交換所（スクロール）
     const rx = P ? 18 : 344, ry = P ? sy + sh + 12 : top, rw = P ? L.W - 36 : L.W - 344 - 24, rh = P ? L.H - ry - 78 : 380;
     panelBox(c, rx, ry, rw, rh, { fill: 'rgba(24,18,64,.88)' });

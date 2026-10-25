@@ -213,7 +213,15 @@ function drawUnit(c, u, S, t, sel) {
   c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(u.x, u.y + S * .3, S * .36, S * .12, 0, 0, TAU); c.fill();
   const size = S * 1.6 * (u.key === 'egg' ? [0.8, 0.95, 1.1, 1.3][eggPhase(u)] : 1);
   if (u.sleep > 0) c.globalAlpha = .7;
-  drawSprFrame(c, 'u', u.key, u.x, u.y + S * .3, size, u.face, t + u.id * .37, u.anim, u);
+  // 攻撃のとき：前にとびだす（近接は大きく）・ぴょんと跳ねる・ぐっと伸びる。ひと息のときは、ちょっとしずむ
+  const fy = u.y + S * .3; let ox = 0, oy = 0, sx = 1, sy = 1;
+  if (u.key !== 'egg') {
+    if (u.anim > 0.02) { const k = u.anim, mel = UNITS[u.key].style === 'melee'; ox = u.face * (mel ? .55 : -.16) * S * k * k; oy = -S * (mel ? .18 : .12) * Math.sin(k * Math.PI); sx = 1 + .2 * k; sy = 1 - .1 * k; }
+    else if (u.restT > 0) { const q = Math.sin(clamp(u.restT / .3, 0, 1) * Math.PI); sy = 1 - .05 * q; sx = 1 + .03 * q; }
+  }
+  c.save(); c.translate(u.x + ox, fy + oy); c.scale(sx, sy); c.translate(-u.x, -fy);
+  drawSprFrame(c, 'u', u.key, u.x, fy, size, u.face, t + u.id * .37, u.anim, u);
+  c.restore();
   c.globalAlpha = 1;
   const top = u.y - S * (u.key === 'egg' ? 1.1 + eggPhase(u) * .12 : 1.45);
   if (u.key !== 'egg' || eggPhase(u) > 0) drawRankStars(c, u.x, top, stars, S * (0.17 + (stars >= 5 ? .02 : 0)), t);

@@ -18,7 +18,7 @@ function updateBattle(dt) {
   }
 }
 function frame(now) {
-  if (PERF.lite && lastT && now - lastT < 28) { requestAnimationFrame(frame); return; }   // かんたん表示は30fpsまで（熱とカクつきをおさえる）
+  if (lastT && now - lastT < (PERF.lite ? 28 : (APP.screen === 'battle' ? 0 : 30))) { requestAnimationFrame(frame); return; }   // かんたん表示は30fpsまで（熱とカクつきをおさえる）
   const dt = clamp((now - lastT) / 1000 || 0.016, 0, 0.05); lastT = now;
   APP.t += dt; ART.t = APP.t; if (typeof perfWatch === 'function') perfWatch(dt);
   const c = APP.c; { let g = 0; while (c.__d > 0 && g++ < 200) c.restore(); }   // 前のコマで閉じ忘れた状態を元にもどす

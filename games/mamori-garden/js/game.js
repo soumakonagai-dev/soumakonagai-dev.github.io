@@ -415,11 +415,21 @@ function pickTarget(u, st, mode, exclude) {
 function shoot(u, e, st, color, speed) {
   G.projs.push({ x: u.x, y: u.y - G.L.S * 0.5, tgt: e, tx: e.x, ty: e.y, sp: G.L.S * (speed || 11), u, st, color, key: u.key, life: 3, trail: [] });
 }
+// 攻撃がはやい・連撃のキャラは、数回うつごとに ちょっと ひと息つく（そのぶん合間をつめて、全体のダメージは同じ）
+function nextCd(u, st) {
+  const base = 1 / st.aspd, d = UNITS[u.key], fx = d.fx || {};
+  if (!(st.aspd >= 1.4 || fx.echo || fx.multi)) return base;
+  const burst = st.aspd >= 2.4 ? 5 : st.aspd >= 1.8 ? 4 : 3, rest = Math.min(0.45, 0.25 + 0.04 * burst), iw = (burst * base - rest) / burst;
+  if (iw < 0.12) return base;
+  u.bn = (u.bn || 0) + 1;
+  if (u.bn >= burst) { u.bn = 0; u.restT = rest; return iw + rest; }
+  return iw;
+}
 function updateUnits(dt) {
   const S = G.L.S;
   buildAuras();
   for (const u of G.units) {
-    u.anim = Math.max(0, u.anim - dt * 4);
+    u.anim = Math.max(0, u.anim - dt * 3.6); if (u.restT > 0) u.restT -= dt;
     if (u.sleep > 0) { u.sleep -= dt; continue; }
     const st = computeStats(u), d = UNITS[u.key];
     if (u.reapT > 0) { u.reapT -= dt; if (u.reapT <= 0) u.reapStack = 0; }
@@ -463,7 +473,7 @@ function updateUnits(dt) {
     u.cd -= dt; if (u.cd > 0) continue;
     const mode = u.key === 'sniper' ? 'strong' : 'first';
     const t = pickTarget(u, st, mode); if (!t) { u.cd = 0; continue; }
-    u.cd += 1 / st.aspd; if (u.cd < 0) u.cd = 0.05;
+    u.cd += nextCd(u, st); if (u.cd < 0) u.cd = 0.05;
     u.anim = 1; u.face = t.x >= u.x ? 1 : -1;
     if (d.fx && d.fx.ramp) { if (u.rampTgt === t) u.rampN = Math.min(10, (u.rampN || 0) + 1); else { u.rampTgt = t; u.rampN = 0; } }
     fire(u, st, t);

@@ -155,26 +155,42 @@ function drawStageThumb(c, i, x, y, w, h, locked, t) {
 }
 
 // ---------- 編成 ----------
+// カードは「うしろ」「前」の2枚を、一度だけ絵にして使い回す（毎コマ描くと、スマホで重くなるため）。キャラの絵だけ毎コマ描く
+const CARD_CACHE = {}; let CARD_N = 0;
+function cardLayer(k, w, h, fn) {
+  let o = CARD_CACHE[k]; if (o && o.sc === ART.sc) return o.cv;
+  if (CARD_N > 500) { for (const q in CARD_CACHE) delete CARD_CACHE[q]; CARD_N = 0; }
+  const pad = 4, [cv, cx] = newCanvas(w + pad * 2, h + pad * 2); cx.translate(pad, pad); fn(cx);
+  CARD_CACHE[k] = { cv, sc: ART.sc }; CARD_N++; return cv;
+}
 function unitCard(c, key, x, y, w, h, o) {
-  o = o || {}; const d = UNITS[key], ec = ELEM[d.elem].c, locked = o.locked;
-  panelBox(c, x, y, w, h, { r: 10, fill: locked ? 'rgba(30,26,60,.9)' : 'rgba(40,32,100,.9)', stroke: o.sel ? '#ffe27a' : o.focus ? '#ff9ad0' : 'rgba(180,170,230,.55)', lw: o.sel ? 3 : 1.6, shine: !locked });
-  const g = c.createRadialGradient(x + w / 2, y + h * .5, 0, x + w / 2, y + h * .5, w * .6); g.addColorStop(0, rgba(ec, locked ? .08 : .3)); g.addColorStop(1, rgba(ec, 0)); c.fillStyle = g; rr(c, x, y, w, h, 10); c.fill();
+  o = o || {}; const d = UNITS[key], ec = ELEM[d.elem].c, locked = !!o.locked, pad = 4;
+  const kb = 'b|' + [key, w, h, locked ? 1 : 0, o.sel ? 1 : 0, o.focus ? 1 : 0].join('|');
+  c.drawImage(cardLayer(kb, w, h, cx => {
+    panelBox(cx, 0, 0, w, h, { r: 10, fill: locked ? 'rgba(30,26,60,.9)' : 'rgba(40,32,100,.9)', stroke: o.sel ? '#ffe27a' : o.focus ? '#ff9ad0' : 'rgba(180,170,230,.55)', lw: o.sel ? 3 : 1.6, shine: !locked });
+    const g = cx.createRadialGradient(w / 2, h * .5, 0, w / 2, h * .5, w * .6); g.addColorStop(0, rgba(ec, locked ? .08 : .3)); g.addColorStop(1, rgba(ec, 0)); cx.fillStyle = g; rr(cx, 0, 0, w, h, 10); cx.fill();
+  }), x - pad, y - pad, w + pad * 2, h + pad * 2);
   c.save(); if (locked) c.globalAlpha = .35;
-  drawSpriteAt(c, key, x + w / 2, y + h * (o.small ? .7 : .7), Math.min(w * .74, h * .55), o.small ? APP.t + d.no : Math.floor((APP.t + d.no) / 0.25) * 0.25, 0, { hatch: 0, key }, 1); c.restore();
-  if (locked) { txt(c, '🔒', x + w / 2, y + h * .42, 22, '#fff', 'center', { outline: false }); txt(c, o.hint || '', x + w / 2, y + h - 8, 10, '#bdb6e0', 'center', { outline: false }); }
-  else {
-    txt(c, d.name, x + w / 2, y + 15, Math.min(12, w / 8.2), '#fff', 'center', { lw: 3, maxW: w - 8 });
-    if (!o.small) tierBadge(c, key, x + 11, y + 28);
-    if (!o.noCost) { coinIcon(c, x + 14, y + h - 12, 6.5); txt(c, '' + (o.cost != null ? o.cost : d.cost), x + 24, y + h - 7, 13, '#ffe27a', 'left'); }
-    E(c, x + w - 13, y + h - 12, 6, 6, ec); txt(c, ELEM[d.elem].n, x + w - 13, y + h - 8, 9, '#3a2050', 'center', { outline: false });
-  }
-  if (o.lv > 0) { rr(c, x + 5, y + h * .4, 28, 14, 7); c.fillStyle = 'rgba(20,50,110,.85)'; c.fill(); txt(c, 'Lv' + o.lv, x + 19, y + h * .4 + 11, 10, '#bff6ff', 'center', { outline: false }); }
-  if (o.bar) {
-    const bx = x + 6, by = y + h - 17, bw = w - 12; rr(c, bx, by, bw, 12, 6); c.fillStyle = 'rgba(0,0,0,.45)'; c.fill();
-    const f = clamp(o.bar.v / (o.bar.max || 1), 0, 1); if (f > 0) { rr(c, bx, by, Math.max(10, bw * f), 12, 6); c.fillStyle = o.bar.full ? '#ffe27a' : '#6ad0ff'; c.fill(); }
-    txt(c, o.bar.text, x + w / 2, by + 10, 10, '#fff', 'center', { lw: 2.5 });
-  }
-  if (o.order) { E(c, x + w - 13, y + h * .46, 9, 9, '#ffe27a'); txt(c, '' + o.order, x + w - 13, y + h * .46 + 4.5, 12, '#6a3a10', 'center', { outline: false }); }
+  // 一覧の絵は、ゆっくり（かんたん表示では止める）。戦闘中のカードだけ、なめらかに
+  const st = o.small ? APP.t + d.no : (PERF.lite || !(o.sel || o.focus) ? 0 : Math.floor((APP.t + d.no) / 0.25) * 0.25);   // 動くのは選んでいるカードだけ
+  drawSpriteAt(c, key, x + w / 2, y + h * .7, Math.min(w * .74, h * .55), st, 0, { hatch: 0, key }, 1); c.restore();
+  const bar = o.bar, kf = 'f|' + [key, w, h, locked ? 1 : 0, o.hint || '', o.small ? 1 : 0, o.noCost ? 1 : 0, o.cost != null ? o.cost : d.cost, o.lv || 0, bar ? bar.v + '/' + bar.max + '/' + bar.text + '/' + (bar.full ? 1 : 0) : '', o.order || 0, tierOf(key)].join('|');
+  c.drawImage(cardLayer(kf, w, h, cx => {
+    if (locked) { txt(cx, '🔒', w / 2, h * .42, 22, '#fff', 'center', { outline: false }); txt(cx, o.hint || '', w / 2, h - 8, 10, '#bdb6e0', 'center', { outline: false }); }
+    else {
+      txt(cx, d.name, w / 2, 15, Math.min(12, w / 8.2), '#fff', 'center', { lw: 3, maxW: w - 8 });
+      if (!o.small) tierBadge(cx, key, 11, 28);
+      if (!o.noCost) { coinIcon(cx, 14, h - 12, 6.5); txt(cx, '' + (o.cost != null ? o.cost : d.cost), 24, h - 7, 13, '#ffe27a', 'left'); }
+      E(cx, w - 13, h - 12, 6, 6, ec); txt(cx, ELEM[d.elem].n, w - 13, h - 8, 9, '#3a2050', 'center', { outline: false });
+    }
+    if (o.lv > 0) { rr(cx, 5, h * .4, 28, 14, 7); cx.fillStyle = 'rgba(20,50,110,.85)'; cx.fill(); txt(cx, 'Lv' + o.lv, 19, h * .4 + 11, 10, '#bff6ff', 'center', { outline: false }); }
+    if (bar) {
+      const bx = 6, by = h - 17, bw = w - 12; rr(cx, bx, by, bw, 12, 6); cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fill();
+      const f = clamp(bar.v / (bar.max || 1), 0, 1); if (f > 0) { rr(cx, bx, by, Math.max(10, bw * f), 12, 6); cx.fillStyle = bar.full ? '#ffe27a' : '#6ad0ff'; cx.fill(); }
+      txt(cx, bar.text, w / 2, by + 10, 10, '#fff', 'center', { lw: 2.5 });
+    }
+    if (o.order) { E(cx, w - 13, h * .46, 9, 9, '#ffe27a'); txt(cx, '' + o.order, w - 13, h * .46 + 4.5, 12, '#6a3a10', 'center', { outline: false }); }
+  }), x - pad, y - pad, w + pad * 2, h + pad * 2);
 }
 // レア度の小さな札（C/R/E/L/M）
 const TIER_SHORT = { C: 'C', R: 'R', E: 'E', L: 'L', U: 'M' };
@@ -188,7 +204,7 @@ function unitDetail(c, key, x, y, w, h, lv) {
   if (lv) { const b = levelBonus(key, lv), parts = []; if (b.atk > 1.001) parts.push('攻撃+' + Math.round((b.atk - 1) * 100) + '%'); if (b.aspd > 1.001) parts.push('速度+' + Math.round((b.aspd - 1) * 100) + '%'); if (b.range > 1.001) parts.push('射程+' + Math.round((b.range - 1) * 100) + '%'); if (b.ab > 1.001) parts.push('能力+' + Math.round((b.ab - 1) * 100) + '%');
     txt(c, 'Lv' + lv + (parts.length ? '：' + parts.join(' ') : ''), x + 16, y + 154, 12, '#bff6ff', 'left', { outline: false }); txt(c, GROW_LABEL[GROW[key]], x + w - 14, y + 154, 11, '#ffd0a8', 'right', { outline: false }); }
   const g = c.createRadialGradient(x + 70, y + 80, 0, x + 70, y + 80, 90); g.addColorStop(0, rgba(ec, .4)); g.addColorStop(1, rgba(ec, 0)); c.fillStyle = g; c.fillRect(x, y, 160, 170);
-  drawSpriteAt(c, key, x + 70, y + 118, 112, APP.t, 0, { hatch: 0, key }, 1);
+  drawSpriteAt(c, key, x + 70, y + 118, 112, PERF.lite ? 0 : Math.floor(APP.t / 0.25) * 0.25, 0, { hatch: 0, key }, 1);
   txt(c, d.name, x + 140, y + 34, 22, '#fff8e8');
   { const t = tierOf(key), col = TIER_COL[t], tw = 12 + TIER_NAME[t].length * 11; rr(c, x + w - 14 - tw, y + 12, tw, 18, 9); c.fillStyle = 'rgba(20,10,50,.85)'; c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); txt(c, TIER_NAME[t], x + w - 14 - tw / 2, y + 25, 11, col, 'center', { outline: false }); }
   E(c, x + 150, y + 54, 9, 9, ec); txt(c, ELEM[d.elem].n, x + 150, y + 58, 11, '#3a2050', 'center', { outline: false });
@@ -489,7 +505,8 @@ function drawResult(c, B, dt) {
   { const dn = DIFFS[G.diff]; txt(c, '難易度：' + dn.name + (B.diffUnlocked > 0 ? '　「' + DIFFS[B.diffUnlocked].name + '」が遊べるように！' : ''), L.W / 2, y + 22, 13, dn.col, 'center', { outline: false }); }
   txt(c, title, L.W / 2, y + 56, win ? 34 : 28, win ? '#fff3a0' : '#d8d0f5', 'center');
   if (!G.endless) { for (let i = 0; i < 3; i++) { const sx = L.W / 2 + (i - 1) * 56; star5(c, sx, y + 108 - (i === 1 ? 6 : 0), i === 1 ? 26 : 22, (B.starsGot || 0) > i ? '#ffe27a' : 'rgba(255,255,255,.15)', 'rgba(70,40,10,.8)'); } }
-  const rows = [['到達ウェーブ', `${G.endless ? Math.max(0, G.wave - 1) : G.wave}${G.endless ? '' : ' / ' + MAX_WAVE}`], ['倒した敵', G.kills + '体'], ['かせいだゴールド', G.goldEarned + 'G'], ['のこりライフ', Math.ceil(G.life) + ' / ' + START_LIFE], ['もらったジェム', '+' + (B.gemsGot || 0) + (B.evPts ? '  イベント +' + B.evPts + 'pt' : '') + (B.ticketGot ? '  ＋' + GACHAS[B.ticketGot].name.replace('ガチャ', '') + 'チケット' : '')]];
+  const rows = [['到達ウェーブ', `${G.endless ? Math.max(0, G.wave - 1) : G.wave}${G.endless ? '' : ' / ' + MAX_WAVE}`], ['倒した敵', G.kills + '体'], ['かせいだゴールド', G.goldEarned + 'G'], ['のこりライフ', Math.ceil(G.life) + ' / ' + START_LIFE], ['もらったジェム', '+' + (B.gemsGot || 0)]];
+  if (B.evPts || B.ticketGot) rows.push(['イベント・チケット', (B.evPts ? '+' + B.evPts + 'pt' : '') + (B.evPts && B.ticketGot ? '　' : '') + (B.ticketGot ? GACHAS[B.ticketGot].name.replace('ガチャ', '') + 'チケット+1' : '')]);
   rows.forEach((r, i) => { txt(c, r[0], x + 40, y + 156 + i * 27, 16, COL.dim, 'left', { outline: false }); txt(c, r[1], x + w - 40, y + 156 + i * 27, 18, '#fff', 'right', { maxW: w - 80 - 130 }); });
   if (win && B.newUnits && B.newUnits.length) {
     txt(c, '新しい仲間が使えるように！', L.W / 2, y + 304, 15, '#ffb0e0', 'center');

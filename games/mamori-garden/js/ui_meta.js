@@ -197,12 +197,12 @@ function levelPanel(c, key, x, y, w, h) {
 }
 function drawCollection(c, dt) {
   const L = APP.L, sv = APP.save, P = L.portrait; drawMenuBg(c, dt, 0, .55);
-  txt(c, 'なかま・強化', L.W / 2, 44, P ? 26 : 30, '#fff8e8', 'center'); txt(c, 'かけらでレベルアップ！（最大Lv' + MAX_LV + '）', L.W / 2, 66, 13, COL.dim, 'center', { outline: false }); gemChip(c, L.W - 142, 10, 130);
+  txt(c, 'なかま・強化', L.W / 2, 44, P ? 22 : 30, '#fff8e8', 'center', { maxW: P ? 230 : 400 }); txt(c, 'かけらでレベルアップ！（最大Lv' + MAX_LV + '）', L.W / 2, 66, 13, COL.dim, 'center', { outline: false }); gemChip(c, L.W - 142, 10, 130);
   let cw, ch, gap, cols, gx, gy;
   if (!P) { cw = 96; ch = 100; gap = 6; cols = 6; gx = 24; gy = 82; } else { cw = 82; ch = 92; gap = 4; cols = 6; gx = (L.W - (6 * 82 + 20)) / 2; gy = 80; }
   if (!APP.cfocus) APP.cfocus = 'sword';
   const SU = sortedUnits(), pages = Math.ceil(SU.length / PER_PAGE), pg = Math.min(APP.cpage || 0, pages - 1);
-  pager(c, 'cp', P ? 10 : 20, 12, pg, pages, v => { APP.cpage = v; }); sortButton('c_sort', P ? 160 : 174, 12);
+  pager(c, 'cp', P ? 10 : 20, 12, pg, pages, v => { APP.cpage = v; }); sortButton('c_sort', P ? L.W - 140 : 174, P ? 8 : 12);
   SU.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {
     const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap), own = isUnlocked(d.key), p = piecesOf(sv, d.key), need = own ? lvNeed(sv, d.key) : unlockNeed(d.key);
     const bar = need == null ? { v: 1, max: 1, text: 'MAX', full: true } : { v: p, max: need, text: p + '/' + need, full: p >= need };
