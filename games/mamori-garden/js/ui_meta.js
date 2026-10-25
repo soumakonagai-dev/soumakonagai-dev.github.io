@@ -79,6 +79,7 @@ function resultCard(c, r, x, y, w, h, compact, k) {
 function startGacha(n, type, ticket) {
   type = type || APP.gtype || 'normal'; const sv = APP.save, res = rollGacha(sv, n, Math.random, type, ticket);
   if (!res) { toast(ticket ? 'チケットがありません' : 'ジェムが足りません（戦ってためよう）'); return; }
+  try { evqAdd(sv, 'pulls', n); } catch (e) { }
   saveSave();
   // いちばん良い結果で演出の長さと色が決まる（0:ふつう 1:エピック 2:レジェンド／キャラそのもの 3:ミシック）
   let lvl = 0; for (const r of res) lvl = Math.max(lvl, r.tier === 'U' ? 3 : r.tier === 'L' ? 2 : r.kind !== 'piece' ? 2 : r.tier === 'E' ? 1 : 0);
@@ -200,9 +201,9 @@ function drawCollection(c, dt) {
   let cw, ch, gap, cols, gx, gy;
   if (!P) { cw = 96; ch = 100; gap = 6; cols = 6; gx = 24; gy = 82; } else { cw = 82; ch = 92; gap = 4; cols = 6; gx = (L.W - (6 * 82 + 20)) / 2; gy = 80; }
   if (!APP.cfocus) APP.cfocus = 'sword';
-  const pages = Math.ceil(UNIT_LIST.length / PER_PAGE), pg = Math.min(APP.cpage || 0, pages - 1);
-  pager(c, 'cp', P ? 10 : 20, 12, pg, pages, v => { APP.cpage = v; });
-  UNIT_LIST.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {
+  const SU = sortedUnits(), pages = Math.ceil(SU.length / PER_PAGE), pg = Math.min(APP.cpage || 0, pages - 1);
+  pager(c, 'cp', P ? 10 : 20, 12, pg, pages, v => { APP.cpage = v; }); sortButton('c_sort', P ? 160 : 174, 12);
+  SU.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {
     const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap), own = isUnlocked(d.key), p = piecesOf(sv, d.key), need = own ? lvNeed(sv, d.key) : unlockNeed(d.key);
     const bar = need == null ? { v: 1, max: 1, text: 'MAX', full: true } : { v: p, max: need, text: p + '/' + need, full: p >= need };
     unitCard(c, d.key, x, y, cw, ch, { locked: !own, focus: APP.cfocus === d.key, hint: '', lv: own ? lvOf(sv, d.key) : 0, noCost: true, bar });

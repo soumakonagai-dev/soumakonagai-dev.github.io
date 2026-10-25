@@ -90,8 +90,17 @@ function unitCap() { return G.noCap ? 999 : MAX_UNITS; }
 // ★2・★3をいきなり召喚できる。合成して作る（★2=2体分、★3=4体分）より約3割割高
 const SUM_MUL = [1, 2.6, 5.2];
 function summonCost(key, star) { const d = UNITS[key], s = key === 'egg' ? 1 : clamp(star || 1, 1, 3); return Math.round(d.cost * SUM_MUL[s - 1]); }
+// 支援キャラ（攻撃しない応援役）は、同じキャラ2体まで・全部で4体まで
+const SUPPORT_PER = 2, SUPPORT_TOTAL = 4;
+function supportBlock(key) {
+  const d = UNITS[key]; if (!d || d.style !== 'none') return null;
+  let n = 0, all = 0; for (const u of G.units) { if (UNITS[u.key].style === 'none') { all++; if (u.key === key) n++; } }
+  if (n >= SUPPORT_PER) return '支援キャラは、同じキャラ' + SUPPORT_PER + '体までです';
+  if (all >= SUPPORT_TOTAL) return '支援キャラは、ぜんぶで' + SUPPORT_TOTAL + '体までです';
+  return null;
+}
 function summonAt(key, x, y, star) {
-  const d = UNITS[key]; if (!d) return null; star = key === 'egg' ? 1 : clamp(star || 1, 1, 3); const cost = summonCost(key, star);
+  const d = UNITS[key]; if (!d || supportBlock(key)) return null; star = key === 'egg' ? 1 : clamp(star || 1, 1, 3); const cost = summonCost(key, star);
   if (G.gold < cost || G.units.length >= unitCap() || !canPlace(x, y)) return null;
   G.gold -= cost;
   const u = makeUnit(key, star, x, y, cost); G.units.push(u);
@@ -102,7 +111,8 @@ function summonAt(key, x, y, star) {
 function randCost() { return RAND_BASE + RAND_STEP * G.randCount; }
 function randomSummon(pos) {
   const c = randCost(); if (G.gold < c || G.units.length >= unitCap()) return null;
-  const key = G.form[Math.floor(rng() * G.form.length)], d = UNITS[key];
+  const okKeys = G.form.filter(k => !supportBlock(k)); if (!okKeys.length) return null;
+  const key = okKeys[Math.floor(rng() * okKeys.length)], d = UNITS[key];
   const spot = pos && canPlace(pos.x, pos.y) ? pos : findSpot(d.range * 1.3 + 1, 6);
   if (!spot) return null;
   G.gold -= c; G.randCount++;
@@ -122,7 +132,7 @@ function canMerge(a, b) {
 function mergeUnits(a, b) {   // a を b に重ねる（結果は b の位置に残る）
   if (!canMerge(a, b)) return false;
   b.key = b.key === 'mimic' ? a.key : b.key;
-  b.star++; b.invest += a.invest; b.cd = 0.2; b.reapStack = 0; b.sleep = 0;
+  b.star++; b.invest += a.invest; b.cd = 0.2; b.reapStack = 0; b.sleep = 0; G.merges = (G.merges || 0) + 1; if (b.star >= 7) G.made7 = 1;
   G.units.splice(G.units.indexOf(a), 1);
   const c = ELEM[UNITS[b.key].elem].c;
   FX.pillar(b.x, b.y, c, b.star); FX.ring(b.x, b.y, G.L.S * (1.2 + b.star * 0.25), c); FX.burst(b.x, b.y, c, 10 + b.star * 5, 120 + b.star * 20);
@@ -172,10 +182,13 @@ function computeStats(u) {
   let cnt = 0;
   for (const o of G.units) if (o !== u && UNITS[o.key].elem === d.elem && Math.hypot(o.x - u.x, o.y - u.y) <= 1.75 * S) cnt++;
   atk *= 1 + 0.1 * Math.min(cnt, 3);
+  // 応援・支援の効果は「たし算」（何体いても、かけ算にはならない）
+  let sAtk = 0, sAspd = 0, sRange = 0;
   for (const a of G.auras) {
     if (a.u === u || Math.hypot(a.x - u.x, a.y - u.y) > a.r) continue;
-    aspd *= 1 + a.aspd; atk *= 1 + a.atk; if (a.range) range *= 1 + a.range; if (a.chance > chance) chance = a.chance;
+    sAspd += a.aspd; sAtk += a.atk; sRange += a.range || 0; if (a.chance > chance) chance = a.chance;
   }
+  aspd *= 1 + sAspd; atk *= 1 + sAtk; range *= 1 + sRange;
   if (u.reapStack) aspd *= 1 + 0.05 * u.reapStack;
   if (u.rampN && d.fx && d.fx.ramp) aspd *= 1 + fxv(u, 'ramp') * u.rampN;
   if (u.frost > 0) aspd *= 0.7;
@@ -240,7 +253,7 @@ function enemiesNear(x, y, r, pred) {
 function killEnemy(e, src) {
   if (e.dead) return;
   if ((BOSS_BASE[e.boss] || e.boss) === 'demonking' && !e.revived) { e.revived = true; e.hp = e.maxhp * 0.5; e.shield = 0; e.pois = null; e.burn = null; FX.banner('魔王がよみがえった！'); FX.flash(0.5); FX.shake(8); return; }
-  e.dead = true; G.kills++;
+  e.dead = true; G.kills++; if (e.boss) G.bossKills = (G.bossKills || 0) + 1;
   let g = Math.ceil(e.gold * GOLD_MUL * stageGold(G.stage)), S = G.L.S;
   for (const u of G.units) if (u.key === 'mouse' && u.sleep <= 0) {
     const st = u.st || computeStats(u);

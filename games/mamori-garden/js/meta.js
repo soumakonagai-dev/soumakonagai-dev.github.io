@@ -21,7 +21,7 @@ const PIECE_TABLE = [[1, 55], [2, 30], [3, 12], [5, 3]];   // [個数, 重み]  
 
 function tierOf(key) { if (UNITS[key].tier) return UNITS[key].tier; const c = UNITS[key].cost; return c <= 70 ? 'C' : c <= 110 ? 'R' : c <= 140 ? 'E' : 'L'; }
 function defaultSave() {
-  return { stars: new Array(STAGES.length).fill(0), form: ['sword', 'archer', 'mage', 'ice', 'siren'], endlessBest: 0, plays: 0, gems: START_GEMS, pieces: {}, owned: {}, lvl: {}, pulls: 0, diffClear: [], tickets: { normal: 0, rare: 0 }, evp: {}, evb: {}, target: {}, ver: 2 };
+  return { stars: new Array(STAGES.length).fill(0), form: ['sword', 'archer', 'mage', 'ice', 'siren'], endlessBest: 0, plays: 0, gems: START_GEMS, pieces: {}, owned: {}, lvl: {}, pulls: 0, diffClear: [], tickets: { normal: 0, rare: 0 }, evp: {}, evb: {}, evq: {}, target: {}, ver: 2 };
 }
 function normalizeSave(s) {
   s = s || {}; const old = s.ver == null && Object.keys(s).length > 0, d = defaultSave();
@@ -29,7 +29,7 @@ function normalizeSave(s) {
   while (s.stars.length < STAGES.length) s.stars.push(0);
   // 以前の版（ステージクリアで仲間が増えていた頃）のデータは、すでに解放済みだった仲間をそのまま持たせる
   if (old) { s.owned = s.owned || {}; for (let i = 0; i < STAGE_UNLOCK.length; i++) if (s.stars[i] > 0) for (const k of STAGE_UNLOCK[i]) s.owned[k] = true; }
-  for (const k of ['evp', 'evb', 'target']) if (!s[k] || typeof s[k] !== 'object') s[k] = {};
+  for (const k of ['evp', 'evb', 'evq', 'target']) if (!s[k] || typeof s[k] !== 'object') s[k] = {};
   if (!s.tickets || typeof s.tickets !== 'object') s.tickets = { normal: 0, rare: 0 }; s.tickets.normal = s.tickets.normal || 0; s.tickets.rare = s.tickets.rare || 0;
   if (!s.pieces || typeof s.pieces !== 'object') s.pieces = {}; if (!s.owned || typeof s.owned !== 'object') s.owned = {}; if (!s.lvl || typeof s.lvl !== 'object') s.lvl = {};
   return s;
@@ -100,4 +100,4 @@ function ticketDrop(sv, win, endless, diff, rnd) {
   if (t) sv.tickets[t]++; return t;
 }
 // 戦闘で手に入るジェム
-function gemsForBattle(wave, win, stars, endless, diff) { return Math.round((Math.max(0, wave - 1) * (endless ? 8 : 6) + (win ? 260 + stars * 80 : 0)) * 1.35 * diffOf(diff).gem); }
+function gemsForBattle(wave, win, stars, endless, diff) { return Math.round((Math.max(0, wave - 1) * (endless ? 8 : 6) + (win ? 260 + stars * 80 : 0)) * 1.7 * diffOf(diff).gem); }

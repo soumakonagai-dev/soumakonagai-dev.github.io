@@ -59,9 +59,54 @@ function seasonChars(season) { return UNIT_LIST.filter(u => u.seasonal === seaso
 function eventPoints(sv) { return (sv.evp && sv.evp[eventYM()]) || 0; }
 function eventBought(sv, key) { return ((sv.evb && sv.evb[eventYM()]) || {})[key] || 0; }
 function eventBuy(sv, key) {
-  const t = tierOf(key), it = EVENT_SHOP[t]; if (!it) return false;
+  const it = eventItem(key); if (!it) return false;
+  if (!UNITS[key].seasonal && !eventAnyAvail(key)) return false;
   if (eventPoints(sv) < it.pts || eventBought(sv, key) >= it.limit) return false;
   const ym = eventYM(); sv.evp[ym] -= it.pts; sv.evb[ym] = sv.evb[ym] || {}; sv.evb[ym][key] = (sv.evb[ym][key] || 0) + 1; return addPieces(sv, key, 1);
 }
 // クリアで入るポイント：勝つと 60 + ★×20 + 難易度×10
-function eventPointsFor(stars, diff) { return 60 + stars * 20 + (diff || 0) * 10; }
+// むずかしさが上がるほど、ポイントも増える
+const EVENT_DIFF_MUL = [0.7, 1, 1.6, 2.4, 3.4, 5];
+function eventPointsFor(stars, diff) { return Math.round((60 + stars * 20) * (EVENT_DIFF_MUL[diff == null ? 1 : diff] || 1)); }
+// 季節キャラ以外の（ふつうの）エピック以上のキャラも、ポイントでかけらと交換できる（少し割高）
+const EVENT_SHOP_ANY = { E: { pts: 120, limit: 10 }, L: { pts: 500, limit: 4 }, U: { pts: 3000, limit: 1 } };
+function eventItem(key) { const t = tierOf(key); return UNITS[key] && UNITS[key].seasonal ? EVENT_SHOP[t] : EVENT_SHOP_ANY[t]; }
+
+// ---- イベントクエスト（その月のあいだ、達成するとポイントがもらえる） ----
+const EVENT_QUESTS = [
+  { id: 'q1', name: 'イベントステージを1回クリア', stat: 'clear', need: 1, pts: 100 },
+  { id: 'q2', name: 'イベントステージを3回クリア', stat: 'clear', need: 3, pts: 150 },
+  { id: 'q3', name: 'イベントステージを10回クリア', stat: 'clear', need: 10, pts: 300 },
+  { id: 'q4', name: '★3（ライフ15以上）でクリア', stat: 'clear3', need: 1, pts: 120 },
+  { id: 'q5', name: '「むずかしい」以上でクリア', stat: 'hardclear', need: 1, pts: 200 },
+  { id: 'q6', name: '季節限定キャラを入れてクリア', stat: 'seasonClear', need: 1, pts: 150 },
+  { id: 'q7', name: 'ボスを5体たおす', stat: 'bossKills', need: 5, pts: 120 },
+  { id: 'q8', name: '敵を500体たおす', stat: 'kills', need: 500, pts: 100 },
+  { id: 'q9', name: '敵を5000体たおす', stat: 'kills', need: 5000, pts: 300 },
+  { id: 'q10', name: '合成を100回する', stat: 'merges', need: 100, pts: 100 },
+  { id: 'q11', name: '★7の仲間をつくる', stat: 'made7', need: 1, pts: 150 },
+  { id: 'q12', name: 'ガチャを10回引く', stat: 'pulls', need: 10, pts: 100 },
+];
+function evqRec(sv) { const ym = eventYM(); sv.evq = sv.evq || {}; return sv.evq[ym] = sv.evq[ym] || { s: {}, c: {} }; }
+function evqAdd(sv, stat, n) { const r = evqRec(sv); r.s[stat] = (r.s[stat] || 0) + (n == null ? 1 : n); }
+function evqGet(sv, stat) { return evqRec(sv).s[stat] || 0; }
+function evqDone(sv, q) { return evqGet(sv, q.stat) >= q.need; }
+function evqClaimed(sv, q) { return !!evqRec(sv).c[q.id]; }
+function evqClaim(sv, q) {
+  if (!evqDone(sv, q) || evqClaimed(sv, q)) return false;
+  evqRec(sv).c[q.id] = true; sv.evp[eventYM()] = (sv.evp[eventYM()] || 0) + q.pts; return true;
+}
+
+// ---- 季節限定キャラ（追加分：各季節 エピック1体・レジェンド1体） ----
+ns('spring', 'hanamikozo', '花見だんごの子', 'earth', 120, 26, 1.0, 3.0, 'phys', 'bolt', 'だんご', 'ability', { gold: [2, 3, 5, 8], heal: [0, 0, 1, 1], splash: [0.8, 1, 1.3, 1.8] }, H('#c8e8a0', 4, '#6a9a3a', '#ffb0c8', '#ffffff', 2, 'straw', '#f0d890', 'pack', '#c8a060', 'flag', '#ffb0c8'));
+ns('spring', 'uguisu', 'うぐいすの歌姫', 'wind', 170, 0, 0, 4.8, 'none', 'none', '春告げの歌', 'ability', { aAspd: [0.2, 0.3, 0.42, 0.6], aRange: [0.05, 0.1, 0.15, 0.22] }, BD('hawk', '#9ac84a', '#6a9a2a', '#f4ffd0', '#2a2a3a', { crest: 'tuft', cc: '#c8e87a', hd: 'flower', hg: '#ffb0c8', o2: '#ffffff' }));
+ns('summer', 'suikawari', 'すいか割りの少年', 'earth', 125, 40, 0.9, 1.8, 'phys', 'melee', 'ぼうたたき', 'atk', { splash: [1, 1.2, 1.5, 2], stun: [0.1, 0.15, 0.2, 0.3] }, H('#3a2a1a', 0, '#2a2a2a', '#4ad07a', '#ffffff', 2, 'band', '#ffffff', 'none', '#fff', 'hammer', '#c8a060'));
+ns('summer', 'kaigarahime', '貝殻の人魚姫', 'water', 175, 46, 1.0, 4.0, 'magic', 'bolt', '真珠の歌', 'ability', { chain: [2, 3, 5, 8], slow: [0.2, 0.3, 0.4, 0.5], mark: [0.08, 0.12, 0.18, 0.26] }, H('#ff9ac8', 7, '#2a8aff', '#ffe0ec', '#ffd0f0', 3, 'tiara', '#fff0d8', 'wings', '#ffd0f0', 'harp', '#ffe0ec'));
+ns('autumn', 'kuririsu', '栗ひろいリス', 'earth', 120, 22, 1.5, 3.0, 'phys', 'bolt', 'どんぐり投げ', 'aspd', { gold: [2, 3, 5, 8], multi: [0, 1, 1, 2], knock: [0.2, 0.3, 0.4, 0.6] }, BE('#c8803a', 'bear', '#3a2a1a', 'none', '#8a5a2a', '#e8a04a', { tc: '#e8a04a', hd: 'cap', hg: '#c8402a' }));
+ns('autumn', 'kitsunebi', '紅葉の狐火', 'fire', 175, 52, 0.9, 4.0, 'magic', 'bolt', '狐火の舞', 'atk', { burn: [0.8, 1.2, 1.8, 2.8], spreadBurn: [0, 1.5, 2, 3], multi: [0, 1, 2, 3] }, BE('#ff7a2a', 'fox', '#ffd24a', 'fan', '#ff4a1a', '#c8321e', { tc: '#ff9a3a', inner: '#fff0d8', hd: 'flower', hg: '#ff5a2a' }));
+ns('winter', 'kamakura', 'かまくらの雪うさぎ', 'water', 125, 0, 0, 4.2, 'none', 'none', '雪の結界', 'ability', { eSlow: [0.15, 0.2, 0.28, 0.4], eVuln: [0.04, 0.06, 0.1, 0.15] }, BE('#f4faff', 'rabbit', '#4ab0ff', 'none', '#bff4ff', '#e8505a', { inner: '#ffc0d0', hd: 'cap', hg: '#e8f6ff' }));
+ns('winter', 'mochitsuki', 'もちつきの兎', 'light', 175, 58, 0.8, 2.2, 'phys', 'melee', 'ぺったんこ', 'atk', { stun: [0.2, 0.3, 0.4, 0.55], knock: [0.4, 0.6, 0.9, 1.4], splash: [1, 1.2, 1.5, 2] }, BE('#fffbe8', 'rabbit', '#ff6a6a', 'hammer', '#c8a060', '#ffd24a', { inner: '#ffc0d0', hd: 'band', hg: '#e8404a' }));
+// 季節ごとに、イベントで交換できる「ふつうのキャラ」が入れかわる（ランクごとに4つに分けて、季節ごとに1つ）
+const SEASON_IDX = { spring: 0, summer: 1, autumn: 2, winter: 3 };
+function eventAnyList(tier, season) { return UNIT_LIST.filter(u => !u.seasonal && tierOf(u.key) === tier).filter((u, i) => i % 4 === SEASON_IDX[season || SEASON_OF(eventMonth())]); }
+function eventAnyAvail(key) { const u = UNITS[key]; return !!u && !u.seasonal && eventAnyList(tierOf(key)).some(x => x.key === key); }

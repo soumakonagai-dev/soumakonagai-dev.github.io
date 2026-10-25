@@ -1,6 +1,24 @@
 'use strict';
 // ===== マップ（10ステージ）・編成（ページ送り・難易度）・戦闘開始／終了 =====
 const PER_PAGE = 24;
+// キャラ一覧の並びかえ
+const SORTS = [['no', '図鑑順'], ['tier', 'レア度順'], ['atk', '攻撃力順'], ['aspd', '速さ順'], ['cost', 'コスト順'], ['owned', '持ってる順'], ['elem', '属性順']];
+const ELEM_ORDER = { earth: 0, fire: 1, water: 2, wind: 3, light: 4, dark: 5 }, TIER_ORDER = { C: 0, R: 1, E: 2, L: 3, U: 4 };
+function sortedUnits() {
+  const m = APP.sortMode || 'no', sv = APP.save, a = UNIT_LIST.slice();
+  const pw = d => (d.atk || 0) * (TIER_ATK[tierOf(d.key)] || 1) * (d.aspd || 1);
+  if (m === 'tier') a.sort((x, y) => TIER_ORDER[tierOf(y.key)] - TIER_ORDER[tierOf(x.key)] || pw(y) - pw(x) || x.no - y.no);
+  else if (m === 'atk') a.sort((x, y) => (y.atk * (TIER_ATK[tierOf(y.key)] || 1)) - (x.atk * (TIER_ATK[tierOf(x.key)] || 1)) || x.no - y.no);
+  else if (m === 'aspd') a.sort((x, y) => (y.aspd || 0) - (x.aspd || 0) || x.no - y.no);
+  else if (m === 'cost') a.sort((x, y) => y.cost - x.cost || x.no - y.no);
+  else if (m === 'owned') a.sort((x, y) => (isOwned(sv, y.key, APP.debugAll) ? 1 : 0) - (isOwned(sv, x.key, APP.debugAll) ? 1 : 0) || TIER_ORDER[tierOf(y.key)] - TIER_ORDER[tierOf(x.key)] || x.no - y.no);
+  else if (m === 'elem') a.sort((x, y) => ELEM_ORDER[x.elem] - ELEM_ORDER[y.elem] || TIER_ORDER[tierOf(y.key)] - TIER_ORDER[tierOf(x.key)] || x.no - y.no);
+  return a;
+}
+function sortButton(id, x, y) {
+  const i = Math.max(0, SORTS.findIndex(s => s[0] === (APP.sortMode || 'no')));
+  button(id, x, y, 130, 28, 'ならび：' + SORTS[i][1], { style: 'good', size: 12, r: 8 }, () => { APP.sortMode = SORTS[(i + 1) % SORTS.length][0]; APP.fpage = 0; APP.cpage = 0; try { localStorage.setItem('mamori-sort', APP.sortMode); } catch (e) { } });
+}
 function dcOf(sv, stage) { return sv.diffClear && sv.diffClear[stage] != null ? sv.diffClear[stage] : -1; }
 function diffOpen(stage, d) { return APP.debugAll || d <= 1 || dcOf(APP.save, stage) >= d - 1; }
 function pager(c, id, x, y, page, pages, set, label) {
@@ -58,11 +76,11 @@ function drawFormation(c, dt) {
   const dn = DIFFS[APP.diff];
   txt(c, '5体をえらんで出撃！', L.W / 2, 44, P ? 26 : 30, '#fff8e8', 'center');
   txt(c, `${STAGES[APP.stage].name}${APP.endless ? '（エンドレス）' : ''}　難易度：${dn.name}（敵HP×${dn.hp} ・ジェム×${dn.gem}）`, L.W / 2, 68, P ? 12 : 14, dn.col, 'center', { outline: false });
-  const pages = Math.ceil(UNIT_LIST.length / PER_PAGE), pg = Math.min(APP.fpage || 0, pages - 1);
-  pager(c, 'fp', P ? 10 : 20, 12, pg, pages, v => { APP.fpage = v; });
+  const SU = sortedUnits(), pages = Math.ceil(SU.length / PER_PAGE), pg = Math.min(APP.fpage || 0, pages - 1);
+  pager(c, 'fp', P ? 10 : 20, 12, pg, pages, v => { APP.fpage = v; }); sortButton('f_sort', P ? 160 : 174, 12);
   let cw, ch, gx, gy, cols, gap;
   if (!P) { cw = 96; ch = 100; gap = 6; cols = 6; gx = 24; gy = 82; } else { cw = 82; ch = 92; gap = 4; cols = 6; gx = (L.W - (6 * 82 + 20)) / 2; gy = 80; }
-  UNIT_LIST.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {
+  SU.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {
     const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap), un = isUnlocked(d.key), idx = form.indexOf(d.key);
     unitCard(c, d.key, x, y, cw, ch, { locked: !un, sel: idx >= 0, focus: APP.focus === d.key, order: idx >= 0 ? idx + 1 : 0, hint: unlockHint(d.key), lv: un ? lvOf(sv, d.key) : 0 });
     button('f_' + d.key, x, y, cw, ch, '', { style: 'ghost', transparent: true }, () => {
@@ -116,6 +134,11 @@ function finishBattle(B) {
   if (G.over === 'lose' && !G.endless) B.starsGot = 0;
   B.gemsGot = gemsForBattle(G.over === 'win' ? G.wave + 1 : G.wave, G.over === 'win', B.starsGot || 0, G.endless, G.diff); sv.gems += B.gemsGot;
   B.ticketGot = ticketDrop(sv, G.over === 'win', G.endless, G.diff);
+  // イベントクエストの数え上げ（その月のあいだ）
+  try {
+    evqAdd(sv, 'kills', G.kills || 0); evqAdd(sv, 'merges', G.merges || 0); evqAdd(sv, 'bossKills', G.bossKills || 0); if (G.made7) evqAdd(sv, 'made7', 1);
+    if (G.over === 'win' && !G.endless && APP.stage >= NORMAL_STAGES) { evqAdd(sv, 'clear', 1); if ((B.starsGot || 0) >= 3) evqAdd(sv, 'clear3', 1); if (G.diff >= 2) evqAdd(sv, 'hardclear', 1); if (G.form.some(k => UNITS[k] && UNITS[k].seasonal)) evqAdd(sv, 'seasonClear', 1); }
+  } catch (e) { }
   if (G.over === 'win' && !G.endless && APP.stage >= NORMAL_STAGES) { B.evPts = eventPointsFor(B.starsGot || 1, G.diff); sv.evp[eventYM()] = (sv.evp[eventYM()] || 0) + B.evPts; }
   saveSave();
 }

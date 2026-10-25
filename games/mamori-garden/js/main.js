@@ -42,7 +42,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 window.addEventListener('load', () => {
-  try { APP.autoSkip = localStorage.getItem('mamori-auto') === '1'; } catch (e) { }
+  try { APP.autoSkip = localStorage.getItem('mamori-auto') === '1'; APP.sortMode = localStorage.getItem('mamori-sort') || 'no'; } catch (e) { }
   APP.cv = document.getElementById('c'); APP.save = loadSave();
   if (APP.save.form.length !== 5 || APP.save.form.some(k => !UNITS[k] || !isUnlocked(k))) APP.save.form = ['sword', 'archer', 'mage', 'ice', 'siren'];
   APP.diff = APP.save.lastDiff != null ? clamp(APP.save.lastDiff, 0, DIFFS.length - 1) : DEFAULT_DIFF; APP.mapPage = 0; APP.fpage = 0; APP.cpage = 0;

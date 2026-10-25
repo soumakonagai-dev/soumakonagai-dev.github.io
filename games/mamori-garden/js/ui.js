@@ -272,6 +272,7 @@ function battleUp(x, y, downBtn) {
 }
 function tryPlace(key, p) {
   const d = UNITS[key];
+  { const sb = supportBlock(key); if (sb) { toast(sb); return false; } }
   if (G.gold < summonCost(key, APP.b.sumStar)) { toast('ゴールドが足りません'); return false; }
   if (G.units.length >= unitCap()) { toast('仲間がいっぱい！ 合成か売却で場所をあけよう'); return false; }
   if (!canPlace(p.x, p.y)) { toast('そこには置けません（道・他のキャラと重なる）'); return false; }
@@ -354,7 +355,7 @@ function drawPanel(c, B) {
     const cnt = G.units.filter(u => u.key === key).length; if (cnt) txt(c, '×' + cnt, r.x + r.w - 8, r.y + 31, 11, COL.dim, 'right', { outline: false });
     const lv = G.lv[key] || 0, uc = upgradeCost(key), ur = R.upg[i];
     button('up' + i, ur.x, ur.y, ur.w, ur.h, uc == null ? `強化 MAX` : `Lv${lv}→${lv + 1}  ${uc}G`, { glow: uc != null && G.gold >= uc, style: uc != null && G.gold >= uc ? 'gold' : 'ghost', size: 12, col: uc != null && G.gold >= uc ? '#5a3000' : '#d8d2f5', r: 8, disabled: uc == null }, () => { if (!upgrade(key)) toast('ゴールドが足りません'); });
-    button('card' + i, r.x, r.y, r.w, r.h, '', { style: 'ghost', transparent: true }, null, () => { if (G.over || B.paused) return; if (B.placing && B.placing.sticky && B.placing.key === key) { B.placing = null; return; } if (G.gold < sc) { toast('ゴールドが足りません'); return; } if (G.units.length >= unitCap()) { toast('仲間がいっぱい！ 合成か売却で場所をあけよう'); return; } selectCard(i, false); });
+    button('card' + i, r.x, r.y, r.w, r.h, '', { style: 'ghost', transparent: true }, null, () => { if (G.over || B.paused) return; if (B.placing && B.placing.sticky && B.placing.key === key) { B.placing = null; return; } { const sb = supportBlock(key); if (sb) { toast(sb); return; } } if (G.gold < sc) { toast('ゴールドが足りません'); return; } if (G.units.length >= unitCap()) { toast('仲間がいっぱい！ 合成か売却で場所をあけよう'); return; } selectCard(i, false); });
   }
   // ライフと、★いくつで召喚するか（召喚欄の右上）
   { const bw = 44, bh = 24, x0 = L.W - 3 * bw - 16, y0 = L.panelY - 30; if (!B.sumStar) B.sumStar = 1;
