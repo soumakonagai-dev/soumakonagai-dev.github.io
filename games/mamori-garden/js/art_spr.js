@@ -130,11 +130,44 @@ function sprEvict(force) {
 }
 function sprClearAll() { for (const k in SPR_CACHE) delete SPR_CACHE[k]; SPR_PX = 0; for (const k in GLOW_CACHE) delete GLOW_CACHE[k]; for (const k in RING_CACHE) delete RING_CACHE[k]; for (const k in STAR_CACHE) delete STAR_CACHE[k]; }
 function sprVariant(t, anim) { if (PERF.lite && anim <= 0.02) return Math.floor(((t / LOOP) % 1 + 1) % 1 * FRAMES) % FRAMES; return anim > 0.02 ? 100 + Math.max(1, Math.min(4, Math.ceil(anim * 4))) : Math.floor((((t / LOOP) % 1) + 1) % 1 * FRAMES) % FRAMES; }
+// ★3・★5・★7（能力が開花するたび）に、見た目が変わる：光→羽→金色の姿と冠
+const EVO_SCALE = [1, 1.04, 1.09, 1.15];
+function lightHex(h, t) { const [r, g, b] = hexToRgb(h).map(v => Math.round(v + (255 - v) * t)); return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join(''); }
+function evoTier(key, u) { return u && u.star && key !== 'egg' ? (u.star >= 7 ? 3 : u.star >= 5 ? 2 : u.star >= 3 ? 1 : 0) : 0; }
+function evoBack(g, ec, tier, ph) {
+  const col = tier >= 3 ? '#ffd24a' : ec;
+  g.save(); g.globalCompositeOperation = 'lighter'; glowDot(g, 0, -38, 50 + tier * 9, col, .22 + tier * .1);
+  if (tier >= 3) { g.fillStyle = 'rgba(255,236,150,.2)'; for (let i = 0; i < 9; i++) { g.save(); g.translate(0, -40); g.rotate(i / 9 * TAU + .2); g.beginPath(); g.moveTo(-3, 0); g.lineTo(0, -62); g.lineTo(3, 0); g.fill(); g.restore(); } }
+  g.restore();
+  if (tier >= 2) {   // 羽（★5は小さく、★7は金色で大きく二重に）
+    const fl = S_(ph, 1) * (tier >= 3 ? .1 : .07), wc = tier >= 3 ? '#ffe9a0' : lightHex(ec, .55), wc2 = tier >= 3 ? '#ffd24a' : ec, k = tier >= 3 ? 1.25 : 1;
+    for (const sg of [-1, 1]) {
+      g.save(); g.scale(sg, 1); g.translate(6, -38); g.rotate(-.1 + fl);
+      SB(g, [[0, 0], [14 * k, -24 * k], [34 * k, -34 * k], [38 * k, -12 * k], [26 * k, 2 * k], [10 * k, 6 * k]], wc);
+      if (tier >= 3) SB(g, [[2, 4], [16, -4], [30 * k, 6 * k], [24 * k, 20 * k], [8, 14]], wc2, { line: false });
+      g.restore();
+    }
+  }
+}
+function evoFront(g, ec, tier, ph, im) {
+  g.save(); g.globalCompositeOperation = 'source-atop'; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = rgba(tier >= 3 ? '#ffd24a' : ec, [0, .1, .15, .2][tier]); g.fillRect(0, 0, im.width, im.height); g.restore();
+  const gold = tier >= 3, sc = gold ? '#fff2a0' : '#ffffff';
+  const sp = [[-26, -56], [24, -34], [-20, -18], [22, -70], [0, -86]];
+  for (let i = 0; i < (tier >= 3 ? 5 : tier >= 2 ? 4 : 3); i++) { const q = 0.5 + 0.5 * S_(ph + i * .21, 1); sparkle(g, sp[i][0], sp[i][1], 2.2 + q * 2.6 + tier * .4, sc); }
+  if (tier >= 2) {   // 頭の上のわっか
+    g.save(); g.strokeStyle = gold ? '#ffd24a' : lightHex(ec, .4); g.lineWidth = 2.2; g.beginPath(); g.ellipse(0, -84 + S_(ph, 1) * 1.2, 12, 3.6, 0, 0, TAU); g.stroke();
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = .9; g.stroke(); g.restore();
+  }
+  if (gold) {   // 金の冠
+    const y = -93 + S_(ph, 1) * 1.2; PL(g, [[-8, y + 7], [-9, y - 3], [-4, y + 1], [0, y - 6], [4, y + 1], [9, y - 3], [8, y + 7]], '#ffd24a', true); g.fillStyle = '#ff6a8a'; g.beginPath(); g.arc(0, y + 1, 1.6, 0, TAU); g.fill();
+  }
+}
 function getSprite(kind, key, size, variant, u) {
   const eg = kind === 'u' && key === 'egg' && u ? eggPhase(u) * 10 + (eggPhase(u) === 0 ? Math.min(2, u.hatch) : 0) : 0;
-  const k = kind + '|' + key + '|' + Math.round(size) + '|' + variant + '|' + eg;
+  const tier = kind === 'u' ? evoTier(key, u) : 0;
+  const k = kind + '|' + key + '|' + Math.round(size) + '|' + variant + '|' + eg + (tier ? '|t' + tier : '');
   let o = SPR_CACHE[k]; if (o) { o.t = ART.t; return o; }
-  const lw = Math.max(2, Math.ceil(size * 2.3)), lh = Math.max(2, Math.ceil(size * 1.65)), sc = Math.max(1, ART.sc), oy = Math.ceil(size * 0.22);
+  const lw = Math.max(2, Math.ceil(size * (tier ? 2.7 : 2.3))), lh = Math.max(2, Math.ceil(size * (tier ? 2.0 : 1.65))), sc = Math.max(1, ART.sc), oy = Math.ceil(size * 0.22);
   if (SPR_PX > sprBudget()) sprEvict(false);
   let im = document.createElement('canvas'); im.width = Math.ceil(lw * sc); im.height = Math.ceil(lh * sc);
   let g = im.getContext('2d');
@@ -144,11 +177,15 @@ function getSprite(kind, key, size, variant, u) {
   }
   g.scale(sc, sc); g.translate(lw / 2, lh - oy); const s = size / 56; g.scale(s, s); g.lineJoin = 'round'; g.lineCap = 'round';
   const ph = variant >= 100 ? 0 : variant / FRAMES, a = variant >= 100 ? (variant - 100) / 4 : 0;
+  const ec = tier ? ELEM[UNITS[key].elem].c : null;
   try {
+    if (tier) evoBack(g, ec, tier, ph);
+    if (tier) g.scale(EVO_SCALE[tier], EVO_SCALE[tier]);
     if (kind === 'u') SPRITES[key](g, ph, a, u ? { hatch: u.hatch, __ph: eggPhase(u) } : { hatch: 0, __ph: 0 });
     else if (kind === 'e') ESPR[key](g, ph, { invuln: 0, healFx: 0 });
     else BSPR[key](g, ph, { invuln: 0 });
   } catch (err) { console.error('sprite', kind, key, err); }
+  if (tier) { try { g.setTransform(sc, 0, 0, sc, 0, 0); g.translate(lw / 2, lh - oy); g.scale(s, s); evoFront(g, ec, tier, ph, im); } catch (err) { console.error('evo', key, err); } }
   const px = im.width * im.height; SPR_PX += px;
   return SPR_CACHE[k] = { im, lw, lh, oy, t: ART.t, px };
 }

@@ -28,12 +28,12 @@ function magicCircle(c, cx, cy, R, t, spin, pow) {
 function tierTag(c, tier, x, y) { const col = TIER_COL[tier], w = 74; rr(c, x - w / 2, y - 10, w, 18, 9); c.fillStyle = 'rgba(20,10,50,.8)'; c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); txt(c, TIER_NAME[tier], x, y + 4, 11, col, 'center', { outline: false }); }
 function resultLine(r) {
   if (r.kind === 'new') return ['NEW！なかまになった！', '#ffe27a'];
-  if (r.kind === 'dup') return ['かけら ×10 ゲット！', '#ffe27a'];
+  if (r.kind === 'dup') return ['かけら ×' + r.n + ' ゲット！', '#ffe27a'];
   return ['かけら ×' + r.n + (r.unlocked ? '  → なかまに！' : ''), r.unlocked ? '#ffe27a' : '#bff6ff'];
 }
 function progressLine(key) {
   const sv = APP.save, p = piecesOf(sv, key);
-  if (!isOwned(sv, key)) return 'かけら ' + p + ' / ' + PIECES_UNLOCK;
+  if (!isOwned(sv, key)) return 'かけら ' + p + ' / ' + unlockNeed(key);
   const need = lvNeed(sv, key); return need == null ? 'Lv' + MAX_LV + '（最大）' : 'Lv' + lvOf(sv, key) + '   かけら ' + p + ' / ' + need;
 }
 // かけら：割れたガラスのようなギザギザの破片に、キャラの一部が映っている
@@ -117,7 +117,7 @@ function drawGacha(c, dt) {
   if (GC.direct < 1) txt(c, 'かけらの数：' + GC.pieces.map(p => p[0] + '個 ' + Math.round(p[1] / tot * 100) + '%').join(' / '), px + 18, py + 112, 12, COL.dim, 'left', { outline: false });
   txt(c, 'ランク：' + ['C', 'R', 'E', 'L', 'U'].filter(k => tr[k] > 0).map(k => TIER_NAME[k] + ' ' + (tr[k] * 100).toFixed(0) + '%').join(' / '), px + 18, py + 134, 12, COL.dim, 'left', { outline: false });
   let yy = py + 162;
-  for (const s of [GC.desc, GC.ticket ? '・ステージをクリアすると、たまにチケットが落ちる（1回ぶん無料）' : '・チケットでは引けません（ジェムのみ）', '・かけらを10個あつめると、そのキャラが仲間になる！', '・持っているキャラをそのまま引いたら、かけら10個ぶん！']) { const n = wrapText(c, s, px + 18, yy, pw - 36, 17, 13, '#f1ecff', 3); yy += n * 17 + 6; }
+  for (const s of [GC.desc, GC.ticket ? '・ステージをクリアすると、たまにチケットが落ちる（1回ぶん無料）' : '・チケットでは引けません（ジェムのみ）', '・かけらをあつめると、そのキャラが仲間になる（エピックまでは少なめ）！', '・持っているキャラをそのまま引いたら、仲間になるぶんのかけらが入る！']) { const n = wrapText(c, s, px + 18, yy, pw - 36, 17, 13, '#f1ecff', 3); yy += n * 17 + 6; }
   // ボタン
   const by = P ? 668 : 502, bw = 160, bh = 78, bx = P ? 22 : 430;
   const can1 = sv.gems >= GC.cost, can10 = sv.gems >= GC.cost10, nt = sv.tickets[gt] || 0;
@@ -179,7 +179,7 @@ function levelPanel(c, key, x, y, w, h) {
   const sv = APP.save, own = isOwned(sv, key, APP.debugAll), p = piecesOf(sv, key);
   panelBox(c, x, y, w, h, { r: 12, fill: 'rgba(40,32,100,.75)' });
   if (!own) {
-    txt(c, 'まだ仲間になっていない', x + 14, y + 26, 15, '#fff8e8', 'left'); txt(c, 'かけら ' + p + ' / ' + PIECES_UNLOCK + '  で仲間に', x + 14, y + 48, 13, COL.dim, 'left', { outline: false });
+    txt(c, 'まだ仲間になっていない', x + 14, y + 26, 15, '#fff8e8', 'left'); txt(c, 'かけら ' + p + ' / ' + unlockNeed(key) + '  で仲間に', x + 14, y + 48, 13, COL.dim, 'left', { outline: false });
     button('c_gacha', x + w - 118, y + h / 2 - 20, 106, 40, 'ガチャへ', { style: 'gold', size: 15, col: '#5a3000' }, () => { APP.gacha = null; go('gacha'); });
     return;
   }
@@ -200,7 +200,7 @@ function drawCollection(c, dt) {
   const pages = Math.ceil(UNIT_LIST.length / PER_PAGE), pg = Math.min(APP.cpage || 0, pages - 1);
   pager(c, 'cp', P ? 10 : 20, 12, pg, pages, v => { APP.cpage = v; });
   UNIT_LIST.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE).forEach((d, i) => {
-    const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap), own = isUnlocked(d.key), p = piecesOf(sv, d.key), need = own ? lvNeed(sv, d.key) : PIECES_UNLOCK;
+    const x = gx + (i % cols) * (cw + gap), y = gy + Math.floor(i / cols) * (ch + gap), own = isUnlocked(d.key), p = piecesOf(sv, d.key), need = own ? lvNeed(sv, d.key) : unlockNeed(d.key);
     const bar = need == null ? { v: 1, max: 1, text: 'MAX', full: true } : { v: p, max: need, text: p + '/' + need, full: p >= need };
     unitCard(c, d.key, x, y, cw, ch, { locked: !own, focus: APP.cfocus === d.key, hint: '', lv: own ? lvOf(sv, d.key) : 0, noCost: true, bar });
     button('cf_' + d.key, x, y, cw, ch, '', { style: 'ghost', transparent: true }, () => { APP.cfocus = d.key; });

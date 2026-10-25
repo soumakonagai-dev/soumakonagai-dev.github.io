@@ -3,13 +3,14 @@
 const START_GEMS = 300;
 // ガチャは3種類。ノーマル＝初心者向け（レジェンドは出ない）、レア＝レジェンドが出る、ウルトラ＝キャラそのものが必ず出る
 const GACHAS = {
-  normal: { name: 'ノーマルガチャ', cost: 100, cost10: 900, direct: 0.004, tier: { C: 1.6, R: 1.2, E: 0.5, L: 0, U: 0 }, pieces: [[1, 40], [2, 35], [3, 18], [5, 7]], ticket: true, desc: '初心者向け。レジェンドは出ません', col: '#7ad0ff' },
-  rare: { name: 'レアガチャ', cost: 300, cost10: 2700, direct: 0.02, tier: { C: 0.6, R: 1, E: 1.4, L: 1.2, U: 0 }, pieces: [[1, 30], [2, 35], [3, 22], [5, 13]], ticket: true, desc: 'レジェンドが出る！かけらも多め', col: '#d08aff' },
+  normal: { name: 'ノーマルガチャ', cost: 100, cost10: 900, direct: 0.008, tier: { C: 1.6, R: 1.2, E: 0.5, L: 0, U: 0 }, pieces: [[1, 40], [2, 35], [3, 18], [5, 7]], ticket: true, desc: '初心者向け。レジェンドは出ません', col: '#7ad0ff' },
+  rare: { name: 'レアガチャ', cost: 300, cost10: 2700, direct: 0.03, tier: { C: 0.6, R: 1, E: 1.4, L: 1.2, U: 0 }, pieces: [[1, 30], [2, 35], [3, 22], [5, 13]], ticket: true, desc: 'レジェンドが出る！かけらも多め', col: '#d08aff' },
   ultra: { name: 'ウルトラガチャ', cost: 10000, cost10: 90000, direct: 1, tier: { C: 0, R: 0.3, E: 1, L: 2.2, U: 2.2 }, pieces: [[1, 100]], ticket: false, desc: 'キャラそのものが必ず出る！ミシックはここだけ。チケットは出ません', col: '#ffd24a' },
 };
 const GACHA_TYPES = ['normal', 'rare', 'ultra'];
 const GACHA_COST = GACHAS.normal.cost, GACHA10_COST = GACHAS.normal.cost10;
 function gachaCost(type, n) { const g = GACHAS[type]; return n === 10 ? g.cost10 : g.cost * n; }
+const PIECES_BY_TIER = { C: 5, R: 6, E: 8, L: 10, U: 12 };   // 仲間になるのに必要なかけら（エピックまでは少なめ）
 const PIECES_UNLOCK = 10;          // かけら10個でキャラ解放（所持キャラを直引きしたときは10個ぶん）
 const DIRECT_RATE = 0.004;         // キャラそのものを引く確率（0.4%）
 const LV_COST = [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 9, 10, 11, 12, 14, 16, 18];   // Lv n → n+1 に必要なかけら（合計145）   // Lv n → n+1 に必要なかけら
@@ -35,11 +36,13 @@ function normalizeSave(s) {
 function isOwned(sv, key, all) { return !!(all || START_UNITS.includes(key) || sv.owned[key]); }
 function lvOf(sv, key) { return Math.max(1, Math.min(MAX_LV, sv.lvl[key] || 1)); }
 function piecesOf(sv, key) { return sv.pieces[key] || 0; }
-function lvNeed(sv, key) { const l = lvOf(sv, key); return l >= MAX_LV ? null : LV_COST[l - 1]; }
+function unlockNeed(key) { return PIECES_BY_TIER[tierOf(key)] || PIECES_UNLOCK; }
+// エピックまでは、レベルアップのかけらも3割ひく
+function lvNeed(sv, key) { const l = lvOf(sv, key); if (l >= MAX_LV) return null; const t = tierOf(key); return t === 'C' || t === 'R' || t === 'E' ? Math.max(1, Math.ceil(LV_COST[l - 1] * 0.7)) : LV_COST[l - 1]; }
 // かけらを増やす。未解放で10個以上になったら自動で解放（10個を消費）
 function addPieces(sv, key, n) {
   sv.pieces[key] = piecesOf(sv, key) + n; let unlocked = false;
-  if (!isOwned(sv, key) && sv.pieces[key] >= PIECES_UNLOCK) { sv.pieces[key] -= PIECES_UNLOCK; sv.owned[key] = true; unlocked = true; }
+  if (!isOwned(sv, key) && sv.pieces[key] >= unlockNeed(key)) { sv.pieces[key] -= unlockNeed(key); sv.owned[key] = true; unlocked = true; }
   return { unlocked };
 }
 function levelUp(sv, key) {
@@ -65,7 +68,7 @@ function rollOne(sv, rnd, type) {
   const key = wpickR(list, rnd), tier = tierOf(key);
   sv.pulls = (sv.pulls || 0) + 1;
   if (g.direct >= 1 || (F && F.direct) || rnd() < g.direct) {
-    if (isOwned(sv, key)) { sv.pieces[key] = piecesOf(sv, key) + PIECES_UNLOCK; return { key, kind: 'dup', n: PIECES_UNLOCK, tier }; }
+    if (isOwned(sv, key)) { sv.pieces[key] = piecesOf(sv, key) + unlockNeed(key); return { key, kind: 'dup', n: unlockNeed(key), tier }; }
     sv.owned[key] = true; return { key, kind: 'new', n: 0, tier };
   }
   const n = wpickR(g.pieces, rnd), r = addPieces(sv, key, n);
@@ -86,10 +89,10 @@ function rollGacha(sv, count, rnd, type, useTicket) {
 function ticketDrop(sv, win, endless, diff, rnd) {
   rnd = rnd || Math.random; const dm = 1 + 0.15 * (diff || 0);
   let t = null;
-  if (win && !endless) { if (rnd() < 0.10 * dm) t = 'rare'; else if (rnd() < 0.40) t = 'normal'; }
+  if (win && !endless) { if (rnd() < 0.14 * dm) t = 'rare'; else if (rnd() < 0.50) t = 'normal'; }
   else if (win) { if (rnd() < 0.25) t = 'normal'; }
   else if (rnd() < 0.08) t = 'normal';
   if (t) sv.tickets[t]++; return t;
 }
 // 戦闘で手に入るジェム
-function gemsForBattle(wave, win, stars, endless, diff) { return Math.round((Math.max(0, wave - 1) * (endless ? 8 : 6) + (win ? 200 + stars * 60 : 0)) * diffOf(diff).gem); }
+function gemsForBattle(wave, win, stars, endless, diff) { return Math.round((Math.max(0, wave - 1) * (endless ? 8 : 6) + (win ? 260 + stars * 80 : 0)) * 1.35 * diffOf(diff).gem); }

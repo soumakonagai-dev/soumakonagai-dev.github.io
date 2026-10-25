@@ -9,7 +9,7 @@ const UPG_BONUS = 0.35;   // 1レベルごとに攻撃+35%（Lv8で約3.8倍）
 const SELL_RATE = 0.5;
 const MAX_UNITS = 24;   // 場に置ける仲間の上限（合成しないと置けなくなる）
 const RAND_BASE = 40, RAND_STEP = 5;
-const HP_GROWTH = 1.125;   // ウェーブごとの敵HPの伸び（ボスは BOSS_GROWTH のままにして据え置き）
+const HP_GROWTH = 1.14;   // ウェーブごとの敵HPの伸び（ボスは BOSS_GROWTH のままにして据え置き）
 const BOSS_GROWTH = 1.105;
 const STAGE_HP_MUL = [0.85, 1.15, 1.5, 2.0, 2.7];
 
