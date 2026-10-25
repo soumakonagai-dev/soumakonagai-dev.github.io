@@ -180,7 +180,7 @@ function computeStats(u) {
   if (u.rampN && d.fx && d.fx.ramp) aspd *= 1 + fxv(u, 'ramp') * u.rampN;
   if (u.frost > 0) aspd *= 0.7;
   const mb = levelBonus(u.key, G.mlv[u.key] || 1);
-  atk *= mb.atk * ATK_MUL * DMG_SCALE; aspd *= mb.aspd; range *= mb.range; chance *= mb.ab;
+  atk *= mb.atk * ATK_MUL * DMG_SCALE * (TIER_ATK[tierOf(u.key)] || 1); aspd *= mb.aspd; range *= mb.range; chance *= mb.ab;
   if (u.key === 'sniper' && u.star >= 7) range = 3000;
   u.st = { atk, aspd, range, chance, res: cnt, ab: mb.ab };
   return u.st;
@@ -198,7 +198,7 @@ function buildAuras() {
       else { a.atk = (u.star >= 5 ? 0.35 : 0.2) * lvm; if (u.star >= 7) a.chance = 2; }
       G.auras.push(a);
     } else if (UNITS[u.key].fx && UNITS[u.key].style === 'none') {
-      const mb = levelBonus(u.key, G.mlv[u.key] || 1), lvm = (1 + UPG_BONUS * (G.lv[u.key] || 0) * 0.5) * mb.ab;
+      const mb = levelBonus(u.key, G.mlv[u.key] || 1), lvm = (1 + UPG_BONUS * (G.lv[u.key] || 0) * 0.5) * mb.ab * (TIER_SUP[tierOf(u.key)] || 1);
       const r = UNITS[u.key].range * S * (1 + 0.05 * (u.star - 1)) * (zoneAt(u.x, u.y, 'altar') ? 1.2 : 1) * mb.range;
       G.auras.push({ u, x: u.x, y: u.y, r, aspd: fxv(u, 'aAspd') * lvm, atk: fxv(u, 'aAtk') * lvm, range: fxv(u, 'aRange') * lvm, chance: 1 + fxv(u, 'aChance') * lvm });
     }

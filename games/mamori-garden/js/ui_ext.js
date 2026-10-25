@@ -13,12 +13,12 @@ function pager(c, id, x, y, page, pages, set, label) {
 function drawMap(c, dt) {
   const L = APP.L, P = L.portrait; drawMenuBg(c, dt, APP.stage, 0.45);
   txt(c, APP.mapEndless ? 'エンドレス：ステージをえらぶ' : 'ステージをえらぶ', L.W / 2, 56, P ? 28 : 34, '#fff8e8', 'center');
-  const sv = APP.save, endlessOk = sv.stars[0] > 0 || APP.debugAll, pages = Math.ceil(STAGES.length / 5), base = (APP.mapPage || 0) * 5;
+  const sv = APP.save, endlessOk = sv.stars[0] > 0 || APP.debugAll, pages = Math.ceil(NORMAL_STAGES / 5), base = (APP.mapPage || 0) * 5;
   const cards = [];
   if (!P) { const w = 172, gap = 12, x0 = (L.W - (5 * w + 4 * gap)) / 2; for (let i = 0; i < 5; i++) cards.push({ x: x0 + i * (w + gap), y: 100, w, h: 380 }); }
   else for (let i = 0; i < 5; i++) cards.push({ x: 25, y: 90 + i * 128, w: 490, h: 118 });
   for (let k = 0; k < 5; k++) {
-    const i = base + k, r = cards[k]; if (i >= STAGES.length) break;
+    const i = base + k, r = cards[k]; if (i >= NORMAL_STAGES) break;
     const open = stageOpen(i) && (!APP.mapEndless || sv.stars[i] > 0 || APP.debugAll), st = STAGES[i], dc = dcOf(sv, i);
     panelBox(c, r.x, r.y, r.w, r.h, { fill: 'rgba(24,18,64,.88)', stroke: open ? 'rgba(255,233,168,.9)' : 'rgba(150,140,190,.5)' });
     const pad = 8, clr = sv.stars[i] > 0 ? 'クリア：' + DIFFS[Math.max(0, dc)].name : 'NEW!';
@@ -116,5 +116,6 @@ function finishBattle(B) {
   if (G.over === 'lose' && !G.endless) B.starsGot = 0;
   B.gemsGot = gemsForBattle(G.over === 'win' ? G.wave + 1 : G.wave, G.over === 'win', B.starsGot || 0, G.endless, G.diff); sv.gems += B.gemsGot;
   B.ticketGot = ticketDrop(sv, G.over === 'win', G.endless, G.diff);
+  if (G.over === 'win' && !G.endless && APP.stage >= NORMAL_STAGES) { B.evPts = eventPointsFor(B.starsGot || 1, G.diff); sv.evp[eventYM()] = (sv.evp[eventYM()] || 0) + B.evPts; }
   saveSave();
 }

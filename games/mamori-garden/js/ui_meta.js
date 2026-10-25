@@ -118,6 +118,7 @@ function drawGacha(c, dt) {
   txt(c, 'ランク：' + ['C', 'R', 'E', 'L', 'U'].filter(k => tr[k] > 0).map(k => TIER_NAME[k] + ' ' + (tr[k] * 100).toFixed(0) + '%').join(' / '), px + 18, py + 134, 12, COL.dim, 'left', { outline: false });
   let yy = py + 162;
   for (const s of [GC.desc, GC.ticket ? '・ステージをクリアすると、たまにチケットが落ちる（1回ぶん無料）' : '・チケットでは引けません（ジェムのみ）', '・かけらをあつめると、そのキャラが仲間になる（エピックまでは少なめ）！', '・持っているキャラをそのまま引いたら、仲間になるぶんのかけらが入る！']) { const n = wrapText(c, s, px + 18, yy, pw - 36, 17, 13, '#f1ecff', 3); yy += n * 17 + 6; }
+  { const tg = sv.target || {}, parts = ['E', 'L', 'U'].filter(t => tg[t] && UNITS[tg[t]] && !isOwned(sv, tg[t])).map(t => TIER_NAME[t] + '：' + UNITS[tg[t]].name); txt(c, 'ねらい　' + (parts.length ? parts.join(' / ') : 'なし（なかま強化の画面で決められます）'), px + 18, py + ph - 12, 12, '#ffe9a8', 'left', { outline: false, maxW: pw - 36 }); }
   // ボタン
   const by = P ? 668 : 502, bw = 160, bh = 78, bx = P ? 22 : 430;
   const can1 = sv.gems >= GC.cost, can10 = sv.gems >= GC.cost10, nt = sv.tickets[gt] || 0;
@@ -180,7 +181,9 @@ function levelPanel(c, key, x, y, w, h) {
   panelBox(c, x, y, w, h, { r: 12, fill: 'rgba(40,32,100,.75)' });
   if (!own) {
     txt(c, 'まだ仲間になっていない', x + 14, y + 26, 15, '#fff8e8', 'left'); txt(c, 'かけら ' + p + ' / ' + unlockNeed(key) + '  で仲間に', x + 14, y + 48, 13, COL.dim, 'left', { outline: false });
-    button('c_gacha', x + w - 118, y + h / 2 - 20, 106, 40, 'ガチャへ', { style: 'gold', size: 15, col: '#5a3000' }, () => { APP.gacha = null; go('gacha'); });
+    const sea = UNITS[key].seasonal, tr = tierOf(key), canT = !sea && (tr === 'E' || tr === 'L' || tr === 'U'), isT = sv.target && sv.target[tr] === key;
+    button('c_gacha', x + w - 118, y + (canT ? 8 : h / 2 - 20), 106, canT ? 30 : 40, sea ? 'イベントへ' : 'ガチャへ', { style: 'gold', size: 14, col: '#5a3000' }, () => { APP.gacha = null; go(sea ? 'event' : 'gacha'); });
+    if (canT) button('c_target', x + w - 118, y + h - 38, 106, 30, isT ? 'ねらい解除' : 'ねらう', { style: isT ? 'good' : 'ghost', size: 13 }, () => { sv.target = sv.target || {}; if (isT) delete sv.target[tr]; else sv.target[tr] = key; saveSave(); toast(isT ? 'ねらいを解除' : UNITS[key].name + ' をねらいに（' + TIER_NAME[tr] + 'が出たとき出やすい）'); });
     return;
   }
   const lv = lvOf(sv, key), need = lvNeed(sv, key);

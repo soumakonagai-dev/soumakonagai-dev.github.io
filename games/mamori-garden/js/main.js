@@ -32,6 +32,7 @@ function frame(now) {
       case 'formation': drawFormation(c, dt); break;
       case 'gacha': drawGacha(c, dt); break;
       case 'collection': drawCollection(c, dt); break;
+      case 'event': drawEvent(c, dt); break;
       case 'battle': try { updateBattle(dt); } catch (e) { simError(e); } drawBattle(c, dt); break;
     }
     if (APP.screen !== 'battle' && APP.toast) { const tt = APP.toast; tt.t += dt; if (tt.t > 1.8) APP.toast = null; else { const L = APP.L, w = 360; panelBox(c, (L.W - w) / 2, L.H - 90, w, 38, { r: 19, fill: 'rgba(60,20,70,.92)', shine: false }); txt(c, tt.s, L.W / 2, L.H - 65, 14, '#fff', 'center', { outline: false }); } }
@@ -47,6 +48,7 @@ window.addEventListener('load', () => {
   APP.diff = APP.save.lastDiff != null ? clamp(APP.save.lastDiff, 0, DIFFS.length - 1) : DEFAULT_DIFF; APP.mapPage = 0; APP.fpage = 0; APP.cpage = 0;
   setLayout(pickPortrait()); setupInput(); go('title');
   const q = new URLSearchParams(location.search);
+  if (q.get('month') != null) EVENT_MONTH_DEBUG = clamp(+q.get('month') || 0, 0, 12);
   if (q.get('diff') != null) APP.diff = clamp(+q.get('diff') || 0, 0, DIFFS.length - 1);
   if (q.get('stage') != null) { APP.stage = +q.get('stage') || 0; if (q.get('form')) APP.save.form = q.get('form').split(','); startBattle(); }
   requestAnimationFrame(frame);

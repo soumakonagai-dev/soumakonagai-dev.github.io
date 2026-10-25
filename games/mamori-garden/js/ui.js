@@ -18,7 +18,7 @@ function saveSave() { try { localStorage.setItem('mamori-garden-v1', JSON.string
 function isUnlocked(key) {
   return isOwned(APP.save, key, APP.debugAll);
 }
-function unlockHint(key) { return 'ガチャで入手'; }
+function unlockHint(key) { return UNITS[key] && UNITS[key].seasonal ? 'イベント限定' : 'ガチャで入手'; }
 function stageOpen(i) { return APP.debugAll || i === 0 || APP.save.stars[i - 1] > 0; }
 
 // ---------- 描画ヘルパー ----------
@@ -129,6 +129,7 @@ function drawTitle(c, dt) {
   const bw = L.portrait ? 320 : 300, bx = cx - bw / 2, by2 = L.portrait ? 620 : 500;
   button('t_start', bx, by2, bw, 66, 'はじめる', { style: 'primary', size: 28 }, () => { go('map'); });
   button('t_gacha', bx, by2 + 78, bw / 2 - 6, 54, 'ガチャ', { style: 'gold', size: 20, col: '#5a3000' }, () => { APP.gacha = null; go('gacha'); });
+  button('t_event', L.portrait ? bx : 30, L.portrait ? by2 + 140 : by2 + 8, L.portrait ? bw : 200, L.portrait ? 50 : 58, eventMonth() + '月イベント！', { glow: true, style: 'good', size: 18 }, () => go('event'));
   button('t_coll', bx + bw / 2 + 6, by2 + 78, bw / 2 - 6, 54, 'なかま強化', { style: 'good', size: 17 }, () => { APP.cfocus = APP.save.form[0]; go('collection'); });
   button('t_snd', L.W - 130, 12, 116, 34, AUD.muted ? 'おと：OFF' : 'おと：ON', { style: 'ghost', size: 14 }, () => { audioMute(!AUD.muted); });
   button('t_q', L.W - 130, 92, 116, 34, PERF.lite ? 'がぞう：かんたん' : 'がぞう：きれい', { style: 'ghost', size: 12 }, () => perfSet(!PERF.lite));
@@ -442,7 +443,7 @@ function drawBattle(c, dt) {
     const items = [
       ['p_resume', '再開', { style: 'primary', size: 20 }, 52, () => { B.paused = false; }],
       ['p_retry', 'はじめからやり直す', { style: 'ghost', size: 16 }, 46, () => startBattle()],
-      ['p_quit', 'マップへもどる', { style: 'ghost', size: 16 }, 46, () => { bgmIntensity(0); go('map'); }],
+      ['p_quit', APP.stage >= NORMAL_STAGES ? 'イベントへもどる' : 'マップへもどる', { style: 'ghost', size: 16 }, 46, () => { bgmIntensity(0); go(APP.stage >= NORMAL_STAGES ? 'event' : 'map'); }],
       ['p_auto', APP.autoSkip ? '自動スキップ：ON' : '自動スキップ：OFF', { style: APP.autoSkip ? 'good' : 'ghost', size: 14 }, 40, () => { APP.autoSkip = !APP.autoSkip; try { localStorage.setItem('mamori-auto', APP.autoSkip ? '1' : '0'); } catch (e) { } }],
       ['p_fx', FXCFG.on ? 'エフェクト：ON' : 'エフェクト：OFF（かるくなる）', { style: 'ghost', size: 14 }, 40, () => { fxSetOn(!FXCFG.on); }],
       ['p_dn', FXCFG.num ? 'ダメージ表示：ON' : 'ダメージ表示：OFF', { style: 'ghost', size: 14 }, 40, () => dnSetOn(!FXCFG.num)],
@@ -487,8 +488,8 @@ function drawResult(c, B, dt) {
   { const dn = DIFFS[G.diff]; txt(c, '難易度：' + dn.name + (B.diffUnlocked > 0 ? '　「' + DIFFS[B.diffUnlocked].name + '」が遊べるように！' : ''), L.W / 2, y + 22, 13, dn.col, 'center', { outline: false }); }
   txt(c, title, L.W / 2, y + 56, win ? 34 : 28, win ? '#fff3a0' : '#d8d0f5', 'center');
   if (!G.endless) { for (let i = 0; i < 3; i++) { const sx = L.W / 2 + (i - 1) * 56; star5(c, sx, y + 108 - (i === 1 ? 6 : 0), i === 1 ? 26 : 22, (B.starsGot || 0) > i ? '#ffe27a' : 'rgba(255,255,255,.15)', 'rgba(70,40,10,.8)'); } }
-  const rows = [['到達ウェーブ', `${G.endless ? Math.max(0, G.wave - 1) : G.wave}${G.endless ? '' : ' / ' + MAX_WAVE}`], ['倒した敵', G.kills + '体'], ['かせいだゴールド', G.goldEarned + 'G'], ['のこりライフ', Math.ceil(G.life) + ' / ' + START_LIFE], ['もらったジェム', '+' + (B.gemsGot || 0) + (B.ticketGot ? '  ＋' + GACHAS[B.ticketGot].name.replace('ガチャ', '') + 'チケット' : '')]];
-  rows.forEach((r, i) => { txt(c, r[0], x + 40, y + 156 + i * 27, 16, COL.dim, 'left', { outline: false }); txt(c, r[1], x + w - 40, y + 156 + i * 27, 18, '#fff', 'right'); });
+  const rows = [['到達ウェーブ', `${G.endless ? Math.max(0, G.wave - 1) : G.wave}${G.endless ? '' : ' / ' + MAX_WAVE}`], ['倒した敵', G.kills + '体'], ['かせいだゴールド', G.goldEarned + 'G'], ['のこりライフ', Math.ceil(G.life) + ' / ' + START_LIFE], ['もらったジェム', '+' + (B.gemsGot || 0) + (B.evPts ? '  イベント +' + B.evPts + 'pt' : '') + (B.ticketGot ? '  ＋' + GACHAS[B.ticketGot].name.replace('ガチャ', '') + 'チケット' : '')]];
+  rows.forEach((r, i) => { txt(c, r[0], x + 40, y + 156 + i * 27, 16, COL.dim, 'left', { outline: false }); txt(c, r[1], x + w - 40, y + 156 + i * 27, 18, '#fff', 'right', { maxW: w - 80 - 130 }); });
   if (win && B.newUnits && B.newUnits.length) {
     txt(c, '新しい仲間が使えるように！', L.W / 2, y + 304, 15, '#ffb0e0', 'center');
     { const nn = B.newUnits.length, sp = Math.min(90, (w - 30) / Math.max(1, nn)); B.newUnits.forEach((k2, i) => { const ux = L.W / 2 + (i - (nn - 1) / 2) * sp; drawSpriteAt(c, k2, ux, y + 366, Math.min(56, sp * .85), APP.t, 0, { hatch: 0 }, 1); if (nn <= 5) txt(c, UNITS[k2].name, ux, y + 388, 11, '#fff', 'center'); }); }
@@ -496,9 +497,9 @@ function drawResult(c, B, dt) {
   c.restore();
   const by = y + h + 12, bw = Math.min(140, (w - 12) / 3);
   const bx0 = L.W / 2 - (bw * 3 + 12) / 2;
-  button('r_map', bx0, by, bw, 48, 'マップへ', { style: 'ghost', size: 16 }, () => { bgmIntensity(0); go('map'); });
+  button('r_map', bx0, by, bw, 48, APP.stage >= NORMAL_STAGES ? 'イベントへ' : 'マップへ', { style: 'ghost', size: 16 }, () => { bgmIntensity(0); go(APP.stage >= NORMAL_STAGES ? 'event' : 'map'); });
   button('r_retry', bx0 + bw + 6, by, bw, 48, 'もう一度', { style: 'good', size: 16 }, () => startBattle());
-  const canNext = win && !G.endless && APP.stage < STAGES.length - 1;
+  const canNext = win && !G.endless && APP.stage < NORMAL_STAGES - 1;
   button('r_next', bx0 + (bw + 6) * 2, by, bw, 48, canNext ? '次のステージ' : '―', { style: canNext ? 'primary' : 'off', size: 15, disabled: !canNext }, () => { APP.stage++; go('formation'); });
 }
 
