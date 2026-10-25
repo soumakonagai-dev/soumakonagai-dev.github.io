@@ -436,7 +436,7 @@ function loadLevel(i, fresh = true) {
   if (fresh || i !== levelIndex) run = { deaths: 0, frames: 0, spiritKills: 0, ride: 0 };
   levelIndex = i; L = LEVELS[i]; makeEN(L);
   grid.fill(0); stamp.fill(0); elec.fill(0); elecOn = false;
-  fireHP = new Float32Array(TW * TH); seeds = []; seedAtTile = {}; sensors = []; gates = []; lightGates = []; lightGateOpen = false; geysers = []; orbs = []; bolts = []; strikes = []; skyFlash = 0; toasts = toasts.filter(t => !t.text.startsWith('⚡')); pipes = []; fans = []; const pipeIns = [], pipeOuts = []; lavaTiles = []; pads = []; warpTiles = []; warps = []; tswitches = []; tgates = []; timerT = 0; crumbs = []; P_warpCd = 0; faucets = []; groundFire = new Uint8Array(TW * TH); burnTiles = []; burnSet = new Set(); tutoStep = 0; tutoFaucet = false;
+  fireHP = new Float32Array(TW * TH); seeds = []; seedAtTile = {}; sensors = []; gates = []; lightGates = []; lightGateOpen = false; geysers = []; orbs = []; bolts = []; strikes = []; skyFlash = 0; toasts = toasts.filter(t => !t.text.startsWith('⚡')); pipes = []; fans = []; const pipeIns = [], pipeOuts = []; lavaTiles = []; pads = []; warpTiles = []; warpOutTiles = []; warps = []; tswitches = []; tgates = []; timerT = 0; crumbs = []; P_warpCd = 0; faucets = []; groundFire = new Uint8Array(TW * TH); burnTiles = []; burnSet = new Set(); tutoStep = 0; tutoFaucet = false;
   gateOpen = [false, false, false]; sensorCount = [0, 0, 0]; sensorNeed = [0, 0, 0];
   vines = new Uint8Array(TW * TH); oneway = new Uint8Array(TW * TH);
   enemies = []; shots = []; crates = []; held = []; free = []; fx = []; rainAcc = 0; mudStuck = 0; exitDoor = null;
@@ -480,6 +480,7 @@ function loadLevel(i, fresh = true) {
       else if (c === 'r') { fillTile(tx, ty, LAVA); lavaTiles.push([tx, ty]); }
       else if (c === 'p') { pads.push({ tx, ty, t: 0 }); for (let y = 2; y < 4; y++) for (let x = 0; x < 4; x++) grid[(ty * 4 + y) * GW + tx * 4 + x] = STONE; }
       else if (c === 'n') warpTiles.push([tx, ty]);
+      else if (c === 'u') warpOutTiles.push([tx, ty]);
       else if (c === 'y') tswitches.push({ tx, ty, x: px + 2, y: py + 10, w: 12, h: 6, t: 0 });
       else if (c === 'q') { fillTile(tx, ty, GATE); tgates.push([tx, ty]); }
       else if (c === 'e') { fillTile(tx, ty, CRUMB); crumbs.push({ tx, ty, t: 0, gone: 0 }); }
@@ -495,7 +496,7 @@ function loadLevel(i, fresh = true) {
     }
   });
   pipeIns.forEach((p, i) => { if (pipeOuts[i]) pipes.push({ i: p, o: pipeOuts[i], q: 0 }); });
-  for (let i = 0; i + 1 < warpTiles.length; i += 2) warps.push({ a: warpTiles[i], b: warpTiles[i + 1] });
+  warpTiles.forEach((a, i) => { if (warpOutTiles[i]) warps.push({ a, b: warpOutTiles[i] }); }); // n(入口) と u(出口) を出てくる順に1組
   for (const [sx, sy] of fuseStarts) {
     const prev = new Map(), q = [[sx, sy]], key = (x, y) => y * TW + x; prev.set(key(sx, sy), null); let end = null;
     while (q.length && !end) {
@@ -1386,7 +1387,7 @@ function drawPipes() {
   }
 }
 // ---------------- 溶岩・ばね床・ワープ・タイマースイッチ・くずれる床 ----------------
-let lavaTiles = [], pads = [], warpTiles = [], warps = [], tswitches = [], tgates = [], timerT = 0, crumbs = [], P_warpCd = 0, lavaCooled = 0, warpWater = 0;
+let lavaTiles = [], pads = [], warpTiles = [], warpOutTiles = [], warps = [], tswitches = [], tgates = [], timerT = 0, crumbs = [], P_warpCd = 0, lavaCooled = 0, warpWater = 0;
 const TIMER_LEN = () => Math.round((L.timer || 5) * 60);
 // 水が溶岩にふれると、そのマスは石になる
 function coolLava(cx, cy) {

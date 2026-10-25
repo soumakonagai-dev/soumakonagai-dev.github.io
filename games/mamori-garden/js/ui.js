@@ -519,6 +519,7 @@ function setupInput() {
   });
   cv.addEventListener('pointermove', e => {
     const [x, y] = logicalPos(e); const ly = APP.ptr.y; APP.ptr.x = x; APP.ptr.y = y; if (APP.ptr.down) APP.ptr.moved = Math.hypot(x - APP.ptr.sx, y - APP.ptr.sy);
+    if (APP.ptr.down && APP.ptr.moved > 6) { const z = (APP.scrollZones || []).find(z => inRect(z, APP.ptr.sx, APP.ptr.sy)); if (z) { APP.scr = APP.scr || {}; APP.scr[z.key] = (APP.scr[z.key] || 0) - (y - ly); } }
     if (APP.ptr.down && APP.screen === 'battle' && APP.b && APP.b.paused && APP.b.pView && APP.ptr.moved > 6) APP.b.pScroll = (APP.b.pScroll || 0) - (y - ly);
     const b = hitBtn(x, y); APP.hover = b && !b.dis && (b.onClick || b.onDown) ? b.id : null;
     if (APP.screen === 'battle') battleMove(x, y);
@@ -526,14 +527,14 @@ function setupInput() {
   const up = e => {
     const [x, y] = logicalPos(e); APP.ptr.x = x; APP.ptr.y = y; const d = APP.down; APP.down = null; APP.ptr.down = false;
     const hit = d && inRect(d, x, y);
-    const dragged = APP.screen === 'battle' && APP.b && APP.b.paused && APP.ptr.moved > 12;   // ポーズ中のスクロール操作はクリックにしない
+    const dragged = APP.ptr.moved > 12 && ((APP.screen === 'battle' && APP.b && APP.b.paused) || (APP.scrollZones || []).some(z => inRect(z, APP.ptr.sx, APP.ptr.sy)));   // ポーズ中のスクロール操作はクリックにしない
     if (hit && d.onClick && !dragged) { SFX.play('click'); d.onClick(); }
     if (APP.screen === 'battle') battleUp(x, y, hit ? d : null);
   };
   cv.addEventListener('pointerup', e => { e.preventDefault(); up(e); });
   cv.addEventListener('pointercancel', () => { APP.down = null; APP.ptr.down = false; if (APP.b) { APP.b.dragU = null; if (APP.b.placing && !APP.b.placing.sticky) APP.b.placing = null; } });
   cv.addEventListener('contextmenu', e => e.preventDefault());
-  cv.addEventListener('wheel', e => { if (APP.screen === 'battle' && APP.b && APP.b.paused) { e.preventDefault(); APP.b.pScroll = (APP.b.pScroll || 0) + e.deltaY * 0.6 / (APP.css || 1); } }, { passive: false });
+  cv.addEventListener('wheel', e => { const zs = (APP.scrollZones || []).find(z => inRect(z, APP.ptr.x, APP.ptr.y)); if (zs) { e.preventDefault(); APP.scr = APP.scr || {}; APP.scr[zs.key] = (APP.scr[zs.key] || 0) + e.deltaY * 0.6 / (APP.css || 1); return; } if (APP.screen === 'battle' && APP.b && APP.b.paused) { e.preventDefault(); APP.b.pScroll = (APP.b.pScroll || 0) + e.deltaY * 0.6 / (APP.css || 1); } }, { passive: false });
   addEventListener('keydown', e => {
     audioInit(); const B = APP.b; if (APP.screen !== 'battle' || !B) return;
     if (G.over) return;
@@ -548,4 +549,17 @@ function setupInput() {
   });
   addEventListener('resize', () => { if (APP.screen !== 'battle') { if (pickPortrait() !== APP.portrait) setLayout(pickPortrait()); else fitCanvas(); } else fitCanvas(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && APP.b && APP.screen === 'battle') APP.b.paused = true; });
+}
+
+// ---------- 枠の中でスクロールできる一覧（ドラッグ・ホイール） ----------
+// drawFn(oy)：oy だけ上にずらして中身を描く。contentH は中身の高さ
+function scrollView(c, key, x, y, w, h, contentH, drawFn) {
+  APP.scr = APP.scr || {}; const max = Math.max(0, contentH - h); const off = APP.scr[key] = clamp(APP.scr[key] || 0, 0, max);
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); drawFn(off); c.restore();
+  APP.scrollZones.push({ key, x, y, w, h });
+  if (max > 0) {
+    const bh = Math.max(24, h * h / contentH), by = y + (h - bh) * (off / max);
+    rr(c, x + w - 7, by, 5, bh, 2.5); c.fillStyle = 'rgba(255,233,168,.75)'; c.fill();
+    if (off < max - 4) txt(c, '▼ スクロール', x + w / 2, y + h - 3, 11, '#ffe9a8', 'center', { outline: false });
+  }
 }

@@ -23,7 +23,7 @@ function frame(now) {
   APP.t += dt; ART.t = APP.t; if (typeof perfWatch === 'function') perfWatch(dt);
   const c = APP.c; { let g = 0; while (c.__d > 0 && g++ < 200) c.restore(); }   // 前のコマで閉じ忘れた状態を元にもどす
   c.setTransform(ART.sc, 0, 0, ART.sc, 0, 0); c.clearRect(0, 0, APP.L.W, APP.L.H);
-  APP.btns.length = 0;
+  APP.btns.length = 0; APP.scrollZones = [];
   try {
     if (AUD.ctx && !AUD.timer && !AUD.muted) bgmStart(APP.screen === 'battle' ? STAGES[APP.stage].theme : 'meadow');
     switch (APP.screen) {
