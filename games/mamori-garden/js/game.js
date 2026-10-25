@@ -90,8 +90,8 @@ function unitCap() { return G.noCap ? 999 : MAX_UNITS; }
 // ★2・★3をいきなり召喚できる。合成して作る（★2=2体分、★3=4体分）より約3割割高
 const SUM_MUL = [1, 2.6, 5.2];
 function summonCost(key, star) { const d = UNITS[key], s = key === 'egg' ? 1 : clamp(star || 1, 1, 3); return Math.round(d.cost * SUM_MUL[s - 1]); }
-// 支援キャラ（攻撃しない応援役）は、同じキャラ2体まで・全部で4体まで
-const SUPPORT_PER = 2, SUPPORT_TOTAL = 4;
+// 支援キャラ（攻撃しない応援役）の置ける数の制限は、なし（ゆるめ）
+const SUPPORT_PER = 99, SUPPORT_TOTAL = 99, SUP_NERF = 0.7;   // 置ける数の制限はなし。そのかわり、1体ぶんの応援を少しよわく（×0.7）
 function supportBlock(key) {
   const d = UNITS[key]; if (!d || d.style !== 'none') return null;
   let n = 0, all = 0; for (const u of G.units) { if (UNITS[u.key].style === 'none') { all++; if (u.key === key) n++; } }
@@ -188,7 +188,9 @@ function computeStats(u) {
     if (a.u === u || Math.hypot(a.x - u.x, a.y - u.y) > a.r) continue;
     sAspd += a.aspd; sAtk += a.atk; sRange += a.range || 0; if (a.chance > chance) chance = a.chance;
   }
-  aspd *= 1 + sAspd; atk *= 1 + sAtk; range *= 1 + sRange;
+  // たくさん置いても伸びすぎないよう、大きくなるほど少しずつ効きが落ちる
+  const soft = v => v / (1 + v * 0.1);
+  aspd *= 1 + soft(sAspd); atk *= 1 + soft(sAtk); range *= 1 + soft(sRange);
   if (u.reapStack) aspd *= 1 + 0.05 * u.reapStack;
   if (u.rampN && d.fx && d.fx.ramp) aspd *= 1 + fxv(u, 'ramp') * u.rampN;
   if (u.frost > 0) aspd *= 0.7;
@@ -206,12 +208,12 @@ function buildAuras() {
       const mb = levelBonus(u.key, G.mlv[u.key] || 1);
       let r = UNITS[u.key].range * S * (1 + 0.05 * (u.star - 1)) * (zoneAt(u.x, u.y, 'altar') ? 1.2 : 1) * mb.range;
       const a = { u, x: u.x, y: u.y, r, aspd: 0, atk: 0, chance: 1 };
-      const lvm = (1 + UPG_BONUS * (G.lv[u.key] || 0) * 0.5) * mb.ab;
+      const lvm = (1 + UPG_BONUS * (G.lv[u.key] || 0) * 0.5) * mb.ab * SUP_NERF;
       if (u.key === 'siren') { a.aspd = (u.star >= 3 ? 0.25 : 0.15) * lvm; if (u.star >= 5) a.atk = 0.15 * lvm; if (u.star >= 7) a.r = 1e9; }
       else { a.atk = (u.star >= 5 ? 0.35 : 0.2) * lvm; if (u.star >= 7) a.chance = 2; }
       G.auras.push(a);
     } else if (UNITS[u.key].fx && UNITS[u.key].style === 'none') {
-      const mb = levelBonus(u.key, G.mlv[u.key] || 1), lvm = (1 + UPG_BONUS * (G.lv[u.key] || 0) * 0.5) * mb.ab * (TIER_SUP[tierOf(u.key)] || 1);
+      const mb = levelBonus(u.key, G.mlv[u.key] || 1), lvm = (1 + UPG_BONUS * (G.lv[u.key] || 0) * 0.5) * mb.ab * (TIER_SUP[tierOf(u.key)] || 1) * SUP_NERF;
       const r = UNITS[u.key].range * S * (1 + 0.05 * (u.star - 1)) * (zoneAt(u.x, u.y, 'altar') ? 1.2 : 1) * mb.range;
       G.auras.push({ u, x: u.x, y: u.y, r, aspd: fxv(u, 'aAspd') * lvm, atk: fxv(u, 'aAtk') * lvm, range: fxv(u, 'aRange') * lvm, chance: 1 + fxv(u, 'aChance') * lvm });
     }
