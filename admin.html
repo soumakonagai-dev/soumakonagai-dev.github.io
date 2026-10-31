@@ -43,6 +43,10 @@ if (!cfg) {
   const fmt = t => t && t.toDate ? t.toDate().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
   const GN = { top: 'トップページ', mizutsukai: 'ミズツカイ', 'usotsuki-dungeon': 'うそつきダンジョン', 'battle-blast': 'バトルブラスト', kagenuke: 'カゲヌケ', 'sodate-battle': 'ソダテバトル', 'slime-shop': 'スラバト商店', 'horror-drone': '観測者', pico: 'ピコのぼうけん', 'danmaku-rogue': '弾幕ローグ' };
 
+  const unbanAt = c => new Date((c.bannedAt && c.bannedAt.toDate ? c.bannedAt.toDate().getTime() : 0) + 7 * 86400000);
+  const canUnban = c => Date.now() >= unbanAt(c).getTime();
+  const fmt2 = d => d.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
   function login(msg) {
     app.innerHTML = '<div class="card"><p>管理者のログイン</p><p><input id="em" type="email" placeholder="メールアドレス" autocomplete="username"></p><p><input id="pw" type="password" placeholder="パスワード" autocomplete="current-password"></p><p><button id="go">ログイン</button></p><p class="err">' + (msg || '') + '</p></div>';
     document.getElementById('go').onclick = () => Au.signInWithEmailAndPassword(auth, document.getElementById('em').value, document.getElementById('pw').value).catch(() => login('ログインできませんでした'));
@@ -65,7 +69,7 @@ if (!cfg) {
         '<span class="badge">警告 ' + w + ' 回</span>' + (c.banned ? '<span class="badge b">出禁</span>' : '') + '<span class="badge">最後: ' + fmt(c.lastSeen) + '</span></div>' +
         '<ul class="hist">' + (hist || '<li>履歴なし</li>') + '</ul>' +
         '<div class="row" style="margin-top:8px"><button class="warn" data-a="warn">警告する（次: ' + (w + 1) + '回目）</button>' +
-        (c.banned ? '<button data-a="unban">出禁を解除</button>' : '<button class="ban" data-a="ban">出禁にする</button>') + '</div></div>');
+        (c.banned ? (canUnban(c) ? '<button data-a="unban">出禁を解除</button>' : '<button disabled title="出禁から7日間は解除できません">解除できるのは ' + fmt2(unbanAt(c)) + ' から</button>') : '<button class="ban" data-a="ban">出禁にする</button>') + '</div></div>');
     }
     app.innerHTML = '<p class="row"><button id="rl">更新</button><button id="lo">ログアウト</button><span class="muted">' + snap.size + ' 件（最近来た順）</span></p>' +
       (items.join('') || '<p class="muted">まだ記録がありません。</p>');
@@ -77,9 +81,12 @@ if (!cfg) {
         if (!confirm(id + ' に ' + n + ' 回目の警告を出します。\n\n' + txt)) return;
         await F.updateDoc(ref, { warnings: n, warnText: txt, warnedAt: F.serverTimestamp() });
       } else if (a === 'ban') {
-        if (!confirm(id + ' を出禁にします。')) return;
-        await F.updateDoc(ref, { banned: true });
-      } else if (a === 'unban') { await F.updateDoc(ref, { banned: false }); }
+        if (!confirm(id + ' を出禁にします。\n\n出禁にしてから7日間は、解除できません。')) return;
+        await F.updateDoc(ref, { banned: true, bannedAt: F.serverTimestamp() });
+      } else if (a === 'unban') {
+        const cur = (await F.getDoc(ref)).data(); if (!canUnban(cur)) { alert('出禁から7日間は解除できません。'); return; }
+        await F.updateDoc(ref, { banned: false });
+      }
       list();
     }));
   }
