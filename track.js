@@ -27,10 +27,21 @@
   var box = function (col, inner) { return '<div style="max-width:30em;width:100%;background:#151d3a;color:#e8ecff;border:3px solid ' + col + ';box-shadow:6px 6px 0 #000;padding:24px 22px;line-height:1.8;text-align:center">' + inner + '</div>'; };
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
+  function adminLink() {
+    if (page() !== 'top') return;
+    var a = document.createElement('a'); a.href = 'admin.html'; a.textContent = '管理者ページ';
+    a.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:20;font:bold 13px sans-serif;color:#0b1020;background:#ffd34d;padding:6px 12px;text-decoration:none;box-shadow:3px 3px 0 #000';
+    document.body.appendChild(a);
+  }
   function run() {
     var id = getId(); if (!id) return;
-    Promise.all([import(B + 'firebase-app.js'), import(B + 'firebase-firestore.js')]).then(function (m) {
-      var app = m[0].initializeApp(cfg), f = m[1], db = f.getFirestore(app), ref = f.doc(db, 'clients', id);
+    Promise.all([import(B + 'firebase-app.js'), import(B + 'firebase-firestore.js'), import(B + 'firebase-auth.js')]).then(function (m) {
+      var app = m[0].initializeApp(cfg), f = m[1], db = f.getFirestore(app), ref = f.doc(db, 'clients', id), auth = m[2].getAuth(app);
+      // 管理者ページにログインしているブラウザ（管理者のUID）は、記録・警告・出禁の対象にしない
+      return auth.authStateReady().then(function () {
+        if (cfg.adminUid && auth.currentUser && auth.currentUser.uid === cfg.adminUid) { adminLink(); return 'admin'; }
+      }).then(function (isAdmin) {
+      if (isAdmin) return;
       return f.getDoc(ref).then(function (snap) {
         var now = f.serverTimestamp();
         if (!snap.exists()) {
@@ -51,6 +62,7 @@
           overlay(box('#ffd34d', '<p style="margin:0 0 10px;font-size:22px;font-weight:bold;color:#ffd34d">⚠ 管理者からの警告（' + d.warnings + '回目）</p><p style="margin:0 0 18px;font-size:16px;text-align:left">' + esc(d.warnText || '学校の端末では遊ばないでください。') + '</p><button type="button" style="font:bold 16px inherit;font-family:inherit;color:#0b1020;background:#ffd34d;border:0;padding:10px 22px;cursor:pointer;box-shadow:3px 3px 0 #000">読みました</button>'),
             function () { f.updateDoc(ref, { ackWarnings: d.warnings }); });
         }
+      });
       });
     }).catch(function () { /* 記録できなくてもゲームは遊べる */ });
   }

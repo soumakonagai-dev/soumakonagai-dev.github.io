@@ -4,6 +4,7 @@ window.SGL_FIREBASE = null;
 /* 設定例:
 window.SGL_FIREBASE = {
   apiKey: "...", authDomain: "xxxx.firebaseapp.com", projectId: "xxxx",
-  appId: "..."
+  appId: "...",
+  adminUid: "管理者のUID（Authenticationで作った自分のUID）"
 };
 */
