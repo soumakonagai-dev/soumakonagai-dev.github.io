@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>いしみがき（デモ版）</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#8fc4ee;font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;color:#fff;user-select:none;-webkit-user-select:none}
+canvas{display:block;touch-action:none}
+#hud{position:fixed;top:0;left:0;right:110px;display:flex;gap:6px;flex-wrap:wrap;padding:8px 10px;pointer-events:none;font-weight:700;font-size:14px}
+#hud span{background:#000a;padding:5px 10px;border-radius:14px;white-space:nowrap}
+#gold{color:#ffd84a}
+#menubtn{position:fixed;top:8px;right:10px;z-index:5;border:0;border-radius:14px;padding:8px 12px;font-weight:700;font-size:13px;background:#e8a93a;color:#2a1a00;cursor:pointer}
+#cross{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none}
+#cross:before,#cross:after{content:"";position:absolute;background:#fff;box-shadow:0 0 3px #000}
+#cross:before{left:8px;top:0;width:2px;height:18px;opacity:.8}
+#cross:after{top:8px;left:0;height:2px;width:18px;opacity:.8}
+body:not(.touch) #cross{display:none}
+#prompt{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000b;padding:7px 16px;border-radius:14px;font-size:15px;font-weight:700;display:none;pointer-events:none}
+#polinfo{position:fixed;left:10px;bottom:10px;width:240px;background:#10151fdd;border-radius:12px;padding:10px;font-size:13px;display:none;pointer-events:none}
+#polinfo .bar{height:10px;background:#0006;border-radius:5px;overflow:hidden;margin:3px 0 6px}
+#polinfo .bar i{display:block;height:100%;width:0}
+#help{position:fixed;right:10px;bottom:10px;font-size:12px;text-align:right;opacity:.9;text-shadow:0 1px 3px #000;pointer-events:none;line-height:1.6}
+#start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000a;z-index:8;cursor:pointer;text-align:center;line-height:1.9}
+#start h1{margin:0 0 10px;font-size:32px}
+#start p{margin:0;font-size:15px}
+#menu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:9}
+#mbox{width:min(580px,96vw);max-height:90vh;display:flex;flex-direction:column;background:#10151ff2;border-radius:16px;padding:12px;font-size:14px}
+#mtabs{display:flex;gap:5px;margin-bottom:8px}
+#mtabs button{flex:1;padding:9px 2px;border:0;border-radius:10px;background:#35405a;color:#fff;font-weight:700;font-size:13px;cursor:pointer}
+#mtabs button.on{background:#e8a93a;color:#2a1a00}
+#mbody{overflow:auto;flex:1;min-height:200px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #fff2}
+.row small{display:block;opacity:.75;font-size:12px}
+.row .acts{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+button.b{border:0;border-radius:10px;padding:7px 11px;background:#3aa86a;color:#fff;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+button.b:disabled{background:#4a4f5c;color:#999;cursor:default}
+button.b.sub{background:#4a64a8}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.pop{position:fixed;pointer-events:none;font-weight:900;font-size:22px;text-shadow:0 2px 4px #000;animation:fl 1.1s ease-out forwards;transform:translate(-50%,-50%);z-index:7}
+@keyframes fl{to{transform:translate(-50%,-150px);opacity:0}}
+#msg{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#000c;padding:9px 18px;border-radius:14px;font-size:15px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:7;text-align:center}
+#touch{display:none}
+body.touch #touch{display:block}
+#joy{position:fixed;left:18px;bottom:28px;width:120px;height:120px;border-radius:50%;background:#fff3;border:2px solid #fff6;touch-action:none}
+#knob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:#fffa}
+.tb{position:fixed;border-radius:50%;border:2px solid #fff8;background:#e8a93acc;color:#2a1a00;font-weight:900;display:flex;align-items:center;justify-content:center;touch-action:none}
+#btnAct{right:20px;bottom:40px;width:96px;height:96px;font-size:16px}
+#btnJump{right:128px;bottom:28px;width:62px;height:62px;font-size:13px;background:#6aa8e8cc}
+body.touch #help{display:none}
+body.touch #polinfo{bottom:160px}
+</style>
+<script src="../../firebase-config.js?v=da39a3ee"></script><script src="../../notice.js?v=da39a3ee"></script><script src="../../track.js?v=da39a3ee"></script></head>
+<body>
+<div id="hud"><span id="gold"></span><span id="pickname"></span><span id="bagc"></span><span id="depth"></span><span id="codexc"></span></div>
+<button id="menubtn">メニュー (Tab)</button>
+<div id="cross"></div>
+<div id="prompt"></div>
+<div id="polinfo"></div>
+<div id="help">↑↓ 前後に移動 / ←→ 向き変更 / Space ジャンプ / Shift 走る<br>マウスを画面の端に寄せても向きが変わる<br>マウスで狙って左ボタン長押し：掘る・洗う・磨く<br>右ドラッグ：石を回す・視点を動かす<br>E：話す・開く　R：地上へ戻る　Tab：メニュー</div>
+<div id="msg"></div>
+<div id="start"><h1>いしみがき</h1><p>クリックで開始<br>穴を下へ掘って石を見つけ、洗って磨いて売ろう<br>↑↓ 前後に移動　←→ 向き変更　マウスを端に寄せても向き変更　左ボタン長押しで作業</p></div>
+<div id="menu"><div id="mbox"><div id="mtabs"></div><div id="mbody"></div><div class="row"><span></span><button class="b sub" onclick="G.close()">閉じる (Esc)</button></div></div></div>
+<div id="touch"><div id="joy"><div id="knob"></div></div><div class="tb" id="btnAct">掘る/磨く</div><div class="tb" id="btnJump">ジャンプ</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+// ===== データ =====
+// fx: 0=ふつう 1=遊色(オパール) 2=光で色が変わる 3=二色(トルマリン) 4=ファイア(ダイヤ)
+// avg=平均の重さ(kg) price=平均の重さで完ぺきに磨く前の基本価格 w=その層での出やすさ
+var STONES=[
+ {n:'小石',layer:1,price:2,avg:.8,w:50,col:'#8d8d8d'},
+ {n:'川石',layer:1,price:4,avg:.6,w:30,col:'#e8e2d4'},
+ {n:'黄鉄鉱',layer:1,price:14,avg:.5,w:14,col:'#d4b030',metal:.85},
+ {n:'琥珀',layer:1,price:60,avg:.15,w:6,col:'#e89a18',gem:1},
+ {n:'赤めのう',layer:2,price:15,avg:1,w:45,col:'#d2552e'},
+ {n:'石英',layer:2,price:20,avg:1.2,w:30,col:'#eef0ff',gem:1},
+ {n:'柘榴石',layer:2,price:70,avg:.4,w:17,col:'#9a1a30',gem:1},
+ {n:'オパール',layer:2,price:220,avg:.3,w:8,col:'#e8f0ff',gem:1,fx:1,amt:.6},
+ {n:'翡翠',layer:3,price:80,avg:.9,w:40,col:'#1f9a62'},
+ {n:'紫水晶',layer:3,price:120,avg:1,w:30,col:'#9b4fd6',gem:1},
+ {n:'ラピスラズリ',layer:3,price:200,avg:.7,w:20,col:'#1c3a9a'},
+ {n:'トルマリン',layer:3,price:450,avg:.4,w:10,col:'#e04a80',gem:1,fx:3,cA:[.92,.25,.5],cB:[.1,.68,.38]},
+ {n:'サファイア',layer:4,price:500,avg:.3,w:36,col:'#2457e6',gem:1},
+ {n:'ルビー',layer:4,price:650,avg:.3,w:30,col:'#d8143c',gem:1},
+ {n:'エメラルド',layer:4,price:1000,avg:.25,w:24,col:'#0aa05a',gem:1},
+ {n:'アレキサンドライト',layer:4,price:3500,avg:.15,w:10,col:'#20a070',gem:1,fx:2,cA:[.05,.62,.4],cB:[.7,.1,.32]},
+ {n:'ダイヤモンド',layer:5,price:3000,avg:.2,w:50,col:'#e6f6ff',gem:1,fx:4},
+ {n:'星の石',layer:5,price:8000,avg:.3,w:25,col:'#ffd84a',gem:1,glow:[1,.7,.15]},
+ {n:'ブラックオパール',layer:5,price:15000,avg:.2,w:18,col:'#14181e',gem:1,fx:1,amt:.95},
+ {n:'賢者の石',layer:5,price:40000,avg:.1,w:7,col:'#d0302a',gem:1,fx:2,cA:[.85,.1,.12],cB:[1,.78,.2],glow:[1,.3,.1]}];
+var LAYERS=[
+ {n:'表土',hp:3,col:'#8a6a48'},{n:'赤土',hp:10,col:'#a8553a'},
+ {n:'岩盤',hp:30,col:'#6a6e7a'},{n:'深層',hp:80,col:'#403f66'},
+ {n:'マグマ層',hp:200,col:'#6a2a1c'}];
+var PICKS=[
+ {n:'木のつるはし',cost:0,layer:1,pow:1,col:0x9a6a3a},{n:'石のつるはし',cost:100,layer:2,pow:3,col:0x9a9a9a},
+ {n:'鉄のつるはし',cost:800,layer:3,pow:8,col:0xd0d4da},{n:'金のつるはし',cost:6000,layer:4,pow:20,col:0xffc83a},
+ {n:'ダイヤのつるはし',cost:40000,layer:5,pow:50,col:0x7fe8ff}];
+var SHINE_PTS=[[0,1],[25,1.5],[50,2.5],[75,4],[100,6]];
+var SAVE='ishimigaki_demo_v3';
+var UNLOCK_EARNED=300;
+var NV=162; // 石の頂点数
+var LST=[[],[],[],[],[]];STONES.forEach(function(s,i){LST[s.layer-1].push(i);});
+
+// ===== 状態 =====
+var S={gold:0,earned:0,pick:0,cloth:0,bag:0,stones:[],bench:0,codex:{},nid:1,mined:[],reqs:[],reqOn:false,rid:1,best:0};
+try{var o=JSON.parse(localStorage.getItem(SAVE));if(o)for(var k in o)S[k]=o[k];}catch(e){}
+S.stones.forEach(function(s){if(!s.d)s.d=new Array(s.p.length).fill(s.p.some(function(v){return v>0;})?0:1);});
+function save(){try{
+ var c={};for(var k in S)c[k]=S[k];
+ c.stones=S.stones.map(function(s){return {id:s.id,t:s.t,w:s.w,seed:s.seed,done:s.done,d:s.d.map(function(v){return Math.round(v*100)/100;}),p:s.p.map(function(v){return Math.round(v*100)/100;})};});
+ localStorage.setItem(SAVE,JSON.stringify(c));}catch(e){}}
+function cap(){return 10+5*S.bag;}
+function mult(sh){for(var i=1;i<SHINE_PTS.length;i++){var a=SHINE_PTS[i-1],b=SHINE_PTS[i];if(sh<=b[0])return a[1]+(b[1]-a[1])*(sh-a[0])/(b[0]-a[0]);}return 6;}
+function stats(st){
+ if(st._s)return st._s;var a=0,o=0,n=st.p.length;
+ var dd=0;for(var i=0;i<n;i++){a+=Math.min(1,st.p[i]);o+=Math.max(0,st.p[i]-1);dd+=st.d[i];}
+ return (st._s={avg:a/n,over:o/n,dirt:dd/n});}
+function ratio(st){return st.w/STONES[st.t].avg;} // 平均の重さとの比＝重さの倍率
+function value(st){var s=stats(st),d=STONES[st.t];
+ return Math.max(1,Math.round(d.price*ratio(st)*mult(s.avg*100)*Math.max(.15,1-3*s.over)));}
+function canSell(st){return stats(st).dirt<=.5;} // 汚れが半分以下まで落ちていないと売れない
+function fmt(n){return n.toLocaleString('ja-JP');}
+function kg(st){return st.w.toFixed(2)+'kg';}
+function sname(s){return STONES[s.t].n+' '+kg(s);}
+function gauss(){return Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(2*Math.PI*Math.random());}
+function randW(t){var a=STONES[t].avg;return Math.round(a*Math.min(3.2,Math.max(.35,Math.exp(gauss()*.4)))*100)/100;}
+function benchStone(){for(var i=0;i<S.stones.length;i++)if(S.stones[i].id===S.bench)return S.stones[i];return null;}
+
+// ===== 音 =====
+var AC=null,lastSnd=0;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}return AC;}
+function tone(f,d,type,v,to){var c=ac();if(!c)return;var t=c.currentTime,o=c.createOscillator(),g=c.createGain();
+ o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
+ g.gain.setValueAtTime(v||.15,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d);}
+var snd={
+ hit:function(){tone(180,.12,'square',.14,60);},
+ brk:function(){tone(120,.25,'sawtooth',.16,40);tone(500,.1,'square',.06,200);},
+ clang:function(){tone(900,.15,'triangle',.12,700);},
+ shine:function(){var n=performance.now();if(n-lastSnd<80)return;lastSnd=n;tone(1800+Math.random()*600,.06,'triangle',.04);},
+ over:function(){var n=performance.now();if(n-lastSnd<120)return;lastSnd=n;tone(220,.1,'sawtooth',.06,150);},
+ perfect:function(){[880,1320,1760,2640].forEach(function(f,i){setTimeout(function(){tone(f,.4,'sine',.12);},i*70);});},
+ coin:function(){tone(1200,.08,'square',.1);setTimeout(function(){tone(1700,.18,'square',.1);},70);},
+ buy:function(){tone(500,.1,'triangle',.15);setTimeout(function(){tone(750,.2,'triangle',.15);},90);},
+ req:function(){tone(660,.15,'sine',.12);setTimeout(function(){tone(990,.3,'sine',.12);},140);},
+ step:function(){tone(70+Math.random()*30,.06,'triangle',.07,40);},
+ wash:function(){var n=performance.now();if(n-lastSnd<70)return;lastSnd=n;tone(500+Math.random()*400,.05,'sawtooth',.03,300);}
+};
+
+// ===== 3D 基本 =====
+var HORIZ=new THREE.Color(0xbcd6ee),TOPC=new THREE.Color(0x5b94d8),DARK=new THREE.Color(0x030409);
+var renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.body.insertBefore(renderer.domElement,document.body.firstChild);
+var cv=renderer.domElement;
+var scene=new THREE.Scene();scene.background=HORIZ.clone();scene.fog=new THREE.Fog(0xbcd6ee,35,120);
+var camera=new THREE.PerspectiveCamera(70,1,.05,300);camera.rotation.order='YXZ';scene.add(camera);
+
+(function(){ // 反射用の環境マップ（色つきの光源を並べた部屋）
+ var es=new THREE.Scene();
+ es.add(new THREE.Mesh(new THREE.BoxGeometry(40,40,40),new THREE.MeshBasicMaterial({color:0x5a6070,side:THREE.BackSide})));
+ function pan(c,x,y,z,w,h,d){var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:c}));m.position.set(x,y,z);es.add(m);}
+ pan(0xffffff,0,18,0,14,1,14);pan(0xfff0dd,-17,6,0,1,10,14);pan(0xdde8ff,17,6,6,1,6,10);pan(0xffffff,0,5,-17,16,6,1);
+ pan(0xffb060,10,2,15,6,6,1);pan(0xff5a6a,-12,3,14,3,8,1);pan(0x5aa0ff,-6,9,-16,4,3,1);pan(0x7aff9a,14,10,-8,1,3,4);
+ var pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(es).texture;pm.dispose();
+})();
+
+var hemi=new THREE.HemisphereLight(0xcfe0ff,0x665544,.4);scene.add(hemi);
+var sun=new THREE.DirectionalLight(0xfff2dc,1.15);sun.position.set(30,50,20);scene.add(sun);scene.add(sun.target);
+sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+(function(){var c=sun.shadow.camera;c.left=-34;c.right=34;c.top=34;c.bottom=-34;c.near=1;c.far=150;c.updateProjectionMatrix();sun.shadow.bias=-.0004;sun.shadow.normalBias=.03;})();
+var lamp=new THREE.PointLight(0xffd9a0,.9,14);camera.add(lamp);
+// 空
+var skyM=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{top:{value:TOPC.clone()},bot:{value:HORIZ.clone()}},
+ vertexShader:'varying float vH;void main(){vH=normalize(position).y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+ fragmentShader:'uniform vec3 top;uniform vec3 bot;varying float vH;void main(){gl_FragColor=vec4(mix(bot,top,pow(clamp(vH,0.,1.),.55)),1.);}'});
+var sky=new THREE.Mesh(new THREE.SphereGeometry(200,24,12),skyM);sky.frustumCulled=false;sky.renderOrder=-1;scene.add(sky);
+
+function mat(c,r){return new THREE.MeshStandardMaterial({color:c,roughness:r==null?.9:r,metalness:0,envMapIntensity:.2});}
+function box(w,h,d,x,y,z,m,parent){var b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);b.castShadow=b.receiveShadow=true;(parent||scene).add(b);return b;}
+function label(text,x,y,z,w,parent){
+ var c=document.createElement('canvas');c.width=512;c.height=128;var g=c.getContext('2d');
+ g.fillStyle='#3b2a18';g.fillRect(0,0,512,128);g.strokeStyle='#c99a52';g.lineWidth=8;g.strokeRect(6,6,500,116);
+ g.fillStyle='#ffe2a8';g.font='bold 56px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text,256,68);
+ var t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;
+ var m=new THREE.Mesh(new THREE.PlaneGeometry(w,w/4),new THREE.MeshBasicMaterial({map:t}));m.position.set(x,y,z);(parent||scene).add(m);return m;}
+
+// ===== テクスチャ（つなぎ目のないノイズ） =====
+function hash(x,y,s){var n=Math.sin(x*127.1+y*311.7+s*74.7)*43758.5453;return n-Math.floor(n);}
+function pnoise(x,y,per,s){
+ var xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+ function w(a){return ((a%per)+per)%per;}
+ var a=hash(w(xi),w(yi),s),b=hash(w(xi+1),w(yi),s),c=hash(w(xi),w(yi+1),s),d=hash(w(xi+1),w(yi+1),s);
+ return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+function fbm(u,v,s){var t=0,a=.5,p=4;for(var o=0;o<5;o++){t+=a*pnoise(u*p,v*p,p,s+o);a*=.5;p*=2;}return t;}
+function makeTex(size,lo,hi,seed,tint,edge,rep){
+ var c=document.createElement('canvas');c.width=c.height=size;var g=c.getContext('2d'),im=g.createImageData(size,size);
+ for(var y=0;y<size;y++)for(var x=0;x<size;x++){
+  var v=fbm(x/size,y/size,seed),k=lo+(hi-lo)*Math.min(1,Math.max(0,(v-.2)*1.6)),
+      pit=pnoise(x/size*24,y/size*24,24,seed+9)<.2?.78:1,i=(y*size+x)*4;
+  if(edge){var e=Math.min(x,y,size-1-x,size-1-y);if(e<2)k*=.62+e*.15;}
+  im.data[i]=Math.min(255,k*tint[0]*pit);im.data[i+1]=Math.min(255,k*tint[1]*pit);im.data[i+2]=Math.min(255,k*tint[2]*pit);im.data[i+3]=255;}
+ g.putImageData(im,0,0);
+ var t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;
+ if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;}
+ return t;}
+
+// ===== 世界 =====
+var PW=13,PD=30,X0=-6.5,Z0=-22.5,LD=6; // 穴の幅・深さ・左上、1層の厚さ
+var rockTex=makeTex(128,120,255,3,[1,1,1],true,false);
+var grassTex=makeTex(128,110,255,8,[.42,.62,.3],false,true);
+var groundM=new THREE.MeshStandardMaterial({color:0xffffff,map:grassTex,bumpMap:grassTex,bumpScale:.6,roughness:1,envMapIntensity:.1});
+var rockM=new THREE.MeshStandardMaterial({color:0x6a6460,map:rockTex,bumpMap:rockTex,bumpScale:.8,roughness:1,envMapIntensity:.1});
+function groundBox(w,d,x,z){
+ var g=new THREE.BoxGeometry(w,1,d),uv=g.attributes.uv;
+ for(var i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*w/5,uv.getY(i)*d/5);
+ var m=new THREE.Mesh(g,groundM);m.position.set(x,-.5,z);m.receiveShadow=true;scene.add(m);}
+// 地面（穴の部分をくりぬく）
+groundBox(53.5,120,-33.25,0);groundBox(53.5,120,33.25,0);groundBox(13,69.5,0,25.25);groundBox(13,37.5,0,-41.25);
+// 穴の壁と底
+box(1,30,15,-7,-16,-16,rockM);box(1,30,15,7,-16,-16,rockM);box(13,30,1,0,-16,-9,rockM);box(13,30,1,0,-16,-23,rockM);
+box(15,1,15,0,-30.5,-16,mat(0x1c1c20));
+
+// ブロック（掘れる土）
+var NB=PW*PW*PD;
+var grid=new Uint8Array(NB),oreT=new Uint8Array(NB),hpA=new Float32Array(NB),cr=new Int32Array(NB).fill(-1);
+function gi(x,d,z){return (d*PW+z)*PW+x;}
+function rng(seed){var s=seed>>>0||1;return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+var CRY=[]; // 鉱石の結晶（ブロックの面にはりつく）{i,x,y,z,s,rx,ry,rz}
+(function(){
+ var r=rng(777),FN=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+ for(var d=0;d<PD;d++){var l=Math.floor(d/LD),L=LAYERS[l],list=LST[l],tw=0;list.forEach(function(t){tw+=STONES[t].w;});
+  for(var z=0;z<PW;z++)for(var x=0;x<PW;x++){
+   var i=gi(x,d,z),ore=r()<.14;grid[i]=ore?2:1;
+   hpA[i]=ore?L.hp:Math.ceil(L.hp*.34);
+   if(ore){
+    var q=r()*tw,t=list[list.length-1];for(var k=0;k<list.length;k++){q-=STONES[list[k]].w;if(q<=0){t=list[k];break;}}
+    oreT[i]=t;cr[i]=CRY.length;
+    for(var f=0;f<6;f++){var n=FN[f];
+     for(var c=0;c<2;c++){
+      var a=(r()-.5)*.6,b=(r()-.5)*.6,px=n[0]?n[0]*.5:(n[1]?a:a),py=n[1]?n[1]*.5:b,pz=n[2]?n[2]*.5:(n[1]?b:b);
+      if(n[0]){px=n[0]*.5;py=a;pz=b;}else if(n[1]){px=a;py=n[1]*.5;pz=b;}else{px=a;py=b;pz=n[2]*.5;}
+      CRY.push({i:i,x:X0+x+.5+px,y:-d-.5+py,z:Z0+z+.5+pz,s:.09+r()*.11,rx:r()*6,ry:r()*6,rz:r()*6,sy:1+r()*1.2});}}}
+  }}
+})();
+var blocks=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffffff,map:rockTex,bumpMap:rockTex,bumpScale:1,roughness:.95,envMapIntensity:.15}),NB);
+blocks.frustumCulled=false;blocks.castShadow=blocks.receiveShadow=true;scene.add(blocks);
+var crys=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:.18,metalness:.12,flatShading:true,envMapIntensity:1.4}),CRY.length);
+crys.frustumCulled=false;scene.add(crys);
+var _m=new THREE.Matrix4(),_c=new THREE.Color(),_z=new THREE.Matrix4().makeScale(0,0,0),_q=new THREE.Quaternion(),_e=new THREE.Euler(),_p=new THREE.Vector3(),_s=new THREE.Vector3();
+function maxHp(i){var l=Math.floor(Math.floor(i/(PW*PW))/LD);return grid[i]===2?LAYERS[l].hp:Math.ceil(LAYERS[l].hp*.34);}
+function blockColor(i){
+ var d=Math.floor(i/(PW*PW)),L=LAYERS[Math.floor(d/LD)];
+ _c.set(L.col);if(grid[i]===2)_c.multiplyScalar(.85);
+ var h=((i*2654435761)>>>0)/4294967296;_c.multiplyScalar(.8+h*.3);
+ _c.multiplyScalar(.55+.45*Math.max(0,hpA[i])/maxHp(i));
+ return _c;}
+(function(){
+ for(var i=0;i<NB;i++){
+  var d=Math.floor(i/(PW*PW)),r=i%(PW*PW),z=Math.floor(r/PW),x=r%PW;
+  _m.makeTranslation(X0+x+.5,-d-.5,Z0+z+.5);blocks.setMatrixAt(i,_m);blocks.setColorAt(i,blockColor(i));}
+ CRY.forEach(function(c,k){
+  _e.set(c.rx,c.ry,c.rz);_q.setFromEuler(_e);_p.set(c.x,c.y,c.z);_s.set(c.s,c.s*c.sy,c.s);
+  _m.compose(_p,_q,_s);crys.setMatrixAt(k,_m);crys.setColorAt(k,_c.set(STONES[oreT[c.i]].col));});
+ S.mined.forEach(function(i){grid[i]=0;blocks.setMatrixAt(i,_z);hideCrystals(i);});
+ blocks.instanceMatrix.needsUpdate=true;blocks.instanceColor.needsUpdate=true;
+ crys.instanceMatrix.needsUpdate=true;crys.instanceColor.needsUpdate=true;
+})();
+function hideCrystals(i){if(cr[i]<0)return;for(var k=cr[i];k<cr[i]+12;k++)crys.setMatrixAt(k,_z);crys.instanceMatrix.needsUpdate=true;}
+function blockCenter(i,out){var d=Math.floor(i/(PW*PW)),r=i%(PW*PW);return out.set(X0+r%PW+.5,-d-.5,Z0+Math.floor(r/PW)+.5);}
+
+// 看板・建物
+box(.2,3,.2,-2.6,1.5,-8.4,mat(0x6a4a2a));box(.2,3,.2,2.6,1.5,-8.4,mat(0x6a4a2a));
+label('採掘場 ↓ 下へ掘ろう',0,3,-8.3,5.4);
+// 作業台
+var BENCH={x:-4.5,z:-1};
+var tbl=new THREE.Mesh(new THREE.CylinderGeometry(.85,.7,1,24),mat(0x8a5a30,.7));tbl.position.set(BENCH.x,.5,BENCH.z);tbl.castShadow=tbl.receiveShadow=true;scene.add(tbl);
+var pad=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,.06,24),mat(0x2f5fa0,1));pad.position.set(BENCH.x,1.03,BENCH.z);pad.receiveShadow=true;scene.add(pad);
+box(.15,2.6,.15,BENCH.x-1.4,1.3,BENCH.z-1.1,mat(0x6a4a2a));box(.15,2.6,.15,BENCH.x+1.4,1.3,BENCH.z-1.1,mat(0x6a4a2a));
+label('磨き台',BENCH.x,2.2,BENCH.z-1.1,2.6);
+var bl=new THREE.PointLight(0xfff0d8,.8,7);bl.position.set(BENCH.x+.6,2.6,BENCH.z+.8);scene.add(bl);
+var bl2=new THREE.PointLight(0x9ac0ff,.4,6);bl2.position.set(BENCH.x-1.2,2,BENCH.z+.4);scene.add(bl2);
+// お店
+var SHOP={x:6,z:0};
+box(6,1.3,1.6,SHOP.x,.65,SHOP.z,mat(0x7a4a2a,.7));
+for(var ci=0;ci<7;ci++){var coin=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.06,18),new THREE.MeshStandardMaterial({color:0xffc83a,metalness:.9,roughness:.25}));coin.position.set(SHOP.x-1.2+ci*.2,1.34+(ci%3)*.06,SHOP.z+Math.sin(ci)*.3);coin.castShadow=true;scene.add(coin);}
+box(6.4,3.4,.4,SHOP.x,1.7,SHOP.z-1.4,mat(0x5a4636));label('お店・道具屋',SHOP.x,3.8,SHOP.z-1.15,3.6);
+// ジュエリー店（稼ぐと開店）
+var JEW={x:13,z:0};
+var jew=new THREE.Group();scene.add(jew);
+box(5,1.3,1.6,JEW.x,.65,JEW.z,new THREE.MeshStandardMaterial({color:0x6a3a6a,roughness:.5,envMapIntensity:.3}),jew);
+box(5.4,3.6,.4,JEW.x,1.8,JEW.z-1.4,mat(0x4a3550),jew);
+box(5.8,.3,2.4,JEW.x,3.7,JEW.z-.6,mat(0xa03a5a),jew);
+label('ジュエリー店',JEW.x,4.4,JEW.z-1.1,3.6,jew);
+for(var ji=0;ji<4;ji++){var gem=new THREE.Mesh(new THREE.OctahedronGeometry(.18),new THREE.MeshStandardMaterial({color:[0xff4060,0x40a0ff,0x60ff90,0xffe060][ji],metalness:.2,roughness:.1}));gem.position.set(JEW.x-.9+ji*.6,1.5,JEW.z);jew.add(gem);}
+jew.visible=false;
+var COLS=[{x0:BENCH.x-.9,x1:BENCH.x+.9,z0:BENCH.z-.9,z1:BENCH.z+.9,h:1.05},{x0:SHOP.x-3,x1:SHOP.x+3,z0:SHOP.z-.8,z1:SHOP.z+.8,h:1.3},{x0:JEW.x-2.5,x1:JEW.x+2.5,z0:JEW.z-.8,z1:JEW.z+.8,h:1.3}];
+// 木と岩
+(function(){var r=rng(5),tm=mat(0x5a3d22),lm=[mat(0x2f6a3a),mat(0x3a7a3e),mat(0x2a5e34)];
+ for(var i=0;i<50;i++){var x=(r()-.5)*100,z=(r()-.5)*100;
+  if(Math.abs(x)<20&&z>-32&&z<18)continue;
+  var h=1.6+r()*1.6,tr=new THREE.Mesh(new THREE.CylinderGeometry(.22,.38,h*1.4,7),tm);tr.position.set(x,h*.7,z);tr.castShadow=true;scene.add(tr);
+  for(var k=0;k<3;k++){var lf=new THREE.Mesh(new THREE.ConeGeometry(1.9-k*.5,2.6,8),lm[Math.floor(r()*3)]);lf.position.set(x,h*1.2+k*1.3,z);lf.rotation.y=r()*3;lf.castShadow=true;scene.add(lf);}}
+ for(var j=0;j<40;j++){var rx=(r()-.5)*90,rz=(r()-.5)*90;if(Math.abs(rx)<20&&rz>-32&&rz<18)continue;
+  var g=new THREE.IcosahedronGeometry(.4+r()*.7,1),p=g.attributes.position;
+  for(var q=0;q<p.count;q++){var f=.8+hash(Math.round(p.getX(q)*50),Math.round(p.getY(q)*50),j)*.4;p.setXYZ(q,p.getX(q)*f,p.getY(q)*f*.7,p.getZ(q)*f);}
+  var b=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x7a7a74,flatShading:true,roughness:1,envMapIntensity:.1}));b.position.set(rx,.15,rz);b.castShadow=b.receiveShadow=true;scene.add(b);}})();
+
+// ===== 石の形・磨き =====
+function buildStone(seed,gem){
+ var g=new THREE.IcosahedronGeometry(1,2),pos=g.attributes.position,r=rng(seed),map={},u=[];
+ var sx=.72+r()*.55,sy=gem?1.35+r()*.6:.7+r()*.6,sz=gem?.65+r()*.4:.7+r()*.6,a=r()*6,b=r()*6,c=r()*6;
+ for(var i=0;i<pos.count;i++){
+  var x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),key=x.toFixed(3)+','+y.toFixed(3)+','+z.toFixed(3);
+  if(map[key]===undefined){
+   map[key]=u.length;
+   var lump=1+.24*Math.sin(x*2.3+a)*Math.cos(y*2.1+b)+.16*Math.sin(z*3+c);
+   var f=(gem?.86+r()*.3:.68+r()*.55)*lump;
+   u.push({idx:[],x:x*f*sx,y:y*f*sy,z:z*f*sz});}
+  u[map[key]].idx.push(i);}
+ g.setAttribute('aPolish',new THREE.BufferAttribute(new Float32Array(pos.count),1));
+ g.setAttribute('aDirt',new THREE.BufferAttribute(new Float32Array(pos.count),1));
+ return {geo:g,u:u};}
+function shapeStone(mesh,st){
+ var g=mesh.geometry,pos=g.attributes.position,pa=g.attributes.aPolish,da=g.attributes.aDirt,u=mesh.userData.u;
+ for(var k=0;k<u.length;k++){
+  var p=st.p[k],sc=1-.22*Math.min(1,Math.max(0,p-1)),q=u[k];
+  for(var j=0;j<q.idx.length;j++){var i=q.idx[j];pos.setXYZ(i,q.x*sc,q.y*sc,q.z*sc);pa.setX(i,p);da.setX(i,st.d[k]);}}
+ pos.needsUpdate=true;pa.needsUpdate=true;da.needsUpdate=true;}
+function makeStoneMesh(st){
+ var d=STONES[st.t],b=buildStone(st.seed,d.gem);
+ var m=new THREE.MeshPhysicalMaterial({color:d.col,flatShading:true,roughness:1,metalness:d.metal||(d.gem?.12:0),transparent:!!d.gem,opacity:d.gem?.93:1,envMapIntensity:1.1,reflectivity:d.gem?.8:.5});
+ if(d.glow){m.emissive.setRGB(d.glow[0],d.glow[1],d.glow[2]);m.emissiveIntensity=.5;}
+ var cA=d.cA||[0,0,0],cB=d.cB||[0,0,0];
+ m.onBeforeCompile=function(sh){
+  sh.uniforms.uTime={value:0};sh.uniforms.uMode={value:d.fx||0};sh.uniforms.uAmt={value:d.amt||.6};
+  sh.uniforms.uA=new THREE.Uniform(new THREE.Vector3(cA[0],cA[1],cA[2]));sh.uniforms.uB=new THREE.Uniform(new THREE.Vector3(cB[0],cB[1],cB[2]));
+  m.userData.sh=sh;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float aPolish;\nattribute float aDirt;\nvarying float vPolish;\nvarying float vDirt;\nvarying vec3 vLp;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPolish=aPolish;vDirt=aDirt;vLp=position;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPolish;\nvarying float vDirt;\nvarying vec3 vLp;\nfloat h3(vec3 p){return fract(sin(dot(floor(p),vec3(12.9898,78.233,37.719)))*43758.5453);}\nuniform float uTime;uniform float uMode;uniform float uAmt;uniform vec3 uA;uniform vec3 uB;\nvec3 rainbow(float h){return clamp(abs(mod(h*6.+vec3(0.,4.,2.),6.)-3.)-1.,0.,1.);}')
+   .replace('#include <color_fragment>','#include <color_fragment>\nfloat gr=h3(vLp*16.);\nvec3 crust=vec3(0.30,0.27,0.23)*(0.65+0.6*gr)*mix(vec3(1.),diffuseColor.rgb*1.6,0.25);\nfloat pk=clamp(vPolish,0.,1.);\nvec3 bright=diffuseColor.rgb*1.25+0.04;\ndiffuseColor.rgb=mix(crust,bright,smoothstep(.1,.7,pk));\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.22,0.15,0.12),clamp(vPolish-1.,0.,1.)*0.85);\nvec3 mud=vec3(0.36,0.25,0.15)*(0.75+0.5*h3(vLp*24.+3.));\ndiffuseColor.rgb=mix(diffuseColor.rgb,mud,vDirt*0.96);')
+   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(1.0,0.03,clamp(vPolish,0.,1.));\nroughnessFactor=mix(roughnessFactor,0.75,clamp(vPolish-1.,0.,1.));\nroughnessFactor=mix(roughnessFactor,1.0,vDirt);')
+   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nfloat pol=clamp(vPolish,0.,1.)*(1.-clamp(vPolish-1.,0.,1.))*(1.-vDirt);\nfloat ndv=clamp(dot(normal,normalize(vViewPosition)),0.,1.);\n'+
+    'if(uMode>.5&&uMode<1.5){float h=fract(ndv*1.7+.5*sin(vLp.x*6.+vLp.y*4.)+.4*sin(vLp.z*5.-vLp.x*3.)+uTime*.04);diffuseColor.rgb=mix(diffuseColor.rgb,rainbow(h),uAmt*pol);}\n'+
+    'else if(uMode>1.5&&uMode<2.5){float k=smoothstep(.3,.8,ndv+.15*sin(vLp.y*5.));diffuseColor.rgb=mix(diffuseColor.rgb,mix(uA,uB,k),pol);}\n'+
+    'else if(uMode>2.5&&uMode<3.5){float k=smoothstep(-.35,.35,vLp.y*1.1+.12*sin(vLp.x*7.));diffuseColor.rgb=mix(diffuseColor.rgb,mix(uA,uB,k),pol);}\n'+
+    'else if(uMode>3.5){float h=fract(ndv*3.+vLp.y*.7);diffuseColor.rgb+=rainbow(h)*pow(1.-ndv,2.)*.55*pol;}')
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance*=pol*(.55+.45*sin(uTime*2.+vLp.x*6.+vLp.y*4.));');};
+ var mesh=new THREE.Mesh(b.geo,m);mesh.userData.u=b.u;mesh.castShadow=mesh.receiveShadow=true;
+ if(!st.p||!st.p.length)st.p=new Array(b.u.length).fill(0);
+ shapeStone(mesh,st);b.geo.computeBoundingSphere();return mesh;}
+
+var benchMesh=null,benchId=-1;
+function syncBench(){
+ var st=benchStone();
+ if(!st){if(benchMesh){scene.remove(benchMesh);benchMesh=null;}benchId=-1;return;}
+ if(benchId!==st.id){
+  if(benchMesh)scene.remove(benchMesh);
+  var sc=.46*Math.min(1.7,Math.max(.6,Math.cbrt(ratio(st))));
+  benchMesh=makeStoneMesh(st);benchMesh.scale.setScalar(sc);
+  benchMesh.position.set(BENCH.x,1.03+.6*sc*1.4,BENCH.z);scene.add(benchMesh);benchId=st.id;}
+}
+var lastWarn=0;
+function nearDirt(local,R){var st=benchStone(),u=benchMesh.userData.u,t=0,n=0;
+ for(var k=0;k<u.length;k++){var dx=u[k].x-local.x,dy=u[k].y-local.y,dz=u[k].z-local.z;if(Math.sqrt(dx*dx+dy*dy+dz*dz)<R){t+=st.d[k];n++;}}
+ return n?t/n:0;}
+function washAt(local,amt,wp){
+ var st=benchStone();if(!st||!benchMesh)return;
+ var u=benchMesh.userData.u,R=.7,ch=false;
+ for(var k=0;k<u.length;k++){
+  var dx=u[k].x-local.x,dy=u[k].y-local.y,dz=u[k].z-local.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  if(d<R&&st.d[k]>0){st.d[k]=Math.max(0,st.d[k]-amt*(.5+.5*(1-d/R)));ch=true;}}
+ if(!ch)return;
+ st._s=null;shapeStone(benchMesh,st);snd.wash();burst(wp,0x7fc8ff,2,2);
+ if(!st.washed&&stats(st).dirt<.02){st.washed=true;toast('きれいに洗えた！ 次は磨こう');}
+}
+function polishAt(local,amt){
+ var st=benchStone();if(!st||!benchMesh)return;
+ var u=benchMesh.userData.u,R=.6,ch=false,ov=false,blocked=false;
+ for(var k=0;k<u.length;k++){
+  var dx=u[k].x-local.x,dy=u[k].y-local.y,dz=u[k].z-local.z,d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  if(d<R){var w=1-d/R,old=st.p[k];if(st.d[k]>.5){blocked=true;continue;}st.p[k]=Math.min(2,old+amt*w*(.4+.6*w)*(1-st.d[k]));ch=true;if(st.p[k]>1.02)ov=true;}}
+ if(blocked&&!ch){var nw=performance.now();if(nw-lastWarn>1200){lastWarn=nw;toast('先に洗おう！ 汚れが残っていると磨けない');}}
+ if(!ch)return;
+ st._s=null;shapeStone(benchMesh,st);
+ if(ov)snd.over();else snd.shine();
+ var s=stats(st);
+ if(!st.done&&s.avg>=.97&&s.over<.02){st.done=true;S.codex[st.t]=2;snd.perfect();burst(benchMesh.position,0xffffee,30,5);toast('完ぺき！ ピカピカになった');}
+}
+
+// ===== 演出 =====
+var parts=[],pgeo=new THREE.BoxGeometry(.1,.1,.1),pmats={};
+function burst(pos,col,n,sp){
+ pmats[col]=pmats[col]||new THREE.MeshBasicMaterial({color:col});
+ for(var i=0;i<n;i++){var m=new THREE.Mesh(pgeo,pmats[col]);m.position.copy(pos);
+  m.userData={v:new THREE.Vector3((Math.random()-.5)*sp,Math.random()*sp*.8+1,(Math.random()-.5)*sp),life:.7};scene.add(m);parts.push(m);}}
+function popText(t,col,dy){var e=document.createElement('div');e.className='pop';e.textContent=t;e.style.left='50%';e.style.top=(innerHeight/2+(dy||-60))+'px';e.style.color=col||'#fff';document.body.appendChild(e);setTimeout(function(){e.remove();},1100);}
+var msgT=0;
+function toast(t){var e=document.getElementById('msg');e.textContent=t;e.style.opacity=1;clearTimeout(msgT);msgT=setTimeout(function(){e.style.opacity=0;},2200);}
+var hl=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.01,1.01,1.01)),new THREE.LineBasicMaterial({color:0xffffff}));hl.visible=false;scene.add(hl);
+// 手に持つつるはし・磨き布
+var pickG=new THREE.Group(),pickHead=null,clothM=null;
+(function(){
+ var h=new THREE.Mesh(new THREE.BoxGeometry(.05,.05,.75),mat(0x6a4a2a));pickG.add(h);
+ pickHead=new THREE.Mesh(new THREE.BoxGeometry(.4,.07,.07),new THREE.MeshStandardMaterial({color:0xaaaaaa,metalness:.6,roughness:.4}));pickHead.position.z=-.36;pickG.add(pickHead);
+ pickG.position.set(.38,-.32,-.55);pickG.rotation.set(.2,-.4,0);camera.add(pickG);
+ clothM=new THREE.Mesh(new THREE.BoxGeometry(.25,.05,.25),mat(0x2f5fa0,1));clothM.position.set(.18,-.25,-.5);clothM.rotation.set(.3,0,0);clothM.visible=false;camera.add(clothM);
+})();
+function tintPick(){pickHead.material.color.setHex(PICKS[S.pick].col);}
+var swing=0;
+
+// ===== 掘る =====
+function voxelRay(ox,oy,oz,dx,dy,dz,reach){
+ var px=ox-X0,py=-oy,pz=oz-Z0,vx=dx,vy=-dy,vz=dz;
+ var ix=Math.floor(px),iy=Math.floor(py),iz=Math.floor(pz);
+ var sx=vx>0?1:-1,sy=vy>0?1:-1,sz=vz>0?1:-1;
+ var tdx=vx?Math.abs(1/vx):1e9,tdy=vy?Math.abs(1/vy):1e9,tdz=vz?Math.abs(1/vz):1e9;
+ var tmx=vx?(vx>0?ix+1-px:px-ix)*tdx:1e9,tmy=vy?(vy>0?iy+1-py:py-iy)*tdy:1e9,tmz=vz?(vz>0?iz+1-pz:pz-iz)*tdz:1e9;
+ for(var n=0;n<80;n++){
+  if(ix>=0&&ix<PW&&iy>=0&&iy<PD&&iz>=0&&iz<PW&&grid[gi(ix,iy,iz)])return gi(ix,iy,iz);
+  var t;
+  if(tmx<tmy&&tmx<tmz){t=tmx;tmx+=tdx;ix+=sx;}else if(tmy<tmz){t=tmy;tmy+=tdy;iy+=sy;}else{t=tmz;tmz+=tdz;iz+=sz;}
+  if(t>reach)break;}
+ return -1;}
+var lastClang=0,_v=new THREE.Vector3();
+function hitBlock(i){
+ var d=Math.floor(i/(PW*PW)),l=Math.floor(d/LD),pk=PICKS[S.pick];
+ if(l+1>pk.layer){var n=performance.now();if(n-lastClang>700){lastClang=n;snd.clang();toast(LAYERS[l].n+'は硬い！ もっと強いつるはしが必要');}return;}
+ if(grid[i]===2&&S.stones.length>=cap()){toast('かばんがいっぱい！ 磨いて売ろう（Tab）');snd.clang();return;}
+ hpA[i]-=pk.pow;swing=1;snd.hit();
+ blockCenter(i,_v);var lc=new THREE.Color(LAYERS[l].col).getHex();burst(_v,lc,4,2.5);
+ if(hpA[i]>0){blocks.setColorAt(i,blockColor(i));blocks.instanceColor.needsUpdate=true;return;}
+ var ore=grid[i]===2,t=oreT[i];
+ grid[i]=0;blocks.setMatrixAt(i,_z);blocks.instanceMatrix.needsUpdate=true;S.mined.push(i);hideCrystals(i);snd.brk();burst(_v,lc,10,4);
+ if(ore){
+  var st={id:S.nid++,t:t,w:randW(t),seed:Math.floor(Math.random()*1e6),p:new Array(NV).fill(0),d:new Array(NV).fill(1),done:false};
+  S.stones.push(st);
+  var dd=STONES[t],rt=ratio(st);S.codex[t]=S.codex[t]||1;
+  if(!benchStone())S.bench=st.id;
+  popText((rt>=1.5?'大物！ ':rt<=.6?'小粒 ':'')+dd.n+' '+kg(st)+' ゲット','#'+new THREE.Color(dd.col).getHexString());
+  burst(_v,new THREE.Color(dd.col).getHex(),14,5);
+  S.best=Math.max(S.best,d);syncBench();save();hud();}
+}
+
+// ===== プレイヤー =====
+var P={x:0,y:0,z:8,vy:0,on:false,yaw:0,pitch:0};
+function solidAt(x,y,z){
+ if(y>=0)return false;
+ var gx=Math.floor(x-X0),gz=Math.floor(z-Z0);
+ if(gx<0||gx>=PW||gz<0||gz>=PW)return true;
+ var d=Math.floor(-y);if(d>=PD)return true;
+ return grid[gi(gx,d,gz)]!==0;}
+var HS=[.05,.9,1.65],HW=.3;
+function collides(x,y,z){
+ for(var a=-1;a<=1;a+=2)for(var b=-1;b<=1;b+=2)for(var h=0;h<3;h++)if(solidAt(x+a*HW,y+HS[h],z+b*HW))return true;
+ for(var i=0;i<COLS.length;i++){var c=COLS[i];if(y<c.h-.05&&x>c.x0-HW&&x<c.x1+HW&&z>c.z0-HW&&z<c.z1+HW)return true;}
+ return false;}
+function floorHit(x,y,z){return solidAt(x-HW,y-1e-4,z-HW)||solidAt(x+HW,y-1e-4,z-HW)||solidAt(x-HW,y-1e-4,z+HW)||solidAt(x+HW,y-1e-4,z+HW);}
+var stepT=0,bob=0;
+function stepPlayer(dt,mx,mz,jump,sprint){
+ var sp=sprint?7.5:4.6,s=Math.sin(P.yaw),c=Math.cos(P.yaw);
+ var wx=(mx*c+mz*s)*sp,wz=(-mx*s+mz*c)*sp; // mz: 前=-1
+ var ox=P.x,oz=P.z;
+ var nx=P.x+wx*dt;
+ if(!collides(nx,P.y,P.z))P.x=nx;else if(P.on&&!collides(nx,P.y+1.05,P.z))P.vy=7;
+ var nz=P.z+wz*dt;
+ if(!collides(P.x,P.y,nz))P.z=nz;else if(P.on&&!collides(P.x,P.y+1.05,nz))P.vy=7;
+ if(jump&&P.on){P.vy=7;P.on=false;}
+ P.vy=Math.max(-30,P.vy-20*dt);
+ var ny=P.y+P.vy*dt,wasOn=P.on;P.on=false;
+ if(P.vy<=0){
+  if(floorHit(P.x,ny,P.z)){P.y=Math.ceil(ny-1e-6);if(!wasOn&&P.vy<-8)snd.step();P.vy=0;P.on=true;}else P.y=ny;
+ }else{
+  if(collides(P.x,ny,P.z))P.vy=0;else P.y=ny;}
+ if(P.y<-32){P.x=0;P.y=0;P.z=8;P.vy=0;}
+ P.x=Math.max(-55,Math.min(55,P.x));P.z=Math.max(-55,Math.min(55,P.z));
+ var moved=Math.hypot(P.x-ox,P.z-oz)/dt;
+ if(P.on&&moved>1){bob+=dt*(sprint?13:9);stepT-=dt;if(stepT<=0){stepT=sprint?.3:.42;snd.step();}}
+}
+function surfaceReturn(){P.x=0;P.y=0;P.z=-6;P.vy=0;P.yaw=0;toast('地上に戻った');}
+
+// ===== 入力 =====
+var keys={},touchMode=('ontouchstart' in window)&&matchMedia('(pointer:coarse)').matches,menuOn=false,started=false,acting=false,rmb=null,joy={x:0,y:0},jumpBtn=false,mouse=new THREE.Vector2(0,0),mouseIn=false;
+if(touchMode)document.body.classList.add('touch');else cv.style.cursor='crosshair';
+function tryLock(){ac();if(AC&&AC.state==='suspended')AC.resume();started=true;document.getElementById('start').style.display='none';}
+document.getElementById('start').addEventListener('click',tryLock);
+cv.addEventListener('mouseenter',function(){mouseIn=true;});cv.addEventListener('mouseleave',function(){mouseIn=false;});
+function setMouse(e){mouseIn=true;var r=cv.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;}
+cv.addEventListener('mousedown',function(e){if(touchMode)return;setMouse(e);
+ if(e.button===0)acting=true;
+ if(e.button===2){_ray.setFromCamera(mouse,camera);rmb=(benchMesh&&_ray.intersectObject(benchMesh).length)?'stone':'look';}});
+addEventListener('mouseup',function(e){if(e.button===0)acting=false;if(e.button===2)rmb=null;});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+addEventListener('mousemove',function(e){
+ if(touchMode)return;if(e.target===cv)setMouse(e);
+ if(menuOn)return;
+ if(rmb==='stone'&&benchMesh){benchMesh.rotation.y+=e.movementX*.01;benchMesh.rotation.x+=e.movementY*.01;}
+ else if(rmb==='look'){P.yaw-=e.movementX*.004;P.pitch=Math.max(-1.5,Math.min(1.5,P.pitch-e.movementY*.004));}});
+addEventListener('keydown',function(e){
+ if(e.code==='Tab'){e.preventDefault();menuOn?G.close():openMenu('bag');return;}
+ if(e.code==='Escape'&&menuOn){G.close();return;}
+ if(menuOn)return;
+ keys[e.code]=true;
+ if(e.code==='KeyE')interact();
+ if(e.code==='KeyR')surfaceReturn();
+ if(e.code==='Space'||e.code.indexOf('Arrow')===0)e.preventDefault();});
+addEventListener('keyup',function(e){keys[e.code]=false;});
+// タッチ（視点ドラッグ・スティック・ボタン）
+var look=null;
+cv.addEventListener('pointerdown',function(e){if(!touchMode||menuOn)return;look={id:e.pointerId,x:e.clientX,y:e.clientY};});
+cv.addEventListener('pointermove',function(e){if(!look||look.id!==e.pointerId)return;
+ P.yaw-=(e.clientX-look.x)*.005;P.pitch=Math.max(-1.5,Math.min(1.5,P.pitch-(e.clientY-look.y)*.005));look.x=e.clientX;look.y=e.clientY;});
+addEventListener('pointerup',function(e){if(look&&look.id===e.pointerId)look=null;});
+(function(){
+ var j=document.getElementById('joy'),k=document.getElementById('knob'),jid=null;
+ function mv(e){var r=j.getBoundingClientRect(),dx=e.clientX-(r.left+60),dy=e.clientY-(r.top+60),l=Math.sqrt(dx*dx+dy*dy)||1,m=Math.min(1,l/50);
+  joy.x=dx/l*m;joy.y=dy/l*m;k.style.left=(40+joy.x*40)+'px';k.style.top=(40+joy.y*40)+'px';}
+ j.addEventListener('pointerdown',function(e){jid=e.pointerId;j.setPointerCapture(jid);mv(e);});
+ j.addEventListener('pointermove',function(e){if(e.pointerId===jid)mv(e);});
+ function end(e){if(e.pointerId!==jid)return;jid=null;joy.x=joy.y=0;k.style.left=k.style.top='40px';}
+ j.addEventListener('pointerup',end);j.addEventListener('pointercancel',end);
+ var a=document.getElementById('btnAct'),jb=document.getElementById('btnJump');
+ a.addEventListener('pointerdown',function(){acting=true;});a.addEventListener('pointerup',function(){acting=false;});a.addEventListener('pointercancel',function(){acting=false;});
+ jb.addEventListener('pointerdown',function(){jumpBtn=true;});jb.addEventListener('pointerup',function(){jumpBtn=false;});
+})();
+document.getElementById('menubtn').onclick=function(){menuOn?G.close():openMenu('bag');};
+
+// ===== 場所との会話 =====
+var STN=[{k:'bench',n:'作業台（かばん）',x:BENCH.x,z:BENCH.z,tab:'bag'},{k:'shop',n:'お店・道具屋',x:SHOP.x,z:SHOP.z,tab:'shop'},{k:'jew',n:'ジュエリー店（依頼）',x:JEW.x,z:JEW.z,tab:'req'}];
+function nearStation(){var best=null,bd=3.4;STN.forEach(function(s){if(s.k==='jew'&&!S.reqOn)return;var d=Math.hypot(P.x-s.x,P.z-s.z);if(d<bd){bd=d;best=s;}});return best;}
+function interact(){var s=nearStation();if(s)openMenu(s.tab);}
+
+// ===== 依頼 =====
+var REQMUL={perfect:10,half:7,heavy:14};
+function reqText(r){var n=STONES[r.t].n;
+ if(r.kind==='perfect')return '「'+n+'」を ツヤ90%以上・磨きすぎなしで';
+ if(r.kind==='half')return '「'+n+'」を 半分くらい（ツヤ40〜65%）だけ磨いて。原石の風合いを残したい';
+ return '平均より重い（1.4倍以上）「'+n+'」を ツヤ70%以上で';}
+function qualifies(st,r){
+ if(st.t!==r.t)return false;var s=stats(st);
+ if(r.kind==='perfect')return s.avg>=.9&&s.over<=.02;
+ if(r.kind==='half')return s.avg>=.4&&s.avg<=.65&&s.over<=.02;
+ return ratio(st)>=1.4&&s.avg>=.7&&s.over<=.03;}
+function reqReward(r,st){return Math.round(STONES[r.t].price*REQMUL[r.kind]*(st?ratio(st):1));}
+function genReq(){
+ var L=PICKS[S.pick].layer,c=[];STONES.forEach(function(s,i){if(s.layer<=Math.min(5,L+1)&&s.layer>=Math.max(1,L-1))c.push(i);});
+ var t=c[Math.floor(Math.random()*c.length)],q=Math.random(),kind=q<.5?'perfect':q<.8?'half':'heavy';
+ S.reqs.push({id:S.rid++,t:t,kind:kind});
+ snd.req();toast('💎 ジュエリー店から依頼が届きました！（Tab → 依頼）');save();if(menuOn)render();}
+var reqTimer=20;
+function checkUnlock(){if(!S.reqOn&&S.earned>=UNLOCK_EARNED){S.reqOn=true;jew.visible=true;genReq();genReq();toast('💎 ジュエリー店が開店しました！ お店の右隣へ');}}
+
+// ===== メニュー =====
+var tab='bag';
+var TABS=[['bag','🎒 かばん'],['shop','🛒 道具屋'],['req','💎 依頼'],['codex','📚 図鑑']];
+function openMenu(t){menuOn=true;tab=t||tab;acting=false;rmb=false;try{document.exitPointerLock();}catch(e){}
+ document.getElementById('menu').style.display='flex';document.getElementById('start').style.display='none';render();}
+function closeMenu(){menuOn=false;document.getElementById('menu').style.display='none';
+ if(!touchMode)tryLock();}
+function item(n,d,cost,fn){return '<div class="row"><span>'+n+'<small>'+d+'</small></span><button class="b" '+(S.gold>=cost?'':'disabled')+' onclick="G.'+fn+'()">'+fmt(cost)+'G</button></div>';}
+function clothCost(){return Math.round(50*Math.pow(1.6,S.cloth));}
+function bagCost(){return 200*Math.pow(2,S.bag);}
+function render(){
+ hud();
+ var t='';TABS.forEach(function(x){t+='<button class="'+(x[0]===tab?'on':'')+'" onclick="G.tab(\''+x[0]+'\')">'+x[1]+(x[0]==='req'&&S.reqs.length?' ('+S.reqs.length+')':'')+'</button>';});
+ document.getElementById('mtabs').innerHTML=t;
+ var h='';
+ if(tab==='bag'){
+  h+='<p style="margin:2px 0 6px;font-size:12px;opacity:.85">石は「作業台へ」で磨き台に置き、洗ってから磨きます。汚れが半分以下に落ちていない石は売れません。売値は重さに比例し、磨きすぎると石がやせて下がります。</p>';
+  if(!S.stones.length)h+='<p>石がありません。穴を掘って、結晶がのぞいているブロックを探そう。</p>';
+  S.stones.forEach(function(s){var st=stats(s),on=s.id===S.bench;
+   h+='<div class="row"><span><i class="dot" style="background:'+STONES[s.t].col+'"></i>'+sname(s)+(on?' 🔧':'')+'<small>重さ ×'+ratio(s).toFixed(2)+'（平均 '+STONES[s.t].avg+'kg）／ '+(st.dirt>.02?'汚れ '+Math.floor(st.dirt*100)+'% ／ ':'')+'ツヤ '+Math.floor(st.avg*100)+'%'+(st.over>.005?' ／ 磨きすぎ '+Math.floor(st.over*100)+'%':'')+'</small></span><span class="acts"><button class="b sub" onclick="G.bench('+s.id+')"'+(on?' disabled':'')+'>作業台へ</button><button class="b" '+(canSell(s)?'':'disabled ')+'onclick="G.sell('+s.id+')">'+(canSell(s)?fmt(value(s))+'G':'汚れが多い')+'</button></span></div>';});
+  if(S.stones.length)h+='<div class="row"><span></span><button class="b sub" onclick="G.sellAll()">全部売る</button></div>';
+ }else if(tab==='shop'){
+  if(S.pick<PICKS.length-1){var np=PICKS[S.pick+1];h+=item(np.n,'力 '+np.pow+'／'+LAYERS[np.layer-1].n+'まで掘れる',np.cost,'buyPick');}
+  else h+='<div class="row"><span>つるはしは最強！</span></div>';
+  h+=item('磨き布 Lv'+(S.cloth+1),'磨く速さアップ',clothCost(),'buyCloth');
+  h+=item('かばん Lv'+(S.bag+1),'容量 '+cap()+' → '+(cap()+5),bagCost(),'buyBag');
+  h+='<div class="row"><span></span><button class="b sub" onclick="G.reset()">最初から</button></div>';
+ }else if(tab==='req'){
+  if(!S.reqOn)h+='<p>ジュエリー店はまだ開店していません。もう少し稼ごう。<br>稼いだ額：'+fmt(S.earned)+' / '+UNLOCK_EARNED+'G</p>';
+  else if(!S.reqs.length)h+='<p>今は依頼がありません。しばらく待つと届きます。</p>';
+  S.reqs.forEach(function(r){
+   var ok=S.stones.filter(function(s){return qualifies(s,r);}).slice(0,4);
+   h+='<div class="row" style="align-items:flex-start"><span>'+reqText(r)+'<small>報酬 '+fmt(reqReward(r))+'G × 納める石の重さ倍率</small></span><span class="acts">'+
+    (ok.length?ok.map(function(s){return '<button class="b" onclick="G.deliver('+r.id+','+s.id+')">'+sname(s)+' → '+fmt(reqReward(r,s))+'G</button>';}).join(''):'<small>条件に合う石なし</small>')+'</span></div>';});
+ }else{
+  STONES.forEach(function(s,i){var c=S.codex[i];h+='<div class="row"><span style="color:'+(c?s.col:'#777')+'">'+(c?s.n:'？？？')+'<small>'+LAYERS[s.layer-1].n+'（'+((s.layer-1)*LD)+'〜'+(s.layer*LD)+'m）'+(c?'／ 平均 '+s.avg+'kg ／ 基本 '+fmt(s.price)+'G':'')+'</small></span><span>'+(c===2?'✨完ぺき':c?'発見':'')+'</span></div>';});
+ }
+ document.getElementById('mbody').innerHTML=h;
+}
+function buy(cost,fn){if(S.gold<cost)return;S.gold-=cost;fn();snd.buy();save();render();}
+function earn(v){S.gold+=v;S.earned+=v;checkUnlock();}
+window.G={
+ tab:function(t){tab=t;render();},close:closeMenu,
+ bench:function(id){S.bench=id;syncBench();save();render();},
+ sell:function(id){
+  var i=S.stones.findIndex(function(s){return s.id===id;});if(i<0)return;
+  if(!canSell(S.stones[i])){toast('汚れが半分以上残っていて売れない。先に洗おう');return;}
+  var v=value(S.stones[i]);earn(v);S.stones.splice(i,1);snd.coin();popText('+'+fmt(v)+'G','#ffd84a');
+  if(S.bench===id){S.bench=S.stones.length?S.stones[0].id:0;}syncBench();save();render();},
+ sellAll:function(){var tot=0,keep=[];S.stones.forEach(function(s){if(canSell(s))tot+=value(s);else keep.push(s);});
+  if(!tot){toast('洗ってから売ろう（汚れを半分以下に）');return;}
+  var n=S.stones.length-keep.length;earn(tot);S.stones=keep;if(!benchStone())S.bench=keep.length?keep[0].id:0;syncBench();if(keep.length)toast(n+'個売った。汚れが多い'+keep.length+'個は残した');snd.coin();popText('+'+fmt(tot)+'G','#ffd84a');save();render();},
+ buyPick:function(){var p=PICKS[S.pick+1];buy(p.cost,function(){S.pick++;tintPick();toast(p.n+'を手に入れた！ '+LAYERS[p.layer-1].n+'まで掘れる');});},
+ buyCloth:function(){buy(clothCost(),function(){S.cloth++;});},
+ buyBag:function(){buy(bagCost(),function(){S.bag++;});},
+ deliver:function(rid,sid){
+  var ri=S.reqs.findIndex(function(r){return r.id===rid;}),si=S.stones.findIndex(function(s){return s.id===sid;});
+  if(ri<0||si<0)return;var r=S.reqs[ri],st=S.stones[si];if(!qualifies(st,r))return;
+  var rw=reqReward(r,st);earn(rw);S.reqs.splice(ri,1);S.stones.splice(si,1);if(S.bench===sid){S.bench=S.stones.length?S.stones[0].id:0;}
+  syncBench();snd.coin();popText('依頼達成！ +'+fmt(rw)+'G','#ffd84a');reqTimer=15+Math.random()*20;save();render();},
+ reset:function(){if(confirm('最初からやり直しますか？')){localStorage.removeItem(SAVE);location.reload();}}
+};
+function hud(){
+ document.getElementById('gold').textContent='💰 '+fmt(S.gold)+'G';
+ document.getElementById('pickname').textContent='⛏ '+PICKS[S.pick].n;
+ document.getElementById('bagc').textContent='🎒 '+S.stones.length+'/'+cap();
+ document.getElementById('codexc').textContent='📚 '+Object.keys(S.codex).length+'/'+STONES.length;}
+
+// ===== メインループ =====
+var clock=new THREE.Clock(),hitT=0,saveT=0,infoT=0,_ray=new THREE.Raycaster(),_c0=new THREE.Vector2(0,0),_dir=new THREE.Vector3(),_lp=new THREE.Vector3(),_bg=new THREE.Color();
+var promptEl=document.getElementById('prompt'),infoEl=document.getElementById('polinfo');
+function loop(){
+ requestAnimationFrame(loop);
+ var dt=Math.min(clock.getDelta(),.05),T=clock.elapsedTime;
+ var play=!menuOn&&started;
+ if(play){
+  var mx=joy.x,mz=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0)+joy.y;
+  P.yaw+=((keys.KeyA||keys.ArrowLeft?1:0)-(keys.KeyD||keys.ArrowRight?1:0))*2*dt;
+  if(!touchMode&&mouseIn&&!rmb){ // 画面の端にマウスを寄せると向きが変わる
+   var ex=Math.abs(mouse.x)>.6?(Math.abs(mouse.x)-.6)/.4*Math.sign(mouse.x):0,ey=Math.abs(mouse.y)>.65?(Math.abs(mouse.y)-.65)/.35*Math.sign(mouse.y):0;
+   P.yaw-=ex*2.2*dt;P.pitch=Math.max(-1.5,Math.min(1.5,P.pitch+ey*1.6*dt));}
+  var l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l;}
+  stepPlayer(dt,mx,mz,keys.Space||jumpBtn,keys.ShiftLeft||keys.ShiftRight);
+ }
+ camera.position.set(P.x,P.y+1.6+(P.on?Math.sin(bob)*.03:0),P.z);camera.rotation.set(P.pitch,P.yaw,0);camera.updateMatrixWorld();
+ // 光（影つきの太陽。穴の中は自然に暗くなる）
+ var f=Math.max(.15,Math.min(1,1+(P.y+1)/10));
+ hemi.intensity=.4*f+.05;
+ sun.position.set(P.x+30,P.y+50,P.z+20);sun.target.position.set(P.x,P.y,P.z);
+ _bg.copy(DARK).lerp(HORIZ,f);scene.background.copy(_bg);scene.fog.color.copy(_bg);scene.fog.near=f<.5?4:35;scene.fog.far=f<.5?34:120;
+ skyM.uniforms.bot.value.copy(_bg);skyM.uniforms.top.value.copy(DARK).lerp(TOPC,f);sky.position.copy(camera.position);
+ // 狙い
+ var target='none',bi=-1,sh=null;
+ if(play){
+  
+  _ray.setFromCamera(touchMode?_c0:mouse,camera);_ray.far=4.5;_dir.copy(_ray.ray.direction);
+  sh=benchMesh?_ray.intersectObject(benchMesh)[0]:null;
+  if(sh)target='stone';
+  else{bi=voxelRay(camera.position.x,camera.position.y,camera.position.z,_dir.x,_dir.y,_dir.z,5.5);if(bi>=0)target='block';}
+  pickG.visible=target!=='stone';clothM.visible=target==='stone';
+  if(acting){
+   if(target==='stone'){
+    _lp.copy(sh.point);benchMesh.worldToLocal(_lp);
+    if(nearDirt(_lp,.6)>.05){washAt(_lp,3*dt,sh.point);clothM.material.color.setHex(0xe8d04a);}
+    else{polishAt(_lp,(1.4+.45*S.cloth)*dt);clothM.material.color.setHex(0x2f5fa0);}
+    clothM.position.x=.18+Math.sin(performance.now()*.02)*.05;
+   }else if(target==='block'){hitT-=dt;if(hitT<=0){hitT=.24;hitBlock(bi);}}
+  }else hitT=0;
+ }
+ if(target==='block'){blockCenter(bi,hl.position);hl.visible=true;}else hl.visible=false;
+ if(swing>0)swing=Math.max(0,swing-dt*5);
+ pickG.rotation.x=.2-swing;
+ if(benchMesh){benchMesh.rotation.y+=dt*(acting&&target==='stone'?.25:.4);var sh2=benchMesh.material.userData.sh;if(sh2)sh2.uniforms.uTime.value=T;}
+ for(var i=parts.length-1;i>=0;i--){var m=parts[i],u=m.userData;u.life-=dt;u.v.y-=14*dt;m.position.addScaledVector(u.v,dt);m.scale.setScalar(Math.max(.01,u.life*1.4));
+  if(u.life<=0){scene.remove(m);parts.splice(i,1);}}
+ if(S.reqOn&&S.reqs.length<3){reqTimer-=dt;if(reqTimer<=0){reqTimer=25+Math.random()*20;genReq();}}
+ infoT-=dt;
+ if(infoT<=0){infoT=.1;
+  var dep=Math.max(0,Math.floor(-P.y));
+  document.getElementById('depth').textContent='⬇ '+dep+'m（'+LAYERS[Math.min(4,Math.floor(Math.min(dep,PD-1)/LD))].n+'）';
+  var ns=play?nearStation():null;
+  if(ns){promptEl.style.display='block';promptEl.textContent='E：'+ns.n+'を開く';}
+  else if(play&&P.y<-1.5){promptEl.style.display='block';promptEl.textContent='R：地上へ戻る';}
+  else promptEl.style.display='none';
+  var st=benchStone();
+  if(st&&Math.hypot(P.x-BENCH.x,P.z-BENCH.z)<6){
+   var s=stats(st),ov=s.over>.005;
+   infoEl.style.display='block';
+   infoEl.innerHTML='<b>'+STONES[st.t].n+'</b> '+kg(st)+'（平均の×'+ratio(st).toFixed(2)+'）<br>売値 '+fmt(value(st))+'G　汚れ '+Math.floor(s.dirt*100)+'%　ツヤ '+Math.floor(s.avg*100)+'%<div class="bar"><i style="width:'+(s.avg*100)+'%;background:linear-gradient(90deg,#6ad,#fff)"></i></div>磨きすぎ '+Math.floor(s.over*100)+'%'+(ov?' ⚠':'')+'<div class="bar"><i style="width:'+Math.min(100,s.over*300)+'%;background:#e5503a"></i></div><small>汚れは先に洗う。同じ所をこすり続けると石がやせます</small>';
+  }else infoEl.style.display='none';
+ }
+ saveT+=dt;if(saveT>6){saveT=0;save();}
+ renderer.render(scene,camera);
+}
+function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+tintPick();syncBench();hud();if(S.reqOn)jew.visible=true;
+if(touchMode)document.querySelector('#start p').innerHTML='タップで開始<br>左スティックで移動、画面ドラッグで視点<br>右のボタンで掘る・磨く';
+window.__g={P:P,S:S,grid:grid,oreT:oreT,STONES:STONES,hitBlock:hitBlock,polishAt:polishAt,openMenu:openMenu,earn:earn,qualifies:qualifies,stats:stats,value:value,genReq:genReq,randW:randW,syncBench:syncBench};
+loop();
+})();
+</script>
+</body>
+</html>
