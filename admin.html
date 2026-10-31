@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>管理者ページ</title>
+<style>
+:root{--bg:#0b1020;--panel:#151d3a;--line:#2a3563;--ink:#e8ecff;--ink2:#a8b2d8;--brand:#ffd34d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 "Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;padding:16px}
+h1{font-size:20px;margin:0 0 12px}.wrap{max-width:900px;margin:0 auto}
+input,button{font:inherit}input{background:#111832;color:var(--ink);border:2px solid var(--line);padding:6px 10px;width:100%;max-width:320px}
+button{cursor:pointer;background:var(--panel);color:var(--ink);border:2px solid var(--line);padding:5px 12px}button:hover{border-color:var(--brand)}
+.warn{border-color:#ffd34d;color:#ffd34d}.ban{border-color:#ff6b6b;color:#ff6b6b}
+.card{background:var(--panel);border:1px solid var(--line);margin:0 0 12px;padding:12px 14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.id{font-family:monospace;font-size:16px;font-weight:bold}
+.badge{font-size:12px;border:1px solid var(--line);padding:0 8px;color:var(--ink2)}.badge.b{color:#ff6b6b;border-color:#ff6b6b}
+.hist{margin:8px 0 0;padding:0;list-style:none;font-size:13px;color:var(--ink2);max-height:240px;overflow:auto}
+.card.red .hist,.card.red .hist li{color:#ff5a5a}.card.red .id{color:#ff5a5a}
+.err{color:#ff6b6b}.muted{color:var(--ink2);font-size:13px}
+</style>
+</head>
+<body><div class="wrap">
+<h1>管理者ページ（プレイ履歴）</h1>
+<div id="app"><p class="muted">読み込み中…</p></div>
+</div>
+<script src="firebase-config.js"></script>
+<script type="module">
+const cfg = window.SGL_FIREBASE, app = document.getElementById('app'), V = '10.12.2', B = 'https://www.gstatic.com/firebasejs/' + V + '/';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// 警告のたびに、少しずつ強くなる文面
+const TEXTS = [
+  '学校のタブレットやパソコンで遊んでいませんか？ このサイトはゲームです。学校の端末では、遊ばないでください。',
+  '前にもお知らせしました。学校の端末で、学習に関係のないゲームを遊ぶのは、ルール違反です。今すぐやめてください。',
+  '何度もお知らせしています。このまま続けると、このサイトが使えなくなります。学校の端末では、絶対に遊ばないでください。',
+  '最終警告です。次に学校の端末で遊んでいることが分かったら、この端末はサイトを使えなくなります。',
+];
+if (!cfg) {
+  app.innerHTML = '<div class="card"><p class="err">まだ設定されていません。</p><p class="muted">SETUP-ADMIN.md の手順で Firebase を作り、firebase-config.js に設定を書いてください。</p></div>';
+} else {
+  const [A, Au, F] = await Promise.all([import(B + 'firebase-app.js'), import(B + 'firebase-auth.js'), import(B + 'firebase-firestore.js')]);
+  const fb = A.initializeApp(cfg), auth = Au.getAuth(fb), db = F.getFirestore(fb);
+  const fmt = t => t && t.toDate ? t.toDate().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
+  const GN = { top: 'トップページ', mizutsukai: 'ミズツカイ', 'usotsuki-dungeon': 'うそつきダンジョン', 'battle-blast': 'バトルブラスト', kagenuke: 'カゲヌケ', 'sodate-battle': 'ソダテバトル', 'slime-shop': 'スラバト商店', 'horror-drone': '観測者', pico: 'ピコのぼうけん', 'danmaku-rogue': '弾幕ローグ' };
+
+  function login(msg) {
+    app.innerHTML = '<div class="card"><p>管理者のログイン</p><p><input id="em" type="email" placeholder="メールアドレス" autocomplete="username"></p><p><input id="pw" type="password" placeholder="パスワード" autocomplete="current-password"></p><p><button id="go">ログイン</button></p><p class="err">' + (msg || '') + '</p></div>';
+    document.getElementById('go').onclick = () => Au.signInWithEmailAndPassword(auth, document.getElementById('em').value, document.getElementById('pw').value).catch(() => login('ログインできませんでした'));
+  }
+  async function list() {
+    app.innerHTML = '<p class="muted">読み込み中…</p>';
+    let snap;
+    try { snap = await F.getDocs(F.query(F.collection(db, 'clients'), F.orderBy('lastSeen', 'desc'), F.limit(100))); }
+    catch (e) {
+      app.innerHTML = '<div class="card"><p class="err">読み込めませんでした（管理者のUIDがルールに入っているか確認してください）</p><p><button id="lo">ログアウト</button></p></div>';
+      document.getElementById('lo').onclick = () => Au.signOut(auth); return;
+    }
+    const items = [];
+    for (const d of snap.docs) {
+      const c = d.data();
+      const ps = await F.getDocs(F.query(F.collection(db, 'clients', d.id, 'plays'), F.orderBy('t', 'desc'), F.limit(30)));
+      const hist = ps.docs.map(p => '<li>' + fmt(p.data().t) + '　' + esc(GN[p.data().game] || p.data().game) + '</li>').join('');
+      const w = c.warnings || 0;
+      items.push('<div class="card ' + (w >= 2 ? 'red' : '') + '" data-id="' + d.id + '"><div class="row"><span class="id">' + esc(d.id) + '</span>' +
+        '<span class="badge">警告 ' + w + ' 回</span>' + (c.banned ? '<span class="badge b">出禁</span>' : '') + '<span class="badge">最後: ' + fmt(c.lastSeen) + '</span></div>' +
+        '<ul class="hist">' + (hist || '<li>履歴なし</li>') + '</ul>' +
+        '<div class="row" style="margin-top:8px"><button class="warn" data-a="warn">警告する（次: ' + (w + 1) + '回目）</button>' +
+        (c.banned ? '<button data-a="unban">出禁を解除</button>' : '<button class="ban" data-a="ban">出禁にする</button>') + '</div></div>');
+    }
+    app.innerHTML = '<p class="row"><button id="rl">更新</button><button id="lo">ログアウト</button><span class="muted">' + snap.size + ' 件（最近来た順）</span></p>' +
+      (items.join('') || '<p class="muted">まだ記録がありません。</p>');
+    document.getElementById('rl').onclick = list; document.getElementById('lo').onclick = () => Au.signOut(auth);
+    app.querySelectorAll('.card[data-id]').forEach(card => card.querySelectorAll('button[data-a]').forEach(b => b.onclick = async () => {
+      const id = card.dataset.id, ref = F.doc(db, 'clients', id), a = b.dataset.a;
+      if (a === 'warn') {
+        const cur = (await F.getDoc(ref)).data(), n = (cur.warnings || 0) + 1, txt = TEXTS[Math.min(n - 1, TEXTS.length - 1)];
+        if (!confirm(id + ' に ' + n + ' 回目の警告を出します。\n\n' + txt)) return;
+        await F.updateDoc(ref, { warnings: n, warnText: txt, warnedAt: F.serverTimestamp() });
+      } else if (a === 'ban') {
+        if (!confirm(id + ' を出禁にします。')) return;
+        await F.updateDoc(ref, { banned: true });
+      } else if (a === 'unban') { await F.updateDoc(ref, { banned: false }); }
+      list();
+    }));
+  }
+  Au.onAuthStateChanged(auth, u => u ? list() : login());
+}
+</script>
+</body>
+</html>
